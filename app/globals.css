@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-museo-sans), system-ui, sans-serif;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(15, 105, 180, 0.14), transparent 28%),
+    radial-gradient(circle at 100% 0%, rgba(255, 29, 61, 0.08), transparent 24%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 44%, #edf4fc 100%);
+  color: #0b1526;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-museo-sans), system-ui, sans-serif;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, black 0%, rgba(0, 0, 0, 0.45) 45%, transparent 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+::selection {
+  background: rgba(15, 105, 180, 0.18);
+}
+
+/* ── Print styles (#34) ──────────────────────────────────────────────────── */
+@media print {
+  /* Hide navigation chrome */
+  nav,
+  aside:not([class*="acta-detail"]),
+  header,
+  footer,
+  [data-sidebar],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    min-height: unset;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  /* Ensure drawer fills the page */
+  .fixed {
+    position: static !important;
+  }
+
+  @page {
+    margin: 20mm;
+    size: A4;
+  }
+}

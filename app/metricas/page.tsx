@@ -1,0 +1,55 @@
+"use client";
+
+import { AttendanceChart } from "@/components/portal/attendance-chart";
+import { SectionCard } from "@/components/portal/section-card";
+import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
+
+export default function MetricasPage() {
+  const { snapshot } = usePortalSnapshot();
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.34em] text-ocean">Análisis</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Métricas</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Indicadores de participación y sesiones del establecimiento.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <SectionCard
+          eyebrow="Participación"
+          title="Asistencia por estamento"
+          description="Ratio calculado sobre el total de actas del establecimiento autenticado."
+        >
+          <AttendanceChart data={snapshot.attendanceByRole} />
+        </SectionCard>
+
+        <SectionCard
+          eyebrow="Territorio"
+          title="Distribución por agrupación"
+          description="Sesiones agrupadas por división territorial de programación."
+        >
+          <div className="space-y-4">
+            {snapshot.planningByComuna.length === 0 ? (
+              <p className="text-sm text-slate-400">Sin sesiones registradas aún.</p>
+            ) : (
+              snapshot.planningByComuna.map((item) => (
+                <div key={item.comuna} className="rounded-2xl bg-mist px-4 py-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="font-semibold text-ink">{item.comuna}</p>
+                    <div className="text-right">
+                      <p className="text-3xl font-semibold text-ocean">{item.total}</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">sesiones</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
