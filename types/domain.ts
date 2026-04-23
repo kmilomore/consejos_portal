@@ -39,6 +39,7 @@ export interface AttendeeSlot {
   nombre: string;
   correo: string;
   asistio: boolean;
+  modalidad?: "Presencial" | "Virtual";
 }
 
 export interface InvitedGuest {

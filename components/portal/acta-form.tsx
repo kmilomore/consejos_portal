@@ -139,7 +139,7 @@ function buildEstamentos(existing?: AttendeeSlot[]): EstamentoState[] {
       key,
       label,
       asistio: found != null ? found.asistio : null,
-      modalidad: (found as any)?.modalidad ?? null,
+      modalidad: found?.modalidad ?? null,
       nombre: found?.nombre ?? "",
       rut: "",
       correo: found?.correo ?? "",
@@ -729,7 +729,7 @@ export function ActaForm({
         nombre: sanitizeText(e.nombre),
         correo: sanitizeText(e.correo),
         asistio: e.asistio!,
-        modalidad: e.modalidad,
+        modalidad: e.modalidad ?? undefined,
       }));
 
     const savedId = await upsertActa({

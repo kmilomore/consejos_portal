@@ -122,12 +122,12 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
                           </Badge>
                         </td>
                         <td className="hidden px-4 py-3 text-center sm:table-cell">
-                          {(a as any).modalidad ? (
+                          {a.modalidad ? (
                             <span className={cn(
                               "text-xs font-semibold",
-                              (a as any).modalidad === "Presencial" ? "text-emerald-600" : "text-blue-600",
+                              a.modalidad === "Presencial" ? "text-emerald-600" : "text-blue-600",
                             )}>
-                              {(a as any).modalidad}
+                              {a.modalidad}
                             </span>
                           ) : (
                             <span className="text-slate-300">—</span>
