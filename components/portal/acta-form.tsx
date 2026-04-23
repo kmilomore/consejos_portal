@@ -746,15 +746,15 @@ export function ActaForm({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Backdrop */}
         <div
           className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
           onClick={requestClose}
         />
 
-        {/* Drawer */}
-        <aside className="relative ml-auto flex h-full w-full max-w-3xl flex-col bg-white shadow-panel">
+        {/* Modal */}
+        <aside className="relative flex w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh]">
           {/* Header */}
           <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 px-6 py-4">
             <div>

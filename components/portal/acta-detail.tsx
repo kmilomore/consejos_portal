@@ -14,15 +14,15 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
   if (!acta) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:block print:p-0">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-ink/30 backdrop-blur-sm print:hidden"
         onClick={onClose}
       />
 
-      {/* Panel */}
-      <aside className="relative ml-auto flex h-full w-full max-w-3xl flex-col bg-white shadow-panel print:fixed print:inset-0 print:max-w-full print:shadow-none">
+      {/* Modal */}
+      <aside className="relative flex w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl max-h-[90vh] print:fixed print:inset-0 print:max-w-full print:rounded-none print:shadow-none print:max-h-none">
 
         {/* Header — hidden on print */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 px-6 py-4 print:hidden">

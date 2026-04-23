@@ -114,87 +114,61 @@ export default function ActasPage() {
         )}
 
         {filteredRows.length > 0 ? (
-          <div className="grid gap-5 xl:grid-cols-2">
-            {filteredRows.map((acta) => (
-              <article key={acta.id} className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/60">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ocean">{acta.rbd}</p>
-                    <h2 className="mt-2 text-xl font-semibold text-ink">
-                      {acta.tipo_sesion} #{String(acta.sesion).padStart(2, "0")}
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-600">
-                      {formatDate(acta.fecha)} · {acta.hora_inicio} a {acta.hora_termino}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Badge tone="success">{acta.formato}</Badge>
-                    {/* Ver detalle — #29 */}
-                    <button
-                      type="button"
-                      onClick={() => setViewActa(acta)}
-                      className="rounded-full px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50"
-                    >
-                      Ver
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEdit(acta)}
-                      className="rounded-full px-3 py-1 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
-                    >
-                      Editar
-                    </button>
-                    {/* Eliminar — #38 */}
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(acta)}
-                      className="rounded-full px-3 py-1 text-xs font-semibold text-ember ring-1 ring-ember/30 transition hover:bg-ember/5"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-4 text-sm leading-6 text-slate-600">
-                  <p><span className="font-semibold text-ink">Lugar:</span> {acta.lugar}, {acta.comuna}</p>
-                  <p><span className="font-semibold text-ink">Temas:</span> {acta.tabla_temas}</p>
-                  <p><span className="font-semibold text-ink">Acuerdos:</span> {acta.acuerdos}</p>
-                </div>
-
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl bg-mist p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Asistencia oficial</p>
-                    {acta.asistentes.length > 0 ? (
-                      <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                        {acta.asistentes.map((asistente) => (
-                          <li key={`${acta.id}-${asistente.rol}-${asistente.nombre}`} className="flex items-center justify-between gap-4">
-                            <span>{asistente.rol}</span>
-                            <Badge tone={asistente.asistio ? "success" : "warn"}>{asistente.asistio ? "Asistió" : "Ausente"}</Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-3 text-sm text-slate-600">Sin asistentes registrados.</p>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl bg-mist p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Invitados</p>
-                    {acta.invitados.length > 0 ? (
-                      <ul className="mt-3 space-y-2 text-sm text-slate-600">
-                        {acta.invitados.map((invitado) => (
-                          <li key={invitado.id}>
-                            <span className="font-medium text-ink">{invitado.nombre}</span> · {invitado.cargo}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-3 text-sm text-slate-600">Sin invitados registrados.</p>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ))}
+          <div className="overflow-hidden rounded-2xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Sesión</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">RBD</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Fecha</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">Horario</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Formato</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Lugar</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredRows.map((acta) => (
+                  <tr
+                    key={acta.id}
+                    onClick={() => setViewActa(acta)}
+                    className="cursor-pointer transition-colors hover:bg-mist/60"
+                  >
+                    <td className="px-4 py-3.5">
+                      <p className="font-semibold text-ink">{acta.tipo_sesion} #{String(acta.sesion).padStart(2, "0")}</p>
+                    </td>
+                    <td className="px-4 py-3.5 font-mono text-xs font-semibold text-ocean">{acta.rbd}</td>
+                    <td className="px-4 py-3.5 text-slate-600">{formatDate(acta.fecha)}</td>
+                    <td className="hidden px-4 py-3.5 text-slate-500 md:table-cell">{acta.hora_inicio} – {acta.hora_termino}</td>
+                    <td className="hidden px-4 py-3.5 lg:table-cell">
+                      <Badge tone="success">{acta.formato}</Badge>
+                    </td>
+                    <td className="hidden px-4 py-3.5 text-slate-600 lg:table-cell">{acta.lugar}{acta.lugar && acta.comuna ? ", " : ""}{acta.comuna}</td>
+                    <td className="px-4 py-3.5">
+                      <div
+                        className="flex items-center justify-end gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => openEdit(acta)}
+                          className="rounded-full px-3 py-1 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(acta)}
+                          className="rounded-full px-3 py-1 text-xs font-semibold text-ember ring-1 ring-ember/30 transition hover:bg-ember/5"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : rows.length === 0 ? (
           <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
