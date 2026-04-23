@@ -2,7 +2,7 @@
 
 import { X, ExternalLink, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { Acta } from "@/types/domain";
 
 interface ActaDetailProps {
@@ -31,7 +31,7 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
               {acta.rbd}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-ink">
-              {acta.tipo_sesion} #{String(acta.sesion).padStart(2, "0")}
+              Consejo Escolar {acta.tipo_sesion} N° {String(acta.sesion).padStart(2, "0")}
             </h2>
           </div>
           <div className="flex items-center gap-3">
@@ -60,7 +60,7 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
             SLEP Colchagua — Consejo Escolar
           </p>
           <h1 className="mt-1 text-2xl font-bold text-ink">
-            Acta {acta.tipo_sesion} N°{String(acta.sesion).padStart(2, "0")}
+            Consejo Escolar {acta.tipo_sesion} N°{String(acta.sesion).padStart(2, "0")}
           </h1>
           <p className="mt-0.5 text-sm text-slate-500">
             {acta.rbd} · {acta.lugar}, {acta.comuna}
@@ -102,6 +102,9 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
                     <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                       Asistió
                     </th>
+                    <th className="hidden px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 sm:table-cell">
+                      Modalidad
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -118,12 +121,24 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
                             {a.asistio ? "Sí" : "No"}
                           </Badge>
                         </td>
+                        <td className="hidden px-4 py-3 text-center sm:table-cell">
+                          {(a as any).modalidad ? (
+                            <span className={cn(
+                              "text-xs font-semibold",
+                              (a as any).modalidad === "Presencial" ? "text-emerald-600" : "text-blue-600",
+                            )}>
+                              {(a as any).modalidad}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-4 py-5 text-center text-sm text-slate-400"
                       >
                         Sin asistentes registrados.

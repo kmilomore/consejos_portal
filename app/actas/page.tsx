@@ -135,7 +135,8 @@ export default function ActasPage() {
                     className="cursor-pointer transition-colors hover:bg-mist/60"
                   >
                     <td className="px-4 py-3.5">
-                      <p className="font-semibold text-ink">{acta.tipo_sesion} #{String(acta.sesion).padStart(2, "0")}</p>
+                      <p className="font-semibold text-ink">Consejo Escolar {acta.tipo_sesion}</p>
+                      <p className="text-xs text-slate-500">N° {String(acta.sesion).padStart(2, "0")}</p>
                     </td>
                     <td className="px-4 py-3.5 font-mono text-xs font-semibold text-ocean">{acta.rbd}</td>
                     <td className="px-4 py-3.5 text-slate-600">{formatDate(acta.fecha)}</td>

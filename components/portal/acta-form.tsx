@@ -77,6 +77,7 @@ interface EstamentoState {
   key: string;
   label: string;
   asistio: boolean | null;
+  modalidad: "Presencial" | "Virtual" | null;
   nombre: string;
   rut: string;
   correo: string;
@@ -138,6 +139,7 @@ function buildEstamentos(existing?: AttendeeSlot[]): EstamentoState[] {
       key,
       label,
       asistio: found != null ? found.asistio : null,
+      modalidad: (found as any)?.modalidad ?? null,
       nombre: found?.nombre ?? "",
       rut: "",
       correo: found?.correo ?? "",
@@ -223,7 +225,7 @@ function isFormDirty(a: FormState, b: FormState): boolean {
   for (let i = 0; i < a.estamentos.length; i++) {
     const ea = a.estamentos[i];
     const eb = b.estamentos[i];
-    if (ea.asistio !== eb.asistio || ea.nombre !== eb.nombre || ea.correo !== eb.correo) return true;
+    if (ea.asistio !== eb.asistio || ea.modalidad !== eb.modalidad || ea.nombre !== eb.nombre || ea.correo !== eb.correo) return true;
   }
   // Check guests
   if (a.guests.length !== b.guests.length) return true;
@@ -309,14 +311,14 @@ interface EstamentoCardProps {
 
 function EstamentoCard({ state, onChange }: EstamentoCardProps) {
   const radioName = `asistio-${state.key}`;
-  const showRut = state.key === "Apoderado";
+  const modalidadName = `modalidad-${state.key}`;
 
   function set<K extends keyof EstamentoState>(k: K, v: EstamentoState[K]) {
     onChange({ ...state, [k]: v });
   }
 
   function handleAsistioChange(value: boolean) {
-    onChange({ ...state, asistio: value, expanded: true });
+    onChange({ ...state, asistio: value, expanded: true, modalidad: value ? state.modalidad : null });
   }
 
   const dotColor =
@@ -337,11 +339,19 @@ function EstamentoCard({ state, onChange }: EstamentoCardProps) {
           <span className={cn("h-2 w-2 rounded-full", dotColor)} />
           <span className="text-sm font-semibold text-ink">{state.label}</span>
         </div>
-        {state.expanded ? (
-          <ChevronUp className="h-4 w-4 text-slate-400" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-slate-400" />
-        )}
+        <div className="flex items-center gap-3">
+          {state.asistio === true && state.modalidad && (
+            <span className="text-xs font-semibold text-emerald-600">{state.modalidad}</span>
+          )}
+          {state.asistio === false && (
+            <span className="text-xs font-semibold text-amber-600">No asistió</span>
+          )}
+          {state.expanded ? (
+            <ChevronUp className="h-4 w-4 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-slate-400" />
+          )}
+        </div>
       </button>
 
       {state.expanded && (
@@ -373,19 +383,62 @@ function EstamentoCard({ state, onChange }: EstamentoCardProps) {
             </div>
           </div>
 
-          {/* Personal data — only shown when attended */}
+          {/* No asistió — confirmación visual */}
+          {state.asistio === false && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              Este representante <span className="font-semibold">no asistió</span> a la sesión.
+            </div>
+          )}
+
+          {/* Sí asistió — modalidad y datos personales */}
           {state.asistio === true && (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <>
               <div>
-                <FormLabel required>Nombre completo</FormLabel>
-                <FormInput
-                  value={state.nombre}
-                  onChange={(e) => set("nombre", e.target.value)}
-                  placeholder="Nombre y apellido"
-                />
+                <FormLabel required>Modalidad de asistencia</FormLabel>
+                <div className="mt-2 flex gap-5">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name={modalidadName}
+                      className="accent-ocean"
+                      checked={state.modalidad === "Presencial"}
+                      onChange={() => set("modalidad", "Presencial")}
+                    />
+                    <span>Presencial</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name={modalidadName}
+                      className="accent-ocean"
+                      checked={state.modalidad === "Virtual"}
+                      onChange={() => set("modalidad", "Virtual")}
+                    />
+                    <span>Virtual</span>
+                  </label>
+                </div>
+                {state.modalidad && (
+                  <p className={cn(
+                    "mt-2 text-xs font-semibold",
+                    state.modalidad === "Presencial" ? "text-emerald-600" : "text-blue-600",
+                  )}>
+                    {state.modalidad === "Presencial"
+                      ? "Asistió de forma presencial"
+                      : "Asistió de forma virtual"}
+                  </p>
+                )}
               </div>
 
-              {showRut && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <FormLabel required>Nombre completo</FormLabel>
+                  <FormInput
+                    value={state.nombre}
+                    onChange={(e) => set("nombre", e.target.value)}
+                    placeholder="Nombre y apellido"
+                  />
+                </div>
+
                 <div>
                   <FormLabel>RUT</FormLabel>
                   <FormInput
@@ -401,18 +454,18 @@ function EstamentoCard({ state, onChange }: EstamentoCardProps) {
                     <p className="mt-1 text-xs text-ember">RUT inválido</p>
                   )}
                 </div>
-              )}
 
-              <div className={cn(!showRut && "sm:col-span-2")}>
-                <FormLabel>Correo electrónico</FormLabel>
-                <FormInput
-                  type="email"
-                  value={state.correo}
-                  onChange={(e) => set("correo", e.target.value)}
-                  placeholder="correo@ejemplo.cl"
-                />
+                <div className="sm:col-span-2">
+                  <FormLabel>Correo electrónico</FormLabel>
+                  <FormInput
+                    type="email"
+                    value={state.correo}
+                    onChange={(e) => set("correo", e.target.value)}
+                    placeholder="correo@ejemplo.cl"
+                  />
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       )}
@@ -676,6 +729,7 @@ export function ActaForm({
         nombre: sanitizeText(e.nombre),
         correo: sanitizeText(e.correo),
         asistio: e.asistio!,
+        modalidad: e.modalidad,
       }));
 
     const savedId = await upsertActa({
@@ -762,7 +816,9 @@ export function ActaForm({
                 {form.id ? "Editar acta" : "Nueva acta"}
               </p>
               <h2 className="mt-1 text-lg font-semibold text-ink">
-                {form.nombre_establecimiento || "Consejo Escolar"}
+                {form.sesion
+                  ? `Consejo Escolar ${form.tipo_sesion} N° ${String(form.sesion).padStart(2, "0")}`
+                  : "Consejo Escolar"}
               </h2>
             </div>
             <button
@@ -796,7 +852,7 @@ export function ActaForm({
                     </option>
                     {slepData.map((e) => (
                       <option key={e.rbd ?? ""} value={e.rbd ?? ""}>
-                        {e.nombre_establecimiento} ({e.rbd})
+                        {e.nombre_establecimiento}
                       </option>
                     ))}
                   </FormSelect>
@@ -809,6 +865,10 @@ export function ActaForm({
                 <div>
                   <FormLabel>RBD</FormLabel>
                   <FormInput value={form.rbd} disabled />
+                </div>
+                <div>
+                  <FormLabel>Nombre del establecimiento</FormLabel>
+                  <FormInput value={form.nombre_establecimiento} disabled />
                 </div>
                 <div>
                   <FormLabel>Comuna</FormLabel>
