@@ -193,7 +193,7 @@ export default function ActasPage() {
       />
 
       {/* Detail view — #29 #34 */}
-      <ActaDetail acta={viewActa} onClose={() => setViewActa(null)} />
+      <ActaDetail acta={viewActa} onClose={() => setViewActa(null)} establishments={snapshot.establishments} />
 
       {/* Delete confirmation — #38 */}
       <ConfirmDialog

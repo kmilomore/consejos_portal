@@ -3,15 +3,17 @@
 import { X, ExternalLink, Printer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatDate } from "@/lib/utils";
-import type { Acta } from "@/types/domain";
+import type { Acta, Establishment } from "@/types/domain";
 
 interface ActaDetailProps {
   acta: Acta | null;
   onClose: () => void;
+  establishments?: Establishment[];
 }
 
-export function ActaDetail({ acta, onClose }: ActaDetailProps) {
+export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailProps) {
   if (!acta) return null;
+  const escuela = establishments.find((e) => e.rbd === acta.rbd);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:block print:p-0">
@@ -74,6 +76,8 @@ export function ActaDetail({ acta, onClose }: ActaDetailProps) {
           <section>
             <SectionLabel>Información de la sesión</SectionLabel>
             <div className="grid gap-3 rounded-2xl bg-mist p-4 text-sm sm:grid-cols-2 print:rounded-none print:bg-transparent print:p-0 print:border print:border-slate-200 print:rounded-xl print:p-4">
+              <Row label="RBD" value={acta.rbd} />
+              <Row label="Establecimiento" value={escuela?.nombre ?? "—"} />
               <Row label="Fecha" value={formatDate(acta.fecha)} />
               <Row label="Horario" value={`${acta.hora_inicio} – ${acta.hora_termino}`} />
               <Row label="Formato" value={acta.formato} />

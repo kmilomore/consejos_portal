@@ -48,15 +48,19 @@ function normalizeAsistentes(value: unknown): AttendeeSlot[] {
     }
 
     const rol = typeof item.rol === "string" ? item.rol : null;
-    const nombre = typeof item.nombre === "string" ? item.nombre : null;
-    const correo = typeof item.correo === "string" ? item.correo : null;
+    const nombre = typeof item.nombre === "string" ? item.nombre : "";
+    const correo = typeof item.correo === "string" ? item.correo : "";
     const asistio = typeof item.asistio === "boolean" ? item.asistio : false;
+    const modalidad =
+      item.modalidad === "Presencial" || item.modalidad === "Virtual"
+        ? item.modalidad
+        : undefined;
 
-    if (!rol || !nombre || !correo) {
+    if (!rol) {
       return [];
     }
 
-    return [{ rol, nombre, correo, asistio }];
+    return [{ rol, nombre, correo, asistio, modalidad }];
   });
 }
 
@@ -273,13 +277,14 @@ export async function uploadActaPdf(
   if (!supabase) return null;
 
   const year = new Date().getFullYear();
-  const safePath = `${rbd.replace(/\//g, "-")}/${year}/${actaId}.pdf`;
+  const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "pdf";
+  const safePath = `${rbd.replace(/\//g, "-")}/${year}/${actaId}.${ext}`;
 
   onProgress?.(50);
 
   const { error } = await supabase.storage
     .from("actas")
-    .upload(safePath, file, { upsert: true, contentType: "application/pdf" });
+    .upload(safePath, file, { upsert: true, contentType: file.type || "application/octet-stream" });
 
   if (error) {
     console.error("uploadActaPdf:", error.message);
@@ -290,6 +295,19 @@ export async function uploadActaPdf(
   onProgress?.(100);
   const { data } = supabase.storage.from("actas").getPublicUrl(safePath);
   return data.publicUrl;
+}
+
+/**
+ * Updates only the link_acta field of an existing acta after a successful document upload.
+ */
+export async function updateActaLink(actaId: string, url: string): Promise<void> {
+  const supabase = createClient();
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("actas")
+    .update({ link_acta: url })
+    .eq("id", actaId);
+  if (error) console.error("updateActaLink:", error.message);
 }
 
 /**

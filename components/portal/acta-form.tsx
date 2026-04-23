@@ -39,6 +39,14 @@ const ESTAMENTOS = [
 const SESSION_FORMATS: SessionFormat[] = ["Presencial", "Online", "Híbrido"];
 const QUORUM_MIN = 4;
 const DRAFT_KEY = "acta-draft-new";
+const ALLOWED_DOC_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
 // Minimum ms between consecutive saves (client-side rate limit) — #4
 const SAVE_COOLDOWN_MS = 3000;
 
@@ -666,7 +674,7 @@ export function ActaForm({
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file?.type === "application/pdf") {
+    if (file && ALLOWED_DOC_TYPES.includes(file.type)) {
       pendingFile.current = file;
       setUploadStatus("idle");
     }
@@ -717,7 +725,7 @@ export function ActaForm({
     setSubmitting(true);
     setSaveError(null);
 
-    const { upsertActa, replaceActaInvitados, uploadActaPdf } = await import(
+    const { upsertActa, replaceActaInvitados, uploadActaPdf, updateActaLink } = await import(
       "@/lib/supabase/queries"
     );
 
@@ -774,6 +782,7 @@ export function ActaForm({
         (p) => setUploadProgress(p),
       );
       setUploadStatus(url ? "done" : "error");
+      if (url) await updateActaLink(savedId, url);
     }
 
     // #4 — Record last save timestamp
@@ -1165,7 +1174,7 @@ export function ActaForm({
 
             {/* ── 5. Evidencia documental PDF ──────────────────────────────── */}
             <section>
-              <SectionHeader>Evidencia documental (PDF)</SectionHeader>
+              <SectionHeader>Evidencia documental</SectionHeader>
 
               {form.link_acta ? (
                 /* Existing document */
@@ -1230,10 +1239,10 @@ export function ActaForm({
                       <p className="text-sm font-semibold text-ink">
                         {pendingFile.current
                           ? pendingFile.current.name
-                          : "Arrastra el PDF aquí o haz clic para seleccionar"}
+                          : "Arrastra el documento aquí o haz clic para seleccionar"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Solo archivos PDF · máximo 10 MB
+                        PDF, imágenes (JPG, PNG) o Word · máximo 10 MB
                       </p>
                     </div>
                   </div>
@@ -1241,7 +1250,7 @@ export function ActaForm({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="application/pdf"
+                    accept="application/pdf,image/jpeg,image/png,image/webp,.doc,.docx"
                     className="hidden"
                     onChange={handleFileInput}
                   />
