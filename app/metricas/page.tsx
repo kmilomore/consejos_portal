@@ -5,7 +5,19 @@ import { SectionCard } from "@/components/portal/section-card";
 import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
 
 export default function MetricasPage() {
-  const { snapshot } = usePortalSnapshot();
+  const { snapshot, status } = usePortalSnapshot();
+
+  if (status === "loading") {
+    return (
+      <div className="space-y-6">
+        <div className="skeleton-shimmer h-20 rounded-[28px]" />
+        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="skeleton-shimmer h-[320px] rounded-[28px]" />
+          <div className="skeleton-shimmer h-[320px] rounded-[28px]" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -36,7 +48,7 @@ export default function MetricasPage() {
               <p className="text-sm text-slate-400">Sin sesiones registradas aún.</p>
             ) : (
               snapshot.planningByComuna.map((item) => (
-                <div key={item.comuna} className="rounded-2xl bg-mist px-4 py-4">
+                <div key={item.comuna} className="rounded-2xl bg-mist px-4 py-4 transition-transform duration-200 hover:-translate-y-0.5">
                   <div className="flex items-center justify-between gap-4">
                     <p className="font-semibold text-ink">{item.comuna}</p>
                     <div className="text-right">

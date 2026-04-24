@@ -75,3 +75,33 @@ body::before {
     size: A4;
   }
 }
+
+@keyframes panel-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panel-reveal {
+  animation: panel-fade-up 320ms ease-out;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.65) 25%, rgba(241, 245, 249, 0.95) 50%, rgba(226, 232, 240, 0.65) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

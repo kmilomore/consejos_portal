@@ -10,7 +10,7 @@ import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
 import { cn } from "@/lib/utils";
 
 export default function SummaryPage() {
-  const { snapshot } = usePortalSnapshot();
+  const { snapshot, status } = usePortalSnapshot();
   const { establishment, profile, selectedRbd } = usePortalAuth();
   const isAdmin = profile?.rol === "ADMIN";
   const { data: slepSchools } = useSlepDirectorio();
@@ -34,10 +34,32 @@ export default function SummaryPage() {
     );
   }
 
+  if (status === "loading") {
+    return (
+      <div className="space-y-6">
+        <section className="rounded-[32px] border border-slate-200/80 bg-white/80 p-8 shadow-sm">
+          <div className="space-y-4">
+            <div className="skeleton-shimmer h-3 w-28 rounded-full" />
+            <div className="skeleton-shimmer h-11 max-w-2xl rounded-2xl" />
+            <div className="skeleton-shimmer h-5 w-56 rounded-full" />
+            <div className="flex gap-3 pt-2">
+              <div className="skeleton-shimmer h-10 w-36 rounded-full" />
+              <div className="skeleton-shimmer h-10 w-24 rounded-full" />
+            </div>
+          </div>
+        </section>
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="skeleton-shimmer h-[320px] rounded-[28px]" />
+          <div className="skeleton-shimmer h-[320px] rounded-[28px]" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <section className="overflow-hidden rounded-[32px] bg-hero-grid p-8">
+      <section className="panel-reveal overflow-hidden rounded-[32px] bg-hero-grid p-8">
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-ocean">Consejo Escolar</p>
           <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink lg:text-5xl">{schoolName}</h1>
@@ -88,7 +110,7 @@ export default function SummaryPage() {
               <p className="text-sm text-slate-400">Sin sesiones registradas aún.</p>
             ) : (
               snapshot.planningByComuna.map((item) => (
-                <div key={item.comuna} className="flex items-center justify-between rounded-2xl bg-mist px-4 py-3">
+                <div key={item.comuna} className="flex items-center justify-between rounded-2xl bg-mist px-4 py-3 transition-transform duration-200 hover:-translate-y-0.5">
                   <p className="font-semibold text-ink">{item.comuna}</p>
                   <p className="text-2xl font-semibold text-ocean">{item.total}</p>
                 </div>

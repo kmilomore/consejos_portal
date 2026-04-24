@@ -32,6 +32,8 @@ Experiencia principal:
 - Acceso por representante de consejo escolar usando `CORREO REPRESENTANTE`
 - Alcance por RBD para representantes: ven solo escuelas asociadas a su correo
 - Acceso global adicional para correos presentes en `admin_user_roles`
+- Shell principal adaptado a ancho completo de pantalla y navegación con logo institucional `SLEPCOLCHAGUA.webp`
+- Rediseño parcial del shell y módulos compartidos para mejorar jerarquía, tablas, botones, carga y lectura operativa
 - `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar
 - Módulo de actas completo:
   - Crear, editar, ver (solo lectura) y eliminar actas
@@ -336,6 +338,98 @@ El cambio nuevo mantiene el patrón correcto para evitar recursión infinita:
 Salvedad operativa:
 - esto asume el comportamiento estándar de Supabase sin `FORCE ROW LEVEL SECURITY` sobre las tablas involucradas
 
+### Avance 6 — Ajuste visual del shell principal
+
+Se actualizó la estructura visual del portal autenticado para aprovechar mejor el ancho de pantalla:
+- se eliminó el tope `max-width` del shell principal
+- se amplió la barra lateral en escritorio para mejorar lectura y jerarquía
+- el contenido principal ahora tiene mejor expansión horizontal y `min-w-0` para evitar cortes indeseados
+- la marca textual del menú fue reemplazada por el logo institucional `public/SLEPCOLCHAGUA.webp`
+
+Resultado esperado:
+- mejor uso de pantallas grandes
+- navegación lateral más institucional
+- mayor sensación de producto terminado y menos de layout encajonado
+
+### Avance 7 — Mejoras UI/UX implementadas (selección de propuestas)
+
+Se implementó un segundo pase visual sobre shell, componentes base y páginas principales para cubrir estas propuestas seleccionadas:
+- `1` encabezado superior contextual dentro del panel principal
+- `2` barra lateral con mayor jerarquía visual
+- `3` escuela activa destacada con mejor tarjeta contextual
+- `6` mejor reparto de ancho y lectura en contenedores principales
+- `7` unificación de radios, sombras y densidad visual en cards y bloques
+- `14` skeleton loaders en vistas clave
+- `16` tablas con cabecera sticky y zebra suave
+- `18` jerarquía visual reforzada en botones
+- `20` microanimaciones discretas de entrada y hover
+- `23` vista enfocada para secciones operativas de tabla
+
+Archivos intervenidos en este pase:
+- `components/portal/shell.tsx`
+- `components/portal/section-card.tsx`
+- `components/portal/session-table.tsx`
+- `components/portal/attendance-chart.tsx`
+- `components/ui/button.tsx`
+- `app/globals.css`
+- `app/resumen/page.tsx`
+- `app/programacion/page.tsx`
+- `app/metricas/page.tsx`
+- `app/admin/page.tsx`
+
+Trabajo realizado por archivo:
+
+`components/portal/shell.tsx`
+- se agregó un header contextual superior en el contenido principal
+- se reforzó la jerarquía de la barra lateral
+- se mejoró el estado activo de navegación con acento lateral y señal visual más fuerte
+- se enriqueció la tarjeta de contexto del establecimiento activo
+
+`components/portal/section-card.tsx`
+- se unificó el patrón de card compartida
+- se mejoró encabezado interno, separación visual y sombra
+
+`components/portal/session-table.tsx`
+- se mejoró la tabla con zebra suave
+- se dejó la cabecera preparada como sticky
+- se reforzó la lectura de estados y densidad operativa
+
+`components/portal/attendance-chart.tsx`
+- se agregó estado vacío más profesional
+- se mejoró la presentación visual de cada barra y su transición
+
+`components/ui/button.tsx`
+- se elevó la diferencia entre botón primario, secundario y ghost
+- se agregaron mejores estados hover y focus
+
+`app/globals.css`
+- se añadieron animaciones suaves (`panel-reveal`)
+- se añadió utilidad de skeleton (`skeleton-shimmer`)
+
+`app/resumen/page.tsx`
+- se agregó skeleton de carga
+- se mejoró la presencia visual del hero y tarjetas derivadas
+
+`app/programacion/page.tsx`
+- se agregó skeleton de carga
+- se incorporó una banda de “vista enfocada” para reducir ruido alrededor de la tabla
+- se encapsuló la tabla en un contenedor operativo con scroll vertical
+
+`app/metricas/page.tsx`
+- se agregó skeleton de carga
+- se mejoró la respuesta visual de cards territoriales
+
+`app/admin/page.tsx`
+- se agregó skeleton de carga para KPI, gráfico y directorio
+- se mejoró el comportamiento del directorio con scroll vertical y cabecera sticky
+
+Resultado esperado de esta iteración:
+- navegación más clara y profesional
+- mejor lectura en monitores grandes
+- mejor transición percibida durante carga y navegación
+- tablas más utilizables en operación diaria
+- sistema visual más consistente entre módulos
+
 ---
 
 ## 9. Riesgos y Observaciones Actuales
@@ -345,6 +439,7 @@ Salvedad operativa:
 - El rol persistido para representantes es `ADMIN`, pero la seguridad real ya no depende solo del rol sino de `has_school_scope_access(...)`.
 - `usuarios_perfiles` sigue permitiendo lectura completa solo a admins globales; el representante solo puede leer su propio perfil.
 - `admin_user_roles` no está definido en este repo; la migración quedó defensiva y solo lo consulta si la tabla existe en la base real.
+- El shell principal ya no depende de un ancho máximo fijo; futuras vistas deben respetar esa expansión y evitar wrappers internos demasiado angostos.
 
 ---
 

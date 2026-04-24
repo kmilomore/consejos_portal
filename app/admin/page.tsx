@@ -146,8 +146,15 @@ export default function AdminPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm text-slate-500">Cargando directorio SLEP…</p>
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="skeleton-shimmer h-32 rounded-[24px]" />
+          <div className="skeleton-shimmer h-32 rounded-[24px]" />
+          <div className="skeleton-shimmer h-32 rounded-[24px]" />
+          <div className="skeleton-shimmer h-32 rounded-[24px]" />
+        </div>
+        <div className="skeleton-shimmer h-[240px] rounded-[28px]" />
+        <div className="skeleton-shimmer h-[420px] rounded-[28px]" />
       </div>
     );
   }
@@ -177,7 +184,7 @@ export default function AdminPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4 xl:grid-cols-2">
         <KpiCard
           label="Establecimientos"
           value={metrics.total}
@@ -274,17 +281,17 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="max-h-[66vh] overflow-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="py-3 pl-4 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 lg:pl-6">RBD</th>
-                <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Nombre</th>
-                <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Comuna</th>
-                <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Territorio</th>
-                <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Director/a</th>
-                <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Representante CE</th>
-                <th className="py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 lg:pr-6">Asesor UATP</th>
+              <tr className="border-b border-slate-100 bg-slate-50/85">
+                <th className="sticky top-0 py-3 pl-4 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 lg:pl-6">RBD</th>
+                <th className="sticky top-0 py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Nombre</th>
+                <th className="sticky top-0 py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Comuna</th>
+                <th className="sticky top-0 py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Territorio</th>
+                <th className="sticky top-0 py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Director/a</th>
+                <th className="sticky top-0 py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Representante CE</th>
+                <th className="sticky top-0 py-3 pr-4 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 lg:pr-6">Asesor UATP</th>
               </tr>
             </thead>
             <tbody>

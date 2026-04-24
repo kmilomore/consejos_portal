@@ -1,13 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import React, { type PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowRight,
   CalendarRange,
   ChevronDown,
   ChevronUp,
   FileText,
+  MapPin,
   LayoutDashboard,
   LayoutGrid,
   LockKeyhole,
@@ -193,6 +196,59 @@ function SchoolSelector({
   );
 }
 
+function PortalHeader({
+  title,
+  subtitle,
+  activeRbd,
+  activeComuna,
+  isAdmin,
+  selectedRbd,
+}: {
+  title: string;
+  subtitle: string;
+  activeRbd: string | null | undefined;
+  activeComuna: string | null | undefined;
+  isAdmin: boolean;
+  selectedRbd: string | null;
+}) {
+  return (
+    <div className="mb-6 overflow-hidden rounded-[30px] border border-slate-200/80 bg-hero-grid px-5 py-5 shadow-sm lg:px-6 lg:py-6">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-ocean">Portal Consejos</p>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink lg:text-3xl">{title}</h1>
+            <p className="mt-1 max-w-3xl text-sm text-slate-600">{subtitle}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[440px]">
+          <div className="rounded-[24px] border border-white/80 bg-white/80 px-4 py-4 backdrop-blur-sm">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Contexto activo</p>
+            <p className="mt-2 text-sm font-semibold text-ink">{activeRbd ? `RBD ${activeRbd}` : "Panel general"}</p>
+            <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+              <MapPin className="h-3.5 w-3.5 text-slate-400" />
+              {activeComuna || "Cobertura completa"}
+            </p>
+          </div>
+
+          <div className="rounded-[24px] border border-white/80 bg-white/80 px-4 py-4 backdrop-blur-sm">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Vista actual</p>
+            <p className="mt-2 text-sm font-semibold text-ink">
+              {isAdmin && !selectedRbd ? "Administración territorial" : "Seguimiento por establecimiento"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {isAdmin && !selectedRbd
+                ? "Acceso agregado a todas las escuelas disponibles."
+                : "Datos operativos, asistencia y sesiones del establecimiento seleccionado."}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Shell ──────────────────────────────────────────────────────────────────
 interface PortalShellProps extends PropsWithChildren {
   profile: Profile;
@@ -219,15 +275,36 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
   const displayName = profile.nombre_director ?? user?.email ?? profile.correo_electronico ?? "";
   const displayEmail = user?.email ?? profile.correo_electronico ?? "";
   const initial = displayEmail.charAt(0).toUpperCase();
+  const pageTitle = isAdmin && !selectedRbd ? "Panel territorial" : activeDisplayName;
+  const pageSubtitle = isAdmin && !selectedRbd
+    ? "Monitorea disponibilidad, navegación y operación del portal por establecimiento con una vista centralizada."
+    : "Accede al resumen ejecutivo, programación, actas y métricas del establecimiento activo desde un solo flujo.";
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col gap-4 px-4 py-4 lg:flex-row lg:px-6">
+    <div className="flex min-h-screen w-full flex-col gap-4 px-3 py-3 lg:flex-row lg:px-4 lg:py-4 2xl:px-6">
       {/* ── Sidebar ── */}
-      <aside className="flex w-full flex-col rounded-[30px] border border-white/70 bg-white/78 shadow-panel backdrop-blur lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[300px]">
+      <aside className="flex w-full flex-col rounded-[30px] border border-white/70 bg-white/82 shadow-panel backdrop-blur lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[320px] xl:w-[336px]">
         {/* Brand */}
         <div className="px-5 pt-5 lg:px-6 lg:pt-6">
-          <p className="text-[10px] font-bold uppercase tracking-[0.36em] text-ocean">Consejos Escolares</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">SLEP Colchagua</p>
+          <Link href={isAdmin ? "/admin" : "/resumen"} className="block rounded-[22px] border border-slate-200/70 bg-white px-4 py-4 transition hover:border-slate-300 hover:shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80">
+                <Image
+                  src="/SLEPCOLCHAGUA.webp"
+                  alt="SLEP Colchagua"
+                  width={44}
+                  height={44}
+                  className="h-11 w-11 object-contain"
+                  priority
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.34em] text-ocean">Consejos Escolares</p>
+                <p className="mt-1 truncate text-sm font-semibold text-ink">SLEP Colchagua</p>
+                <p className="mt-0.5 text-[11px] text-slate-400">Portal de gestión y seguimiento</p>
+              </div>
+            </div>
+          </Link>
         </div>
 
         {/* Identity / school info */}
@@ -238,24 +315,29 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
               onSelect={setSelectedRbd}
             />
           ) : (
-            <div className="flex items-center gap-3 rounded-[18px] border border-slate-100 bg-slate-50/60 px-4 py-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-ocean/10 text-ocean">
+            <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ocean/10 text-ocean">
                 <School2 className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Escuela activa</p>
+                  <p className="truncate text-sm font-semibold text-ink">{activeDisplayName}</p>
+                  <p className="text-[11px] text-slate-400">{activeRbd ? `RBD ${activeRbd}` : "Sin RBD"} · {activeComuna}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink">
-                  {activeDisplayName}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  {activeRbd ? `RBD ${activeRbd}` : "Sin RBD"} · {activeComuna}
-                </p>
+              <div className="mt-3 rounded-2xl bg-white/80 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200/80">
+                Vista enfocada para trabajo operativo del establecimiento.
               </div>
             </div>
           )}
         </div>
 
         {/* Nav */}
-        <nav className="mt-5 space-y-0.5 px-3 lg:px-4">
+        <div className="mt-5 px-5 lg:px-6">
+          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-2.5">
+            <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Navegación</p>
+            <nav className="space-y-1">
           {navigation.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
             return (
@@ -263,18 +345,25 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
                 key={href}
                 href={href}
                 className={cn(
-                  "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all",
+                  "group flex items-center gap-3 rounded-[18px] px-3 py-3 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ocean/25",
                   isActive
-                    ? "bg-ink text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-ink",
+                    ? "bg-ink text-white shadow-[0_12px_30px_rgba(11,21,38,0.18)]"
+                    : "text-slate-500 hover:bg-white hover:text-ink",
                 )}
               >
-                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-slate-400")} />
-                <span>{label}</span>
+                <span className={cn(
+                  "h-8 w-1 rounded-full transition-colors",
+                  isActive ? "bg-ember" : "bg-transparent group-hover:bg-slate-200",
+                )} />
+                <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-slate-400 group-hover:text-ocean")} />
+                <span className="flex-1">{label}</span>
+                <ArrowRight className={cn("h-4 w-4 shrink-0 transition-transform", isActive ? "text-white/70" : "text-slate-300 group-hover:translate-x-0.5 group-hover:text-slate-400")} />
               </Link>
             );
           })}
-        </nav>
+            </nav>
+          </div>
+        </div>
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -304,7 +393,15 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
       </aside>
 
       {/* ── Main ── */}
-      <main className="flex-1 rounded-[32px] border border-white/70 bg-white/75 p-5 shadow-panel backdrop-blur lg:p-8">
+      <main className="min-w-0 flex-1 rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-panel backdrop-blur lg:p-8 xl:p-10">
+        <PortalHeader
+          title={pageTitle}
+          subtitle={pageSubtitle}
+          activeRbd={activeRbd}
+          activeComuna={activeComuna}
+          isAdmin={isAdmin}
+          selectedRbd={selectedRbd}
+        />
         {children}
       </main>
     </div>
