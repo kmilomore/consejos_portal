@@ -1,6 +1,6 @@
 # Contexto del Proyecto: Consejos
 
-> **Última actualización:** 2026-04-18  
+> **Última actualización:** 2026-04-24  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
 
 ---
@@ -18,7 +18,7 @@ Experiencia principal:
 
 ---
 
-## 2. Estado Actual del Producto (2026-04-18)
+## 2. Estado Actual del Producto (2026-04-24)
 
 ### Ya implementado y funcional
 
@@ -28,6 +28,10 @@ Experiencia principal:
 - Bootstrap de perfil desde la base maestra de escuelas
 - Shell autenticado por establecimiento con navegación lateral
 - Selector de escuela para ADMIN (`SchoolSelector`)
+- Selector de escuela con búsqueda tipeable en la navegación lateral
+- Acceso por representante de consejo escolar usando `CORREO REPRESENTANTE`
+- Alcance por RBD para representantes: ven solo escuelas asociadas a su correo
+- Acceso global adicional para correos presentes en `admin_user_roles`
 - `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar
 - Módulo de actas completo:
   - Crear, editar, ver (solo lectura) y eliminar actas
@@ -61,6 +65,7 @@ Experiencia principal:
 - Activar `save_acta_complete` en el cliente (migración SQL lista)
 - Cierre de redirect si Supabase Auth sigue apuntando al portal antiguo
 - Endurecimiento de métricas según reglas de negocio finales
+- Aplicar en Supabase la migración `20260424_consejos_representante_scope.sql` si aún no está corrida
 
 ---
 
@@ -189,6 +194,7 @@ La app entera cuelga de `PortalAuthProvider` + `AppFrame`, que centraliza:
 | `20260417_slep_directorio_fn.sql` | RPC `get_slep_directorio()` |
 | `20260417_sync_establecimientos_full.sql` | Sincronización completa de establecimientos |
 | `20260418_save_acta_atomic.sql` | RPC `save_acta_complete` (transacción atómica) |
+| `20260424_consejos_representante_scope.sql` | Acceso por representante + alcance por RBD + directorio SLEP filtrado |
 
 ---
 
@@ -236,6 +242,11 @@ Luego limpia los parámetros con `history.replaceState`.
 3. Si `profile.rbd` existe, consulta `establecimientos`
 4. `useEffect` depende de `userId` (no de `session` completa) para evitar re-renders por renovación de JWT
 
+Desde 2026-04-24 el bootstrap admite tres casos:
+- correo en `admin_correos` o `admin_user_roles` → `ADMIN` global
+- correo presente en `CORREO REPRESENTANTE` → `ADMIN` con alcance limitado por RBD
+- correo de director en base maestra → `DIRECTOR` con un solo RBD
+
 ### 7.5 Redirecciones en AppFrame
 
 | Condición | Acción |
@@ -251,7 +262,93 @@ Si el correo sigue abriendo el portal antiguo, la causa está en la **configurac
 
 ---
 
-## 8. Modelo de Datos y Dominio
+## 8.1 Avances 2026-04-24
+
+### Avance 1 — Selector de escuela con búsqueda
+
+Se actualizó `SchoolSelector` para que el usuario pueda escribir dentro del dropdown y filtrar por:
+- nombre de establecimiento
+- RBD
+- comuna
+- director
+- representante
+
+Comportamiento actual:
+- seleccionar una escuela redirige a `/resumen/`
+- limpiar la selección redirige a `/admin/`
+- el listado visible ya no depende de un catálogo global en cliente, sino del alcance entregado por Supabase
+
+### Avance 2 — Acceso por representante de consejo escolar
+
+Se agregó la migración `20260424_consejos_representante_scope.sql` con este objetivo:
+- permitir acceso a correos presentes en `CORREO REPRESENTANTE`
+- permitir acceso global a correos presentes en `admin_user_roles`
+- construir un perfil autenticado aun cuando el usuario no sea director
+- limitar la visibilidad a las escuelas asociadas a ese correo
+
+Funciones nuevas o redefinidas:
+- `is_global_admin()`
+- `current_accessible_rbds()`
+- `has_school_scope_access(target_rbd)`
+- `is_admin()` ahora equivale a admin global, no a representante con alcance parcial
+- `bootstrap_current_user_profile_from_base_escuelas()` ahora contempla admin global, representante y director
+
+Detalle adicional del criterio de admin global:
+- primero se revisa `admin_correos`
+- luego se revisa `admin_user_roles` si la tabla existe en la base
+- la búsqueda en `admin_user_roles` tolera columnas `correo_electronico`, `email` o `correo`
+
+### Avance 3 — Endurecimiento de RLS por alcance
+
+Se reemplazó la lógica que daba acceso global a todo `rol = 'ADMIN'` por una verificación explícita de RBD accesibles.
+
+Tablas y superficies endurecidas:
+- `establecimientos`
+- `programacion`
+- `actas`
+- `actas_invitados`
+- `logs`
+- `storage.objects` para bucket `evidencias_actas`
+- RPC `get_slep_directorio()`
+
+Resultado esperado:
+- un representante puede entrar con perfil administrativo de navegación
+- pero solo puede ver o mutar datos de sus escuelas asociadas
+
+### Avance 4 — Validación técnica realizada
+
+Validaciones ejecutadas tras el cambio:
+- `npm run lint`
+- `npm run build`
+
+Resultado:
+- frontend sin errores de lint
+- compilación Next.js exitosa
+- sin errores de TypeScript en `components/portal/shell.tsx`
+
+### Avance 5 — Nota sobre recursión infinita en RLS
+
+El cambio nuevo mantiene el patrón correcto para evitar recursión infinita:
+- las funciones usadas por políticas (`is_global_admin`, `current_accessible_rbds`, `has_school_scope_access`, `is_admin`) están definidas como `SECURITY DEFINER`
+- la política no consulta directamente `usuarios_perfiles` como invocador normal
+- por eso no se reabre el ciclo clásico `policy -> función -> usuarios_perfiles -> policy`
+
+Salvedad operativa:
+- esto asume el comportamiento estándar de Supabase sin `FORCE ROW LEVEL SECURITY` sobre las tablas involucradas
+
+---
+
+## 9. Riesgos y Observaciones Actuales
+
+- La migración `bootstrap_current_user_profile_from_base_escuelas()` se redefine varias veces en el historial; la definición efectiva es la última aplicada.
+- Si la migración `20260424_consejos_representante_scope.sql` no se ejecuta en la base real, el frontend seguirá mostrando el comportamiento anterior.
+- El rol persistido para representantes es `ADMIN`, pero la seguridad real ya no depende solo del rol sino de `has_school_scope_access(...)`.
+- `usuarios_perfiles` sigue permitiendo lectura completa solo a admins globales; el representante solo puede leer su propio perfil.
+- `admin_user_roles` no está definido en este repo; la migración quedó defensiva y solo lo consulta si la tabla existe en la base real.
+
+---
+
+## 10. Modelo de Datos y Dominio
 
 ### Entidades principales
 

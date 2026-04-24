@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type PropsWithChildren } from "react";
+import React, { type PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,9 +12,9 @@ import {
   LayoutGrid,
   LockKeyhole,
   LogOut,
+  Search,
   School2,
 } from "lucide-react";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
@@ -45,12 +45,63 @@ function SchoolSelector({
   onSelect: (rbd: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
   const { data: schools, isLoading } = useSlepDirectorio();
   const current = schools.find((e) => e.rbd === selectedRbd) ?? null;
+  const filteredSchools = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) {
+      return schools;
+    }
+
+    return schools.filter((school) => {
+      return [
+        school.nombre_establecimiento,
+        school.rbd,
+        school.comuna,
+        school.director,
+        school.representante_consejo,
+      ].some((value) => value?.toLowerCase().includes(normalizedQuery));
+    });
+  }, [schools, searchQuery]);
+
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+      return;
+    }
+
+    inputRef.current?.focus();
+
+    function handlePointerDown(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  function handleSelect(rbd: string | null) {
+    onSelect(rbd);
+    setSearchQuery("");
+    setOpen(false);
+
+    if (rbd) {
+      router.push("/resumen");
+      return;
+    }
+
+    router.push("/admin");
+  }
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -62,7 +113,7 @@ function SchoolSelector({
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Escuela activa</p>
           <p className="truncate text-sm font-semibold text-ink">
-            {isLoading ? "Cargando…" : (current?.nombre_establecimiento ?? "Todas las escuelas")}
+            {isLoading ? "Cargando…" : (current?.nombre_establecimiento ?? "Selecciona una escuela")}
           </p>
           {current && (
             <p className="text-[11px] text-slate-400">RBD {current.rbd} · {current.comuna}</p>
@@ -77,26 +128,39 @@ function SchoolSelector({
 
       {open && (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-72 overflow-y-auto rounded-[20px] border border-slate-200 bg-white py-2 shadow-[0_16px_48px_rgba(11,21,38,0.16)]">
-          {/* All schools option */}
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Escribe nombre, RBD o comuna"
+                className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm text-ink outline-none transition focus:border-ocean focus:bg-white focus:ring-2 focus:ring-ocean/15"
+              />
+            </div>
+          </div>
+
           <button
             type="button"
-            onClick={() => { onSelect(null); setOpen(false); }}
+            onClick={() => handleSelect(null)}
             className={cn(
               "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition hover:bg-slate-50",
               !selectedRbd ? "font-semibold text-ocean" : "text-slate-700",
             )}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-ocean/40" />
-            Todas las escuelas
+            Volver al panel general
           </button>
 
           <div className="mx-3 my-1.5 border-t border-slate-100" />
 
-          {schools.map((est) => (
+          {filteredSchools.map((est) => (
             <button
               key={est.rbd ?? ""}
               type="button"
-              onClick={() => { onSelect(est.rbd ?? null); setOpen(false); router.push("/resumen"); }}
+              onClick={() => handleSelect(est.rbd ?? null)}
               className={cn(
                 "flex w-full items-start gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50",
                 selectedRbd === est.rbd ? "bg-ocean/5" : "",
@@ -117,6 +181,12 @@ function SchoolSelector({
               </div>
             </button>
           ))}
+
+          {!isLoading && filteredSchools.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-slate-500">
+              No hay escuelas autorizadas que coincidan con tu búsqueda.
+            </div>
+          )}
         </div>
       )}
     </div>

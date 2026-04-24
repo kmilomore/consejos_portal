@@ -75,9 +75,9 @@ export default function ActasPage() {
       <DataBanner source={snapshot.source} status={status} reason={snapshot.reason} diagnostics={snapshot.diagnostics} />
 
       <SectionCard
-        eyebrow="Flujo 02"
+        eyebrow="Consejos Escolares"
         title="Actas oficiales"
-        description="La estructura ya considera asistentes estables, invitados libres, evidencia PDF y enlace con la programación de origen."
+        description="Sistema Integral de actas de Consejos Escolares."
       >
         {/* Action bar */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
