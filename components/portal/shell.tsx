@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Establishment, Profile } from "@/types/domain";
 
@@ -202,6 +203,8 @@ function PortalHeader({
   activeRbd,
   activeComuna,
   isAdmin,
+  isGlobalAdmin,
+  availableSchoolCount,
   selectedRbd,
 }: {
   title: string;
@@ -209,6 +212,8 @@ function PortalHeader({
   activeRbd: string | null | undefined;
   activeComuna: string | null | undefined;
   isAdmin: boolean;
+  isGlobalAdmin: boolean;
+  availableSchoolCount: number;
   selectedRbd: string | null;
 }) {
   return (
@@ -228,18 +233,22 @@ function PortalHeader({
             <p className="mt-2 text-sm font-semibold text-ink">{activeRbd ? `RBD ${activeRbd}` : "Panel general"}</p>
             <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
               <MapPin className="h-3.5 w-3.5 text-slate-400" />
-              {activeComuna || "Cobertura completa"}
+              {activeComuna || (isGlobalAdmin ? "Cobertura completa" : `${availableSchoolCount} escuelas asignadas`)}
             </p>
           </div>
 
           <div className="rounded-[24px] border border-white/80 bg-white/80 px-4 py-4 backdrop-blur-sm">
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Vista actual</p>
             <p className="mt-2 text-sm font-semibold text-ink">
-              {isAdmin && !selectedRbd ? "Administración territorial" : "Seguimiento por establecimiento"}
+              {isAdmin && !selectedRbd
+                ? (isGlobalAdmin ? "Administración territorial" : "Territorio asignado")
+                : "Seguimiento por establecimiento"}
             </p>
             <p className="mt-1 text-xs text-slate-500">
               {isAdmin && !selectedRbd
-                ? "Acceso agregado a todas las escuelas disponibles."
+                ? (isGlobalAdmin
+                  ? "Acceso agregado a todas las escuelas disponibles."
+                  : "Vista agregada solo para las escuelas y comunas habilitadas a tu correo autenticado.")
                 : "Datos operativos, asistencia y sesiones del establecimiento seleccionado."}
             </p>
           </div>
@@ -257,10 +266,14 @@ interface PortalShellProps extends PropsWithChildren {
 
 export function PortalShell({ children, profile, establishment }: PortalShellProps): React.ReactElement {
   const pathname = usePathname();
-  const { signOut, user, selectedRbd, setSelectedRbd } = usePortalAuth();
+  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin } = usePortalAuth();
   const { data: slepSchools } = useSlepDirectorio();
   const isAdmin = profile.rol === "ADMIN";
-  const navigation = isAdmin ? adminNavigation : directorNavigation;
+  const navigation = isAdmin
+    ? adminNavigation.map((item) => item.href === "/admin"
+      ? { ...item, label: isGlobalAdmin ? "Panel General" : "Mi Territorio" }
+      : item)
+    : directorNavigation;
 
   // For admins activeEstablishment comes from SLEP directorio (SlepEscuela)
   // For directors it comes from the auth context (Establishment)
@@ -275,9 +288,13 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
   const displayName = profile.nombre_director ?? user?.email ?? profile.correo_electronico ?? "";
   const displayEmail = user?.email ?? profile.correo_electronico ?? "";
   const initial = displayEmail.charAt(0).toUpperCase();
-  const pageTitle = isAdmin && !selectedRbd ? "Panel territorial" : activeDisplayName;
+  const pageTitle = isAdmin && !selectedRbd
+    ? (isGlobalAdmin ? "Panel territorial" : "Mi territorio asignado")
+    : activeDisplayName;
   const pageSubtitle = isAdmin && !selectedRbd
-    ? "Monitorea disponibilidad, navegación y operación del portal por establecimiento con una vista centralizada."
+    ? (isGlobalAdmin
+      ? "Monitorea disponibilidad, navegación y operación del portal por establecimiento con una vista centralizada."
+      : "Visualiza solo las escuelas y territorios asociados al correo autenticado, con una vista agregada acotada a tu cobertura.")
     : "Accede al resumen ejecutivo, programación, actas y métricas del establecimiento activo desde un solo flujo.";
 
   return (
@@ -310,10 +327,31 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
         {/* Identity / school info */}
         <div className="mt-4 px-5 lg:px-6">
           {isAdmin ? (
-            <SchoolSelector
-              selectedRbd={selectedRbd}
-              onSelect={setSelectedRbd}
-            />
+            <div className="space-y-3">
+              <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Tipo de acceso</p>
+                    <p className="mt-1 text-sm font-semibold text-ink">
+                      {isGlobalAdmin ? "Administrador global" : "Cobertura asignada"}
+                    </p>
+                  </div>
+                  <Badge tone={isGlobalAdmin ? "success" : "warn"}>
+                    {isGlobalAdmin ? "Admin global" : "Alcance parcial"}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-xs leading-5 text-slate-600">
+                  {isGlobalAdmin
+                    ? "Puedes navegar y consolidar información de todos los establecimientos habilitados en el portal."
+                    : "Solo puedes ver el territorio y las escuelas vinculadas a tu correo autenticado como representante."}
+                </p>
+              </div>
+
+              <SchoolSelector
+                selectedRbd={selectedRbd}
+                onSelect={setSelectedRbd}
+              />
+            </div>
           ) : (
             <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
               <div className="flex items-center gap-3">
@@ -400,6 +438,8 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
           activeRbd={activeRbd}
           activeComuna={activeComuna}
           isAdmin={isAdmin}
+          isGlobalAdmin={isGlobalAdmin}
+          availableSchoolCount={slepSchools.length}
           selectedRbd={selectedRbd}
         />
         {children}

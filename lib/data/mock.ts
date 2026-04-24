@@ -68,6 +68,7 @@ export const actas: Acta[] = [
     id: "acta-01",
     rbd: "1712-4",
     sesion: 1,
+    modo_registro: "ACTA_COMPLETA",
     tipo_sesion: "Ordinaria",
     formato: "Presencial",
     fecha: "2026-03-28",
@@ -80,6 +81,7 @@ export const actas: Acta[] = [
     desarrollo: "Se revisó la asistencia del primer bimestre y se acordó priorizar visitas domiciliarias y tutorías de permanencia.",
     acuerdos: "Actualizar protocolo de derivación, calendarizar jornadas con apoderados y reportar avance mensual al sostenedor.",
     varios: "Se solicitó apoyo para reparación de portón principal.",
+    observacion_documental: "",
     proxima_sesion: "2026-04-24",
     link_acta: null,
     asistentes: [
@@ -98,6 +100,7 @@ export const actas: Acta[] = [
     id: "acta-02",
     rbd: "2450-9",
     sesion: 1,
+    modo_registro: "ACTA_COMPLETA",
     tipo_sesion: "Ordinaria",
     formato: "Híbrido",
     fecha: "2026-03-22",
@@ -110,6 +113,7 @@ export const actas: Acta[] = [
     desarrollo: "La sesión priorizó el resguardo eléctrico de laboratorios y la actualización del calendario de hitos institucionales.",
     acuerdos: "Levantar informe técnico, citar comité de seguridad y formalizar revisión de reglamento.",
     varios: "Sin puntos adicionales.",
+    observacion_documental: "",
     proxima_sesion: "2026-05-03",
     link_acta: null,
     asistentes: [

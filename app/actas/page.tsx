@@ -11,7 +11,19 @@ import { ActaDetail } from "@/components/portal/acta-detail";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
 import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
 import { formatDate } from "@/lib/utils";
-import type { Acta, SessionType } from "@/types/domain";
+import type { Acta, ActaRecordMode, SessionType } from "@/types/domain";
+
+function formatSchedule(acta: Acta) {
+  if (acta.hora_inicio && acta.hora_termino) {
+    return `${acta.hora_inicio} – ${acta.hora_termino}`;
+  }
+
+  if (acta.hora_inicio) {
+    return acta.hora_inicio;
+  }
+
+  return "—";
+}
 
 export default function ActasPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
@@ -31,22 +43,25 @@ export default function ActasPage() {
   // ── Search & filters — #27 ───────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTipo, setFilterTipo] = useState<SessionType | "">("");
+  const [filterModo, setFilterModo] = useState<ActaRecordMode | "">("");
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return rows.filter((acta) => {
       const matchesTipo = filterTipo ? acta.tipo_sesion === filterTipo : true;
-      if (!matchesTipo) return false;
+      const matchesModo = filterModo ? acta.modo_registro === filterModo : true;
+      if (!matchesTipo || !matchesModo) return false;
       if (!q) return true;
       return (
         acta.tabla_temas.toLowerCase().includes(q) ||
         acta.acuerdos.toLowerCase().includes(q) ||
+        acta.observacion_documental.toLowerCase().includes(q) ||
         acta.lugar.toLowerCase().includes(q) ||
         acta.rbd.toLowerCase().includes(q) ||
         acta.comuna.toLowerCase().includes(q)
       );
     });
-  }, [rows, searchQuery, filterTipo]);
+  }, [rows, searchQuery, filterModo, filterTipo]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -94,6 +109,15 @@ export default function ActasPage() {
               />
             </div>
             <select
+              value={filterModo}
+              onChange={(e) => setFilterModo(e.target.value as ActaRecordMode | "")}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+            >
+              <option value="">Todos los registros</option>
+              <option value="ACTA_COMPLETA">Acta completa</option>
+              <option value="REGISTRO_DOCUMENTAL">Registro documental</option>
+            </select>
+            <select
               value={filterTipo}
               onChange={(e) => setFilterTipo(e.target.value as SessionType | "")}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
@@ -107,7 +131,7 @@ export default function ActasPage() {
         </div>
 
         {/* Results count when filtering */}
-        {(searchQuery || filterTipo) && (
+        {(searchQuery || filterTipo || filterModo) && (
           <p className="mb-4 text-xs text-slate-500">
             {filteredRows.length} resultado{filteredRows.length !== 1 ? "s" : ""} encontrado{filteredRows.length !== 1 ? "s" : ""}
           </p>
@@ -136,11 +160,16 @@ export default function ActasPage() {
                   >
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-ink">Consejo Escolar {acta.tipo_sesion}</p>
-                      <p className="text-xs text-slate-500">N° {String(acta.sesion).padStart(2, "0")}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <p className="text-xs text-slate-500">N° {String(acta.sesion).padStart(2, "0")}</p>
+                        <Badge tone={acta.modo_registro === "REGISTRO_DOCUMENTAL" ? "warn" : "success"}>
+                          {acta.modo_registro === "REGISTRO_DOCUMENTAL" ? "Documental" : "Completa"}
+                        </Badge>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5 font-mono text-xs font-semibold text-ocean">{acta.rbd}</td>
                     <td className="px-4 py-3.5 text-slate-600">{formatDate(acta.fecha)}</td>
-                    <td className="hidden px-4 py-3.5 text-slate-500 md:table-cell">{acta.hora_inicio} – {acta.hora_termino}</td>
+                    <td className="hidden px-4 py-3.5 text-slate-500 md:table-cell">{formatSchedule(acta)}</td>
                     <td className="hidden px-4 py-3.5 lg:table-cell">
                       <Badge tone="success">{acta.formato}</Badge>
                     </td>

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useState,
   useEffect,
   useRef,
@@ -23,7 +24,7 @@ import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
 import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
-import type { Acta, AttendeeSlot, Establishment, SessionFormat, SessionType } from "@/types/domain";
+import type { Acta, ActaRecordMode, AttendeeSlot, Establishment, SessionFormat, SessionType } from "@/types/domain";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ const ESTAMENTOS = [
 
 const SESSION_FORMATS: SessionFormat[] = ["Presencial", "Online", "Híbrido"];
 const QUORUM_MIN = 4;
-const DRAFT_KEY = "acta-draft-new";
+const DRAFT_KEY_PREFIX = "acta-draft";
 const ALLOWED_DOC_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -52,19 +53,46 @@ const SAVE_COOLDOWN_MS = 3000;
 
 // ─── RUT helpers ──────────────────────────────────────────────────────────────
 
-function calcDv(rut: number): string {
-  let M = 0;
-  let S = 1;
-  for (let T = rut; T; T = Math.trunc(T / 10)) {
-    S = (S + (T % 10) * (9 - (M++ % 6))) % 11;
+function calcDv(rutBody: string): string {
+  let sum = 0;
+  let multiplier = 2;
+
+  for (let index = rutBody.length - 1; index >= 0; index -= 1) {
+    sum += Number(rutBody[index]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
   }
-  return S ? String(S) : "k";
+
+  const remainder = 11 - (sum % 11);
+  if (remainder === 11) return "0";
+  if (remainder === 10) return "K";
+  return String(remainder);
 }
 
 function isValidRut(raw: string): boolean {
   const cleaned = raw.replace(/[.\-]/g, "").toUpperCase();
   if (!/^\d{7,8}[0-9K]$/.test(cleaned)) return false;
-  return calcDv(Number(cleaned.slice(0, -1))) === cleaned.slice(-1).toLowerCase();
+  return calcDv(cleaned.slice(0, -1)) === cleaned.slice(-1);
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function getDraftStorageKey(actaId?: string | null): string {
+  return `${DRAFT_KEY_PREFIX}:${actaId ?? "new"}`;
+}
+
+function getEstamentoValidationErrors(estamento: EstamentoState) {
+  if (estamento.asistio !== true) {
+    return { nombre: false, rut: false, correo: false, modalidad: false };
+  }
+
+  return {
+    nombre: !sanitizeText(estamento.nombre),
+    rut: !sanitizeText(estamento.rut) || !isValidRut(estamento.rut),
+    correo: !sanitizeText(estamento.correo) || !isValidEmail(estamento.correo),
+    modalidad: estamento.modalidad === null,
+  };
 }
 
 function fmtRut(raw: string): string {
@@ -106,6 +134,7 @@ interface FormState {
   nombre_establecimiento: string;
   direccion: string;
   comuna: string;
+  modo_registro: ActaRecordMode;
   tipo_sesion: SessionType;
   sesion: string;
   formato: SessionFormat;
@@ -120,12 +149,13 @@ interface FormState {
   desarrollo: string;
   acuerdos: string;
   varios: string;
+  observacion_documental: string;
   proxima_sesion: string;
   link_acta: string;
 }
 
 type FormErrors = Partial<Record<
-  "rbd" | "fecha" | "hora_inicio" | "hora_termino" | "tabla_temas" | "acuerdos",
+  "rbd" | "fecha" | "hora_inicio" | "hora_termino" | "tabla_temas" | "acuerdos" | "link_acta",
   string
 >>;
 
@@ -149,7 +179,7 @@ function buildEstamentos(existing?: AttendeeSlot[]): EstamentoState[] {
       asistio: found != null ? found.asistio : null,
       modalidad: found?.modalidad ?? null,
       nombre: found?.nombre ?? "",
-      rut: "",
+      rut: found?.rut ?? "",
       correo: found?.correo ?? "",
       expanded: found != null ? found.asistio : false,
     };
@@ -168,6 +198,7 @@ function makeEmptyForm(): FormState {
     nombre_establecimiento: "",
     direccion: "",
     comuna: "",
+    modo_registro: "ACTA_COMPLETA",
     tipo_sesion: "Ordinaria",
     sesion: "",
     formato: "Presencial",
@@ -182,6 +213,7 @@ function makeEmptyForm(): FormState {
     desarrollo: "",
     acuerdos: "",
     varios: "",
+    observacion_documental: "",
     proxima_sesion: "",
     link_acta: "",
   };
@@ -195,13 +227,14 @@ function actaToForm(acta: Acta): FormState {
     nombre_establecimiento: "",
     direccion: acta.direccion,
     comuna: acta.comuna,
+    modo_registro: acta.modo_registro,
     tipo_sesion: acta.tipo_sesion,
     sesion: String(acta.sesion),
     formato: acta.formato,
     lugar: acta.lugar,
     fecha: acta.fecha,
-    hora_inicio: acta.hora_inicio,
-    hora_termino: acta.hora_termino,
+    hora_inicio: acta.hora_inicio ?? "",
+    hora_termino: acta.hora_termino ?? "",
     estamentos: buildEstamentos(acta.asistentes),
     showGuests: acta.invitados.length > 0,
     guests: acta.invitados.map((inv) => ({
@@ -214,6 +247,7 @@ function actaToForm(acta: Acta): FormState {
     desarrollo: acta.desarrollo,
     acuerdos: acta.acuerdos,
     varios: acta.varios,
+    observacion_documental: acta.observacion_documental,
     proxima_sesion: acta.proxima_sesion ?? "",
     link_acta: acta.link_acta ?? "",
   };
@@ -222,9 +256,9 @@ function actaToForm(acta: Acta): FormState {
 // Shallow comparison to detect dirty state — ignores estamentos.expanded which is pure UI — #25
 function isFormDirty(a: FormState, b: FormState): boolean {
   const keys: (keyof FormState)[] = [
-    "rbd", "tipo_sesion", "formato", "lugar", "fecha",
+    "rbd", "modo_registro", "tipo_sesion", "formato", "lugar", "fecha",
     "hora_inicio", "hora_termino", "tabla_temas", "desarrollo",
-    "acuerdos", "varios", "proxima_sesion",
+    "acuerdos", "varios", "observacion_documental", "proxima_sesion", "link_acta",
   ];
   for (const key of keys) {
     if (a[key] !== b[key]) return true;
@@ -233,7 +267,7 @@ function isFormDirty(a: FormState, b: FormState): boolean {
   for (let i = 0; i < a.estamentos.length; i++) {
     const ea = a.estamentos[i];
     const eb = b.estamentos[i];
-    if (ea.asistio !== eb.asistio || ea.modalidad !== eb.modalidad || ea.nombre !== eb.nombre || ea.correo !== eb.correo) return true;
+    if (ea.asistio !== eb.asistio || ea.modalidad !== eb.modalidad || ea.nombre !== eb.nombre || ea.rut !== eb.rut || ea.correo !== eb.correo) return true;
   }
   // Check guests
   if (a.guests.length !== b.guests.length) return true;
@@ -320,6 +354,7 @@ interface EstamentoCardProps {
 function EstamentoCard({ state, onChange }: EstamentoCardProps) {
   const radioName = `asistio-${state.key}`;
   const modalidadName = `modalidad-${state.key}`;
+  const fieldErrors = getEstamentoValidationErrors(state);
 
   function set<K extends keyof EstamentoState>(k: K, v: EstamentoState[K]) {
     onChange({ ...state, [k]: v });
@@ -444,33 +479,41 @@ function EstamentoCard({ state, onChange }: EstamentoCardProps) {
                     value={state.nombre}
                     onChange={(e) => set("nombre", e.target.value)}
                     placeholder="Nombre y apellido"
+                    className={cn(fieldErrors.nombre && "border-ember focus:ring-ember/20")}
                   />
+                  {fieldErrors.nombre && (
+                    <p className="mt-1 text-xs text-ember">El nombre es obligatorio.</p>
+                  )}
                 </div>
 
                 <div>
-                  <FormLabel>RUT</FormLabel>
+                  <FormLabel required>RUT</FormLabel>
                   <FormInput
                     value={state.rut}
                     onChange={(e) => set("rut", fmtRut(e.target.value))}
                     placeholder="12.345.678-9"
                     className={cn(
-                      state.rut && !isValidRut(state.rut) &&
+                      fieldErrors.rut &&
                         "border-ember focus:ring-ember/20",
                     )}
                   />
-                  {state.rut && !isValidRut(state.rut) && (
-                    <p className="mt-1 text-xs text-ember">RUT inválido</p>
+                  {fieldErrors.rut && (
+                    <p className="mt-1 text-xs text-ember">Ingresa un RUT válido.</p>
                   )}
                 </div>
 
                 <div className="sm:col-span-2">
-                  <FormLabel>Correo electrónico</FormLabel>
+                  <FormLabel required>Correo electrónico</FormLabel>
                   <FormInput
                     type="email"
                     value={state.correo}
                     onChange={(e) => set("correo", e.target.value)}
                     placeholder="correo@ejemplo.cl"
+                    className={cn(fieldErrors.correo && "border-ember focus:ring-ember/20")}
                   />
+                  {fieldErrors.correo && (
+                    <p className="mt-1 text-xs text-ember">Ingresa un correo electrónico válido.</p>
+                  )}
                 </div>
               </div>
             </>
@@ -522,7 +565,7 @@ export function ActaForm({
   onSaved,
 }: ActaFormProps) {
   const { data: slepData, isLoading: slepLoading } = useSlepDirectorio();
-  const { profile } = usePortalAuth(); // used for RBD validation — #8
+  const { establishment, profile, selectedRbd } = usePortalAuth(); // used for RBD validation — #8
   const [form, setForm] = useState<FormState>(makeEmptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -536,6 +579,20 @@ export function ActaForm({
   const initialFormRef = useRef<FormState | null>(null); // #25 dirty tracking
   const lastSaveTimeRef = useRef<number>(0); // #4 rate limit
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // #12
+  const activeRbd = selectedRbd ?? profile?.rbd ?? null;
+  const draftStorageKey = getDraftStorageKey(editActa?.id);
+
+  const buildActiveSchoolFormPatch = useCallback((rbd: string) => {
+    const slep = slepData.find((item) => item.rbd === rbd);
+    const est = establishments.find((item) => item.rbd === rbd) ?? (establishment?.rbd === rbd ? establishment : undefined);
+
+    return {
+      rbd,
+      nombre_establecimiento: slep?.nombre_establecimiento ?? est?.nombre ?? "",
+      direccion: est?.direccion ?? "",
+      comuna: slep?.comuna ?? est?.comuna ?? "",
+    };
+  }, [establishment, establishments, slepData]);
 
   // Re-initialise whenever the drawer opens
   useEffect(() => {
@@ -545,15 +602,34 @@ export function ActaForm({
 
     if (editActa) {
       initial = actaToForm(editActa);
+      try {
+        const saved = localStorage.getItem(draftStorageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved) as FormState;
+          if (parsed.id === editActa.id) {
+            initial = parsed;
+          }
+        }
+      } catch {
+        initial = actaToForm(editActa);
+      }
     } else {
       // #12 — Try to restore a saved draft for new actas
       try {
-        const saved = localStorage.getItem(DRAFT_KEY);
+        const saved = localStorage.getItem(draftStorageKey);
         initial = saved ? (JSON.parse(saved) as FormState) : makeEmptyForm();
         // Don't restore a draft that belongs to a different id (shouldn't happen but guard it)
         if (initial.id !== null) initial = makeEmptyForm();
       } catch {
         initial = makeEmptyForm();
+      }
+
+      if (activeRbd && !initial.rbd) {
+        initial = {
+          ...initial,
+          ...buildActiveSchoolFormPatch(activeRbd),
+          sesion: String(nextSessionNumber(actas, activeRbd, initial.tipo_sesion)),
+        };
       }
     }
 
@@ -565,15 +641,27 @@ export function ActaForm({
     setErrors({});
     setSaveError(null);
     pendingFile.current = null;
-  }, [isOpen, editActa]);
+  }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, isOpen]);
 
-  // #12 — Persist new-acta drafts to localStorage (debounced 800 ms)
   useEffect(() => {
-    if (!isOpen || editActa) return; // only for new actas
+    if (!isOpen || editActa || form.rbd || !activeRbd) {
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      ...buildActiveSchoolFormPatch(activeRbd),
+      sesion: String(nextSessionNumber(actas, activeRbd, prev.tipo_sesion)),
+    }));
+  }, [actas, activeRbd, buildActiveSchoolFormPatch, editActa, form.rbd, isOpen]);
+
+  // #12 — Persist acta drafts to localStorage (debounced 800 ms)
+  useEffect(() => {
+    if (!isOpen) return;
     if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
     draftSaveTimerRef.current = setTimeout(() => {
       try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+        localStorage.setItem(draftStorageKey, JSON.stringify(form));
       } catch {
         // localStorage may be full or blocked — ignore silently
       }
@@ -581,7 +669,21 @@ export function ActaForm({
     return () => {
       if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
     };
-  }, [form, isOpen, editActa]);
+  }, [draftStorageKey, form, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      const dirty = initialFormRef.current ? isFormDirty(form, initialFormRef.current) : false;
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [form, isOpen]);
 
   // ── Dirty-aware close — #25 ───────────────────────────────────────────────
 
@@ -691,20 +793,37 @@ export function ActaForm({
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const presentCount = form.estamentos.filter((e) => e.asistio === true).length;
+  const isDocumentalMode = form.modo_registro === "REGISTRO_DOCUMENTAL";
 
   // ── Validation ───────────────────────────────────────────────────────────
 
   function validate(draft: boolean): boolean {
     if (draft) return true;
     const next: FormErrors = {};
+    const hasInvalidAttendees = form.estamentos.some((estamento) => {
+      const fieldErrors = getEstamentoValidationErrors(estamento);
+      return fieldErrors.nombre || fieldErrors.rut || fieldErrors.correo || fieldErrors.modalidad;
+    });
+
     if (!form.rbd) next.rbd = "Selecciona un establecimiento.";
     if (!form.fecha) next.fecha = "La fecha es obligatoria.";
-    if (!form.hora_inicio) next.hora_inicio = "La hora de inicio es obligatoria.";
-    if (!form.hora_termino) next.hora_termino = "La hora de término es obligatoria.";
-    if (!form.tabla_temas.trim()) next.tabla_temas = "Completa la tabla de temas.";
-    if (!form.acuerdos.trim()) next.acuerdos = "Completa los acuerdos.";
+    if (!isDocumentalMode) {
+      if (!form.hora_inicio) next.hora_inicio = "La hora de inicio es obligatoria.";
+      if (!form.hora_termino) next.hora_termino = "La hora de término es obligatoria.";
+      if (!form.tabla_temas.trim()) next.tabla_temas = "Completa la tabla de temas.";
+      if (!form.acuerdos.trim()) next.acuerdos = "Completa los acuerdos.";
+    }
+    if (isDocumentalMode && !form.link_acta && !pendingFile.current) {
+      next.link_acta = "Adjunta el PDF o documento de respaldo para registrar la sesión.";
+    }
+
+    setSaveError(
+      hasInvalidAttendees
+        ? "Completa nombre, modalidad, RUT válido y correo electrónico en todos los asistentes marcados como presentes."
+        : null,
+    );
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return Object.keys(next).length === 0 && !hasInvalidAttendees;
   }
 
   // ── Submit ───────────────────────────────────────────────────────────────
@@ -735,6 +854,7 @@ export function ActaForm({
       .map((e) => ({
         rol: e.key,
         nombre: sanitizeText(e.nombre),
+        rut: sanitizeText(e.rut),
         correo: sanitizeText(e.correo),
         asistio: e.asistio!,
         modalidad: e.modalidad ?? undefined,
@@ -745,11 +865,12 @@ export function ActaForm({
       programacion_origen_id: form.id_programacion_origen ?? undefined,
       rbd: form.rbd,
       sesion: Number(form.sesion) || 1,
+      modo_registro: form.modo_registro,
       tipo_sesion: form.tipo_sesion,
       formato: form.formato,
       fecha: form.fecha,
-      hora_inicio: form.hora_inicio,
-      hora_termino: form.hora_termino,
+      hora_inicio: form.hora_inicio || null,
+      hora_termino: form.hora_termino || null,
       lugar: sanitizeText(form.lugar),
       comuna: form.comuna,
       direccion: form.direccion,
@@ -757,9 +878,10 @@ export function ActaForm({
       desarrollo: sanitizeText(form.desarrollo),
       acuerdos: sanitizeText(form.acuerdos),
       varios: sanitizeText(form.varios),
+      observacion_documental: sanitizeText(form.observacion_documental),
       proxima_sesion: form.proxima_sesion || null,
       link_acta: form.link_acta || null,
-      asistentes,
+      asistentes: isDocumentalMode ? [] : asistentes,
     });
 
     if (!savedId) {
@@ -770,7 +892,9 @@ export function ActaForm({
 
     await replaceActaInvitados(
       savedId,
-      form.guests.map((g) => ({ nombre: sanitizeText(g.nombre), cargo: sanitizeText(g.cargo) })),
+      isDocumentalMode
+        ? []
+        : form.guests.map((g) => ({ nombre: sanitizeText(g.nombre), cargo: sanitizeText(g.cargo) })),
     );
 
     if (pendingFile.current) {
@@ -788,17 +912,21 @@ export function ActaForm({
     // #4 — Record last save timestamp
     lastSaveTimeRef.current = Date.now();
 
-    // #12 — Clear draft from localStorage after a successful save
-    if (!editActa) {
-      try {
-        localStorage.removeItem(DRAFT_KEY);
-      } catch {
-        // ignore
-      }
+    // #12 — Clear local draft after a successful save; the saved row becomes the continuation source.
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch {
+      // ignore
     }
 
     // #23 — Show toast feedback
-    toast(draft ? "Avance guardado correctamente." : "Acta guardada correctamente.");
+    toast(
+      draft
+        ? "Avance guardado correctamente."
+        : isDocumentalMode
+          ? "Registro documental guardado correctamente."
+          : "Acta guardada correctamente.",
+    );
 
     setSubmitting(false);
     onSaved();
@@ -888,6 +1016,42 @@ export function ActaForm({
                   <FormInput value={form.direccion} disabled />
                 </div>
 
+                <div className="sm:col-span-2">
+                  <FormLabel required>Modo de registro</FormLabel>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, modo_registro: "ACTA_COMPLETA" }))}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-left transition",
+                        form.modo_registro === "ACTA_COMPLETA"
+                          ? "border-ocean bg-mist ring-2 ring-ocean/15"
+                          : "border-slate-200 hover:border-ocean/40 hover:bg-slate-50",
+                      )}
+                    >
+                      <p className="text-sm font-semibold text-ink">Acta completa</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Usa el formulario habitual con asistencia, tabla y acuerdos.
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, modo_registro: "REGISTRO_DOCUMENTAL" }))}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-left transition",
+                        form.modo_registro === "REGISTRO_DOCUMENTAL"
+                          ? "border-ocean bg-mist ring-2 ring-ocean/15"
+                          : "border-slate-200 hover:border-ocean/40 hover:bg-slate-50",
+                      )}
+                    >
+                      <p className="text-sm font-semibold text-ink">Registro documental</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Registra número de sesión y datos generales, adjuntando el acta en PDF.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Tipo de sesión */}
                 <div>
                   <FormLabel required>Tipo de sesión</FormLabel>
@@ -961,7 +1125,7 @@ export function ActaForm({
 
                 {/* Hora inicio */}
                 <div>
-                  <FormLabel required>Hora de inicio</FormLabel>
+                  <FormLabel required={!isDocumentalMode}>Hora de inicio</FormLabel>
                   <FormInput
                     type="time"
                     value={form.hora_inicio}
@@ -979,7 +1143,7 @@ export function ActaForm({
 
                 {/* Hora término */}
                 <div>
-                  <FormLabel required>Hora de término</FormLabel>
+                  <FormLabel required={!isDocumentalMode}>Hora de término</FormLabel>
                   <FormInput
                     type="time"
                     value={form.hora_termino}
@@ -999,182 +1163,214 @@ export function ActaForm({
               </div>
             </section>
 
-            {/* ── 2. Asistencia estamental ─────────────────────────────────── */}
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <SectionHeader>Asistencia estamental</SectionHeader>
-                <QuorumBadge presentCount={presentCount} />
-              </div>
-              <div className="space-y-3">
-                {form.estamentos.map((est, index) => (
-                  <EstamentoCard
-                    key={est.key}
-                    state={est}
-                    onChange={(updated) => updateEstamento(index, updated)}
-                  />
-                ))}
-              </div>
-            </section>
+            {isDocumentalMode ? (
+              <section>
+                <SectionHeader>Registro documental</SectionHeader>
+                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm text-slate-600">
+                    Este modo permite iniciar el correlativo y respaldo operativo sin completar el acta estructurada.
+                  </p>
+                  <div>
+                    <FormLabel>Observación breve</FormLabel>
+                    <FormTextarea
+                      rows={4}
+                      value={form.observacion_documental}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          observacion_documental: e.target.value,
+                        }))
+                      }
+                      placeholder="Ej: Acta histórica ingresada para iniciar correlativo 2026. Pendiente sistematización completa."
+                    />
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <>
+                {/* ── 2. Asistencia estamental ─────────────────────────────────── */}
+                <section>
+                  <div className="mb-4 flex items-center justify-between">
+                    <SectionHeader>Asistencia estamental</SectionHeader>
+                    <QuorumBadge presentCount={presentCount} />
+                  </div>
+                  <div className="space-y-3">
+                    {form.estamentos.map((est, index) => (
+                      <EstamentoCard
+                        key={est.key}
+                        state={est}
+                        onChange={(updated) => updateEstamento(index, updated)}
+                      />
+                    ))}
+                  </div>
+                </section>
 
-            {/* ── 3. Invitados externos ────────────────────────────────────── */}
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <SectionHeader>Invitados externos</SectionHeader>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      showGuests: !prev.showGuests,
-                    }))
-                  }
-                  className="text-xs font-semibold text-ocean hover:underline"
-                >
-                  {form.showGuests ? "Ocultar sección" : "Agregar invitados"}
-                </button>
-              </div>
-
-              {form.showGuests && (
-                <div className="space-y-3">
-                  {form.guests.map((guest) => (
-                    <div
-                      key={guest.localId}
-                      className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"
+                {/* ── 3. Invitados externos ────────────────────────────────────── */}
+                <section>
+                  <div className="mb-4 flex items-center justify-between">
+                    <SectionHeader>Invitados externos</SectionHeader>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          showGuests: !prev.showGuests,
+                        }))
+                      }
+                      className="text-xs font-semibold text-ocean hover:underline"
                     >
-                      <div>
-                        <FormLabel>Nombre</FormLabel>
-                        <FormInput
-                          value={guest.nombre}
-                          onChange={(e) =>
-                            updateGuest(guest.localId, "nombre", e.target.value)
-                          }
-                          placeholder="Nombre completo"
-                        />
-                      </div>
-                      <div>
-                        <FormLabel>Cargo / Rol</FormLabel>
-                        <FormInput
-                          value={guest.cargo}
-                          onChange={(e) =>
-                            updateGuest(guest.localId, "cargo", e.target.value)
-                          }
-                          placeholder="Ej: Encargada convivencia"
-                        />
-                      </div>
-                      <div>
-                        <FormLabel>Correo</FormLabel>
-                        <FormInput
-                          type="email"
-                          value={guest.correo}
-                          onChange={(e) =>
-                            updateGuest(guest.localId, "correo", e.target.value)
-                          }
-                          placeholder="correo@ejemplo.cl"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <button
-                          type="button"
-                          onClick={() => removeGuest(guest.localId)}
-                          className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold text-ember transition hover:bg-ember/10"
+                      {form.showGuests ? "Ocultar sección" : "Agregar invitados"}
+                    </button>
+                  </div>
+
+                  {form.showGuests && (
+                    <div className="space-y-3">
+                      {form.guests.map((guest) => (
+                        <div
+                          key={guest.localId}
+                          className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Eliminar
-                        </button>
-                      </div>
+                          <div>
+                            <FormLabel>Nombre</FormLabel>
+                            <FormInput
+                              value={guest.nombre}
+                              onChange={(e) =>
+                                updateGuest(guest.localId, "nombre", e.target.value)
+                              }
+                              placeholder="Nombre completo"
+                            />
+                          </div>
+                          <div>
+                            <FormLabel>Cargo / Rol</FormLabel>
+                            <FormInput
+                              value={guest.cargo}
+                              onChange={(e) =>
+                                updateGuest(guest.localId, "cargo", e.target.value)
+                              }
+                              placeholder="Ej: Encargada convivencia"
+                            />
+                          </div>
+                          <div>
+                            <FormLabel>Correo</FormLabel>
+                            <FormInput
+                              type="email"
+                              value={guest.correo}
+                              onChange={(e) =>
+                                updateGuest(guest.localId, "correo", e.target.value)
+                              }
+                              placeholder="correo@ejemplo.cl"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <button
+                              type="button"
+                              onClick={() => removeGuest(guest.localId)}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold text-ember transition hover:bg-ember/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={addGuest}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-ocean/40 px-4 py-2.5 text-sm font-semibold text-ocean transition hover:bg-mist"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Agregar fila
+                      </button>
                     </div>
-                  ))}
-
-                  <button
-                    type="button"
-                    onClick={addGuest}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-ocean/40 px-4 py-2.5 text-sm font-semibold text-ocean transition hover:bg-mist"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Agregar fila
-                  </button>
-                </div>
-              )}
-            </section>
-
-            {/* ── 4. Desarrollo y acuerdos ─────────────────────────────────── */}
-            <section>
-              <SectionHeader>Desarrollo y acuerdos</SectionHeader>
-              <div className="space-y-4">
-                <div>
-                  <FormLabel required>Tabla de temas</FormLabel>
-                  <FormTextarea
-                    value={form.tabla_temas}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        tabla_temas: e.target.value,
-                      }))
-                    }
-                    placeholder="1. Diagnóstico convivencia. 2. Resultados asistencia…"
-                  />
-                  {errors.tabla_temas && (
-                    <p className="mt-1 text-xs text-ember">{errors.tabla_temas}</p>
                   )}
-                </div>
+                </section>
 
-                <div>
-                  <FormLabel>Desarrollo de la sesión</FormLabel>
-                  <FormTextarea
-                    rows={5}
-                    value={form.desarrollo}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, desarrollo: e.target.value }))
-                    }
-                    placeholder="Descripción detallada del desarrollo de la sesión…"
-                  />
-                </div>
+                {/* ── 4. Desarrollo y acuerdos ─────────────────────────────────── */}
+                <section>
+                  <SectionHeader>Desarrollo y acuerdos</SectionHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <FormLabel required>Tabla de temas</FormLabel>
+                      <FormTextarea
+                        value={form.tabla_temas}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            tabla_temas: e.target.value,
+                          }))
+                        }
+                        placeholder="1. Diagnóstico convivencia. 2. Resultados asistencia…"
+                      />
+                      {errors.tabla_temas && (
+                        <p className="mt-1 text-xs text-ember">{errors.tabla_temas}</p>
+                      )}
+                    </div>
 
-                <div>
-                  <FormLabel required>Acuerdos y compromisos</FormLabel>
-                  <FormTextarea
-                    value={form.acuerdos}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, acuerdos: e.target.value }))
-                    }
-                    placeholder="Acuerdos alcanzados durante la sesión…"
-                  />
-                  {errors.acuerdos && (
-                    <p className="mt-1 text-xs text-ember">{errors.acuerdos}</p>
-                  )}
-                </div>
+                    <div>
+                      <FormLabel>Desarrollo de la sesión</FormLabel>
+                      <FormTextarea
+                        rows={5}
+                        value={form.desarrollo}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, desarrollo: e.target.value }))
+                        }
+                        placeholder="Descripción detallada del desarrollo de la sesión…"
+                      />
+                    </div>
 
-                <div>
-                  <FormLabel>Varios</FormLabel>
-                  <FormTextarea
-                    rows={3}
-                    value={form.varios}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, varios: e.target.value }))
-                    }
-                    placeholder="Observaciones adicionales…"
-                  />
-                </div>
+                    <div>
+                      <FormLabel required>Acuerdos y compromisos</FormLabel>
+                      <FormTextarea
+                        value={form.acuerdos}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, acuerdos: e.target.value }))
+                        }
+                        placeholder="Acuerdos alcanzados durante la sesión…"
+                      />
+                      {errors.acuerdos && (
+                        <p className="mt-1 text-xs text-ember">{errors.acuerdos}</p>
+                      )}
+                    </div>
 
-                <div>
-                  <FormLabel>Próxima sesión</FormLabel>
-                  <FormInput
-                    type="date"
-                    value={form.proxima_sesion}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        proxima_sesion: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </section>
+                    <div>
+                      <FormLabel>Varios</FormLabel>
+                      <FormTextarea
+                        rows={3}
+                        value={form.varios}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, varios: e.target.value }))
+                        }
+                        placeholder="Observaciones adicionales…"
+                      />
+                    </div>
+
+                    <div>
+                      <FormLabel>Próxima sesión</FormLabel>
+                      <FormInput
+                        type="date"
+                        value={form.proxima_sesion}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            proxima_sesion: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
 
             {/* ── 5. Evidencia documental PDF ──────────────────────────────── */}
             <section>
               <SectionHeader>Evidencia documental</SectionHeader>
+              {isDocumentalMode && (
+                <p className="mb-3 text-sm text-slate-600">
+                  En registro documental el archivo adjunto es obligatorio para abrir el correlativo operativo.
+                </p>
+              )}
 
               {form.link_acta ? (
                 /* Existing document */
@@ -1284,6 +1480,10 @@ export function ActaForm({
                       evidencia.
                     </p>
                   )}
+
+                  {errors.link_acta && (
+                    <p className="mt-2 text-xs text-ember">{errors.link_acta}</p>
+                  )}
                 </div>
               )}
             </section>
@@ -1310,7 +1510,11 @@ export function ActaForm({
                 Guardar avance
               </Button>
               <Button onClick={() => handleSubmit(false)} disabled={submitting}>
-                {submitting ? "Guardando…" : "Guardar acta final"}
+                {submitting
+                  ? "Guardando…"
+                  : isDocumentalMode
+                    ? "Guardar registro documental"
+                    : "Guardar acta final"}
               </Button>
             </div>
           </div>

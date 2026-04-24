@@ -1,5 +1,14 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Acta, AttendeeSlot, Establishment, InvitedGuest, Programacion } from "@/types/domain";
+import type {
+  Acta,
+  ActaRecordMode,
+  AttendeeSlot,
+  Establishment,
+  InvitedGuest,
+  Programacion,
+  SessionFormat,
+  SessionType,
+} from "@/types/domain";
 
 export type PortalDataSource = "supabase" | "mock";
 
@@ -15,6 +24,7 @@ export interface PortalSnapshot {
   actas: Acta[];
   attendanceByRole: Array<{ rol: string; ratio: number }>;
   planningByComuna: Array<{ comuna: string; total: number }>;
+  actasByMode: { completas: number; documentales: number };
   source: PortalDataSource;
   reason?: string;
   diagnostics: PortalDiagnostic[];
@@ -37,6 +47,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function normalizeActaMode(value: unknown): ActaRecordMode {
+  return value === "REGISTRO_DOCUMENTAL" ? "REGISTRO_DOCUMENTAL" : "ACTA_COMPLETA";
+}
+
 function normalizeAsistentes(value: unknown): AttendeeSlot[] {
   if (!Array.isArray(value)) {
     return [];
@@ -49,6 +63,7 @@ function normalizeAsistentes(value: unknown): AttendeeSlot[] {
 
     const rol = typeof item.rol === "string" ? item.rol : null;
     const nombre = typeof item.nombre === "string" ? item.nombre : "";
+    const rut = typeof item.rut === "string" ? item.rut : "";
     const correo = typeof item.correo === "string" ? item.correo : "";
     const asistio = typeof item.asistio === "boolean" ? item.asistio : false;
     const modalidad =
@@ -60,7 +75,7 @@ function normalizeAsistentes(value: unknown): AttendeeSlot[] {
       return [];
     }
 
-    return [{ rol, nombre, correo, asistio, modalidad }];
+    return [{ rol, nombre, rut, correo, asistio, modalidad }];
   });
 }
 
@@ -122,6 +137,13 @@ function buildPlanningByComuna(programaciones: Programacion[], establishments: E
     .sort((left, right) => right.total - left.total || left.comuna.localeCompare(right.comuna));
 }
 
+function buildActasByMode(actas: Acta[]) {
+  return {
+    completas: actas.filter((acta) => acta.modo_registro === "ACTA_COMPLETA").length,
+    documentales: actas.filter((acta) => acta.modo_registro === "REGISTRO_DOCUMENTAL").length,
+  };
+}
+
 function getMockPortalSnapshot(reason?: string, diagnostics: PortalDiagnostic[] = []): PortalSnapshot {
   return {
     establishments: [],
@@ -129,6 +151,7 @@ function getMockPortalSnapshot(reason?: string, diagnostics: PortalDiagnostic[] 
     actas: [],
     attendanceByRole: [],
     planningByComuna: [],
+    actasByMode: { completas: 0, documentales: 0 },
     source: "mock",
     reason,
     diagnostics,
@@ -167,18 +190,17 @@ export function getActas(): Acta[] {
   return [];
 }
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
-
 export interface ActaUpsertInput {
   id?: string;
   programacion_origen_id?: string;
   rbd: string;
   sesion: number;
-  tipo_sesion: import("@/types/domain").SessionType;
-  formato: import("@/types/domain").SessionFormat;
+  modo_registro: ActaRecordMode;
+  tipo_sesion: SessionType;
+  formato: SessionFormat;
   fecha: string;
-  hora_inicio: string;
-  hora_termino: string;
+  hora_inicio: string | null;
+  hora_termino: string | null;
   lugar: string;
   comuna: string;
   direccion: string;
@@ -186,14 +208,12 @@ export interface ActaUpsertInput {
   desarrollo: string;
   acuerdos: string;
   varios: string;
+  observacion_documental: string;
   proxima_sesion: string | null;
   link_acta: string | null;
   asistentes: AttendeeSlot[];
 }
 
-/**
- * Creates or updates an acta row. Returns the saved id, or null on error.
- */
 export async function upsertActa(input: ActaUpsertInput): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return null;
@@ -202,6 +222,7 @@ export async function upsertActa(input: ActaUpsertInput): Promise<string | null>
     programacion_origen_id: input.programacion_origen_id ?? null,
     rbd: input.rbd,
     sesion: input.sesion,
+    modo_registro: input.modo_registro,
     tipo_sesion: input.tipo_sesion,
     formato: input.formato,
     fecha: input.fecha,
@@ -214,16 +235,14 @@ export async function upsertActa(input: ActaUpsertInput): Promise<string | null>
     desarrollo: input.desarrollo,
     acuerdos: input.acuerdos,
     varios: input.varios,
+    observacion_documental: input.observacion_documental,
     proxima_sesion: input.proxima_sesion,
     link_acta: input.link_acta,
     asistentes: input.asistentes,
   };
 
   if (input.id) {
-    const { error } = await supabase
-      .from("actas")
-      .update(payload)
-      .eq("id", input.id);
+    const { error } = await supabase.from("actas").update(payload).eq("id", input.id);
     if (error) {
       console.error("upsertActa (update):", error.message);
       return null;
@@ -231,11 +250,7 @@ export async function upsertActa(input: ActaUpsertInput): Promise<string | null>
     return input.id;
   }
 
-  const { data, error } = await supabase
-    .from("actas")
-    .insert(payload)
-    .select("id")
-    .single();
+  const { data, error } = await supabase.from("actas").insert(payload).select("id").single();
   if (error) {
     console.error("upsertActa (insert):", error.message);
     return null;
@@ -243,9 +258,6 @@ export async function upsertActa(input: ActaUpsertInput): Promise<string | null>
   return (data as { id: string }).id;
 }
 
-/**
- * Replaces all guest rows for an acta (delete + insert).
- */
 export async function replaceActaInvitados(
   actaId: string,
   guests: { nombre: string; cargo: string }[],
@@ -258,15 +270,10 @@ export async function replaceActaInvitados(
   if (guests.length > 0) {
     await supabase
       .from("actas_invitados")
-      .insert(guests.map((g) => ({ acta_id: actaId, nombre: g.nombre, cargo: g.cargo })));
+      .insert(guests.map((guest) => ({ acta_id: actaId, nombre: guest.nombre, cargo: guest.cargo })));
   }
 }
 
-/**
- * Uploads a PDF to Supabase Storage (bucket: "actas") and returns its public URL.
- * The Supabase JS client does not expose upload progress natively; onProgress is
- * called with 50 before upload and 100 on success as a courtesy indicator.
- */
 export async function uploadActaPdf(
   actaId: string,
   rbd: string,
@@ -297,23 +304,16 @@ export async function uploadActaPdf(
   return data.publicUrl;
 }
 
-/**
- * Updates only the link_acta field of an existing acta after a successful document upload.
- */
 export async function updateActaLink(actaId: string, url: string): Promise<void> {
   const supabase = createClient();
   if (!supabase) return;
-  const { error } = await supabase
-    .from("actas")
-    .update({ link_acta: url })
-    .eq("id", actaId);
-  if (error) console.error("updateActaLink:", error.message);
+
+  const { error } = await supabase.from("actas").update({ link_acta: url }).eq("id", actaId);
+  if (error) {
+    console.error("updateActaLink:", error.message);
+  }
 }
 
-/**
- * Hard-deletes an acta row. The ON DELETE CASCADE on actas_invitados removes guests automatically.
- * Returns true on success.
- */
 export async function deleteActa(actaId: string): Promise<boolean> {
   const supabase = createClient();
   if (!supabase) return false;
@@ -324,6 +324,7 @@ export async function deleteActa(actaId: string): Promise<boolean> {
     console.error("deleteActa:", error.message);
     return false;
   }
+
   return true;
 }
 
@@ -345,20 +346,14 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
 
     const actasQuery = supabase
       .from("actas")
-      .select("id, rbd, sesion, tipo_sesion, formato, fecha, hora_inicio, hora_termino, lugar, comuna, direccion, tabla_temas, desarrollo, acuerdos, varios, proxima_sesion, link_acta, asistentes")
+      .select("id, rbd, sesion, modo_registro, tipo_sesion, formato, fecha, hora_inicio, hora_termino, lugar, comuna, direccion, tabla_temas, desarrollo, acuerdos, varios, observacion_documental, proxima_sesion, link_acta, asistentes")
       .order("fecha", { ascending: false });
 
     const [establishmentsResult, programacionesResult, actasResult, invitadosResult] = await Promise.all([
-      supabase
-        .from("establecimientos")
-        .select("rbd, nombre, direccion, comuna")
-        .order("nombre", { ascending: true }),
+      supabase.from("establecimientos").select("rbd, nombre, direccion, comuna").order("nombre", { ascending: true }),
       rbdFilter ? programacionQuery.eq("rbd", rbdFilter) : programacionQuery,
       rbdFilter ? actasQuery.eq("rbd", rbdFilter) : actasQuery,
-      supabase
-        .from("actas_invitados")
-        .select("id, acta_id, nombre, cargo")
-        .order("created_at", { ascending: true }),
+      supabase.from("actas_invitados").select("id, acta_id, nombre, cargo").order("created_at", { ascending: true }),
     ]);
 
     const firstError = [
@@ -395,18 +390,20 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
         id: item.id,
         rbd: item.rbd,
         sesion: item.sesion,
+        modo_registro: normalizeActaMode(item.modo_registro),
         tipo_sesion: item.tipo_sesion,
         formato: item.formato,
         fecha: item.fecha,
-        hora_inicio: item.hora_inicio,
-        hora_termino: item.hora_termino,
-        lugar: item.lugar,
-        comuna: item.comuna,
-        direccion: item.direccion,
-        tabla_temas: item.tabla_temas,
-        desarrollo: item.desarrollo,
-        acuerdos: item.acuerdos,
-        varios: item.varios,
+        hora_inicio: typeof item.hora_inicio === "string" ? item.hora_inicio : null,
+        hora_termino: typeof item.hora_termino === "string" ? item.hora_termino : null,
+        lugar: typeof item.lugar === "string" ? item.lugar : "",
+        comuna: typeof item.comuna === "string" ? item.comuna : "",
+        direccion: typeof item.direccion === "string" ? item.direccion : "",
+        tabla_temas: typeof item.tabla_temas === "string" ? item.tabla_temas : "",
+        desarrollo: typeof item.desarrollo === "string" ? item.desarrollo : "",
+        acuerdos: typeof item.acuerdos === "string" ? item.acuerdos : "",
+        varios: typeof item.varios === "string" ? item.varios : "",
+        observacion_documental: typeof item.observacion_documental === "string" ? item.observacion_documental : "",
         proxima_sesion: item.proxima_sesion,
         link_acta: item.link_acta,
         asistentes: normalizeAsistentes(item.asistentes),
@@ -420,6 +417,7 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
       actas,
       attendanceByRole: buildAttendanceByRole(actas),
       planningByComuna: buildPlanningByComuna(programaciones, establishments),
+      actasByMode: buildActasByMode(actas),
       source: "supabase",
       diagnostics,
     };

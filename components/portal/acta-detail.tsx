@@ -14,6 +14,10 @@ interface ActaDetailProps {
 export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailProps) {
   if (!acta) return null;
   const escuela = establishments.find((e) => e.rbd === acta.rbd);
+  const isDocumentalMode = acta.modo_registro === "REGISTRO_DOCUMENTAL";
+  const horario = acta.hora_inicio && acta.hora_termino
+    ? `${acta.hora_inicio} – ${acta.hora_termino}`
+    : acta.hora_inicio ?? "—";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:block print:p-0">
@@ -35,6 +39,11 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
             <h2 className="mt-1 text-lg font-semibold text-ink">
               Consejo Escolar {acta.tipo_sesion} N° {String(acta.sesion).padStart(2, "0")}
             </h2>
+            <div className="mt-2">
+              <Badge tone={isDocumentalMode ? "warn" : "success"}>
+                {isDocumentalMode ? "Registro documental" : "Acta completa"}
+              </Badge>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -79,7 +88,7 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
               <Row label="RBD" value={acta.rbd} />
               <Row label="Establecimiento" value={escuela?.nombre ?? "—"} />
               <Row label="Fecha" value={formatDate(acta.fecha)} />
-              <Row label="Horario" value={`${acta.hora_inicio} – ${acta.hora_termino}`} />
+              <Row label="Horario" value={horario} />
               <Row label="Formato" value={acta.formato} />
               <Row label="Lugar" value={acta.lugar || "—"} />
               <Row label="Comuna" value={acta.comuna} />
@@ -87,117 +96,132 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
             </div>
           </section>
 
-          {/* Asistencia */}
-          <section>
-            <SectionLabel>Asistencia estamental</SectionLabel>
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      Estamento
-                    </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      Nombre
-                    </th>
-                    <th className="hidden px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 sm:table-cell">
-                      Correo
-                    </th>
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      Asistió
-                    </th>
-                    <th className="hidden px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 sm:table-cell">
-                      Modalidad
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {acta.asistentes.length > 0 ? (
-                    acta.asistentes.map((a) => (
-                      <tr key={a.rol}>
-                        <td className="px-4 py-3 font-medium text-ink">{a.rol}</td>
-                        <td className="px-4 py-3 text-slate-600">{a.nombre || "—"}</td>
-                        <td className="hidden px-4 py-3 text-slate-500 sm:table-cell">
-                          {a.correo || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <Badge tone={a.asistio ? "success" : "warn"}>
-                            {a.asistio ? "Sí" : "No"}
-                          </Badge>
-                        </td>
-                        <td className="hidden px-4 py-3 text-center sm:table-cell">
-                          {a.modalidad ? (
-                            <span className={cn(
-                              "text-xs font-semibold",
-                              a.modalidad === "Presencial" ? "text-emerald-600" : "text-blue-600",
-                            )}>
-                              {a.modalidad}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-5 text-center text-sm text-slate-400"
-                      >
-                        Sin asistentes registrados.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Invitados */}
-          {acta.invitados.length > 0 && (
+          {isDocumentalMode ? (
             <section>
-              <SectionLabel>Invitados externos</SectionLabel>
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Nombre
-                      </th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Cargo
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {acta.invitados.map((g) => (
-                      <tr key={g.id}>
-                        <td className="px-4 py-3 font-medium text-ink">{g.nombre}</td>
-                        <td className="px-4 py-3 text-slate-600">{g.cargo}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <SectionLabel>Registro documental</SectionLabel>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                {acta.observacion_documental || "Sesión registrada con respaldo documental, pendiente sistematización completa."}
               </div>
             </section>
-          )}
+          ) : (
+            <>
+              {/* Asistencia */}
+              <section>
+                <SectionLabel>Asistencia estamental</SectionLabel>
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Estamento
+                        </th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Nombre
+                        </th>
+                        <th className="hidden px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">
+                          RUT
+                        </th>
+                        <th className="hidden px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 sm:table-cell">
+                          Correo
+                        </th>
+                        <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Asistió
+                        </th>
+                        <th className="hidden px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 sm:table-cell">
+                          Modalidad
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {acta.asistentes.length > 0 ? (
+                        acta.asistentes.map((a) => (
+                          <tr key={a.rol}>
+                            <td className="px-4 py-3 font-medium text-ink">{a.rol}</td>
+                            <td className="px-4 py-3 text-slate-600">{a.nombre || "—"}</td>
+                            <td className="hidden px-4 py-3 text-slate-500 md:table-cell">{a.rut || "—"}</td>
+                            <td className="hidden px-4 py-3 text-slate-500 sm:table-cell">
+                              {a.correo || "—"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <Badge tone={a.asistio ? "success" : "warn"}>
+                                {a.asistio ? "Sí" : "No"}
+                              </Badge>
+                            </td>
+                            <td className="hidden px-4 py-3 text-center sm:table-cell">
+                              {a.modalidad ? (
+                                <span className={cn(
+                                  "text-xs font-semibold",
+                                  a.modalidad === "Presencial" ? "text-emerald-600" : "text-blue-600",
+                                )}>
+                                  {a.modalidad}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-4 py-5 text-center text-sm text-slate-400"
+                          >
+                            Sin asistentes registrados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
 
-          {/* Desarrollo y acuerdos */}
-          <section>
-            <SectionLabel>Desarrollo y acuerdos</SectionLabel>
-            <div className="space-y-4">
-              <Field label="Tabla de temas" value={acta.tabla_temas} />
-              {acta.desarrollo && (
-                <Field label="Desarrollo de la sesión" value={acta.desarrollo} />
+              {/* Invitados */}
+              {acta.invitados.length > 0 && (
+                <section>
+                  <SectionLabel>Invitados externos</SectionLabel>
+                  <div className="overflow-hidden rounded-2xl border border-slate-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                            Nombre
+                          </th>
+                          <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                            Cargo
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {acta.invitados.map((g) => (
+                          <tr key={g.id}>
+                            <td className="px-4 py-3 font-medium text-ink">{g.nombre}</td>
+                            <td className="px-4 py-3 text-slate-600">{g.cargo}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               )}
-              <Field label="Acuerdos y compromisos" value={acta.acuerdos} />
-              {acta.varios && <Field label="Varios" value={acta.varios} />}
-              {acta.proxima_sesion && (
-                <Row label="Próxima sesión" value={formatDate(acta.proxima_sesion)} />
-              )}
-            </div>
-          </section>
+
+              {/* Desarrollo y acuerdos */}
+              <section>
+                <SectionLabel>Desarrollo y acuerdos</SectionLabel>
+                <div className="space-y-4">
+                  <Field label="Tabla de temas" value={acta.tabla_temas} />
+                  {acta.desarrollo && (
+                    <Field label="Desarrollo de la sesión" value={acta.desarrollo} />
+                  )}
+                  <Field label="Acuerdos y compromisos" value={acta.acuerdos} />
+                  {acta.varios && <Field label="Varios" value={acta.varios} />}
+                  {acta.proxima_sesion && (
+                    <Row label="Próxima sesión" value={formatDate(acta.proxima_sesion)} />
+                  )}
+                </div>
+              </section>
+            </>
+          )}
 
           {/* Evidencia */}
           {acta.link_acta && (
@@ -231,13 +255,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         {label}
       </span>
-      <p className="mt-0.5 font-medium text-ink">{value}</p>
+      <p className="mt-0.5 font-medium text-ink">{value || "—"}</p>
     </div>
   );
 }

@@ -9,6 +9,7 @@ CREATE OR REPLACE FUNCTION save_acta_complete(
   p_programacion_origen_id uuid,
   p_rbd                    text,
   p_sesion                 integer,
+  p_modo_registro          text,
   p_tipo_sesion            text,
   p_formato                text,
   p_fecha                  date,
@@ -21,6 +22,7 @@ CREATE OR REPLACE FUNCTION save_acta_complete(
   p_desarrollo             text,
   p_acuerdos               text,
   p_varios                 text,
+  p_observacion_documental text,
   p_proxima_sesion         date,
   p_link_acta              text,
   p_asistentes             jsonb,
@@ -46,11 +48,17 @@ BEGIN
     RAISE EXCEPTION 'RBD mismatch: director cannot save actas for a different school';
   END IF;
 
+  IF p_modo_registro = 'REGISTRO_DOCUMENTAL'
+     AND NULLIF(BTRIM(COALESCE(p_link_acta, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'Documentary records require an attached PDF or support document';
+  END IF;
+
   IF p_id IS NOT NULL THEN
     -- Update existing acta
     UPDATE actas SET
       programacion_origen_id = p_programacion_origen_id,
       sesion                 = p_sesion,
+      modo_registro          = p_modo_registro,
       tipo_sesion            = p_tipo_sesion::session_type,
       formato                = p_formato::session_format,
       fecha                  = p_fecha,
@@ -63,6 +71,7 @@ BEGIN
       desarrollo             = p_desarrollo,
       acuerdos               = p_acuerdos,
       varios                 = p_varios,
+      observacion_documental = p_observacion_documental,
       proxima_sesion         = p_proxima_sesion,
       link_acta              = p_link_acta,
       asistentes             = p_asistentes
@@ -77,15 +86,15 @@ BEGIN
     -- Insert new acta
     INSERT INTO actas (
       programacion_origen_id,
-      rbd, sesion, tipo_sesion, formato, fecha,
+      rbd, sesion, modo_registro, tipo_sesion, formato, fecha,
       hora_inicio, hora_termino, lugar, comuna, direccion,
-      tabla_temas, desarrollo, acuerdos, varios,
+      tabla_temas, desarrollo, acuerdos, varios, observacion_documental,
       proxima_sesion, link_acta, asistentes
     ) VALUES (
       p_programacion_origen_id,
-      p_rbd, p_sesion, p_tipo_sesion::session_type, p_formato::session_format, p_fecha,
+      p_rbd, p_sesion, p_modo_registro, p_tipo_sesion::session_type, p_formato::session_format, p_fecha,
       p_hora_inicio, p_hora_termino, p_lugar, p_comuna, p_direccion,
-      p_tabla_temas, p_desarrollo, p_acuerdos, p_varios,
+      p_tabla_temas, p_desarrollo, p_acuerdos, p_varios, p_observacion_documental,
       p_proxima_sesion, p_link_acta, p_asistentes
     ) RETURNING id INTO v_id;
   END IF;

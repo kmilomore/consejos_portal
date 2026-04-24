@@ -18,6 +18,7 @@ const EMPTY_SNAPSHOT: PortalSnapshot = {
   actas: [],
   attendanceByRole: [],
   planningByComuna: [],
+  actasByMode: { completas: 0, documentales: 0 },
   source: "mock",
   diagnostics: [],
 };

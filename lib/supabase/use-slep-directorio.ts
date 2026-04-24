@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { usePortalAuth } from "@/lib/supabase/auth-context";
 import type { SlepEscuela } from "@/types/domain";
 
 export interface ComunaStats {
@@ -22,6 +23,7 @@ export interface SlepMetrics {
 }
 
 export function useSlepDirectorio() {
+  const { profile, isGlobalAdmin } = usePortalAuth();
   const [data, setData] = useState<SlepEscuela[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +55,18 @@ export function useSlepDirectorio() {
     };
   }, []);
 
+  const visibleData = useMemo(() => {
+    if (profile?.rol !== "ADMIN" || isGlobalAdmin) {
+      return data;
+    }
+
+    const currentEmail = profile.correo_electronico.trim().toLowerCase();
+
+    return data.filter((school) => school.correo_representante?.trim().toLowerCase() === currentEmail);
+  }, [data, isGlobalAdmin, profile]);
+
   const metrics = useMemo<SlepMetrics>(() => {
-    const total = data.length;
+    const total = visibleData.length;
     const comunasSet = new Set<string>();
     const porComuna: Record<string, ComunaStats> = {};
     let rural = 0;
@@ -62,7 +74,7 @@ export function useSlepDirectorio() {
     let conRepresentante = 0;
     let conAsesor = 0;
 
-    for (const e of data) {
+    for (const e of visibleData) {
       const c = e.comuna ?? "Sin comuna";
       comunasSet.add(c);
 
@@ -88,7 +100,7 @@ export function useSlepDirectorio() {
 
     const comunas = [...comunasSet].sort();
     return { total, comunas, porComuna, rural, urbano, conRepresentante, conAsesor };
-  }, [data]);
+  }, [visibleData]);
 
-  return { data, metrics, isLoading, error };
+  return { data: visibleData, metrics, isLoading, error };
 }

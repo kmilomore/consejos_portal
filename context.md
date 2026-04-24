@@ -34,15 +34,22 @@ Experiencia principal:
 - Acceso global adicional para correos presentes en `admin_user_roles`
 - Shell principal adaptado a ancho completo de pantalla y navegación con logo institucional `SLEPCOLCHAGUA.webp`
 - Rediseño parcial del shell y módulos compartidos para mejorar jerarquía, tablas, botones, carga y lectura operativa
+- Persistencia de escuela seleccionada en navegación admin mediante `localStorage`
+- Corrección de persistencia de `selectedRbd` para evitar que la escuela activa se limpie durante la carga inicial del perfil `ADMIN`
+- Dropdown de escuelas diferenciado entre admin global y representante con alcance acotado por correo autenticado
+- Panel admin agregado también acotado por escuelas y territorios del representante cuando no es admin global
+- Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
 - `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar
 - Módulo de actas completo:
   - Crear, editar, ver (solo lectura) y eliminar actas
+  - Soporte fase 1 para `Registro documental` con PDF obligatorio y metadatos mínimos de sesión
   - Búsqueda y filtros en el listado
   - Asistencia estamental con validación de RUT (módulo-11 chileno)
   - Quórum en tiempo real (4/6 mínimo)
   - Grilla dinámica de invitados
   - Upload de PDF con drag & drop
   - Borrador persistido en `localStorage`
+  - Precarga automática del establecimiento activo al abrir `Nueva acta`
   - Guardia de cambios sin guardar (dirty guard)
   - Toast de confirmación post-guardado
   - Vista de solo lectura con impresión A4
@@ -65,6 +72,7 @@ Experiencia principal:
 - Política de storage bucket `actas` (escritura autenticada + lectura pública por RBD)
 - Validación MIME real del PDF en servidor
 - Activar `save_acta_complete` en el cliente (migración SQL lista)
+- Aplicar en Supabase la migración `20260424_consejos_actas_registro_documental.sql` si aún no está corrida
 - Cierre de redirect si Supabase Auth sigue apuntando al portal antiguo
 - Endurecimiento de métricas según reglas de negocio finales
 - Aplicar en Supabase la migración `20260424_consejos_representante_scope.sql` si aún no está corrida
@@ -138,6 +146,11 @@ La app entera cuelga de `PortalAuthProvider` + `AppFrame`, que centraliza:
 
 **Invariante:** no duplicar lógica de sesión fuera de `auth-context.tsx`.
 
+Detalle operativo vigente:
+- `selectedRbd` se restaura desde `localStorage` solo para perfiles `ADMIN`
+- esa persistencia no debe limpiarse mientras la sesión y el perfil todavía están resolviéndose
+- si el usuario no es `ADMIN` o cierra sesión, la selección persistida sí se elimina
+
 ### 4.4 Snapshot de datos como contexto único
 
 `PortalSnapshotProvider` vive en `app-frame.tsx`. Lee una sola vez al autenticar y expone `refresh()` para recargas explícitas. Las páginas solo consumen — nunca hacen fetch propio.
@@ -158,6 +171,26 @@ La app entera cuelga de `PortalAuthProvider` + `AppFrame`, que centraliza:
 | `/programacion/` | Planificación de sesiones |
 | `/actas/` | Actas y revisión |
 | `/metricas/` | Indicadores |
+
+### Modalidades de acta
+
+`/actas/` opera ahora con dos modalidades sobre la misma entidad `actas`:
+
+- `ACTA_COMPLETA`: formulario estructurado actual con asistencia, acuerdos y desarrollo
+- `REGISTRO_DOCUMENTAL`: inicio de correlativo operativo con datos generales + documento adjunto obligatorio
+
+Cobertura operativa vigente:
+
+- durante 2026 el esquema híbrido aplica a las 4 comunas del portal
+- una misma comuna o establecimiento puede convivir entre `ACTA_COMPLETA` y `REGISTRO_DOCUMENTAL` según madurez operativa de cada sesión
+- no se requiere habilitación diferenciada por comuna para usar el modo documental en frontend
+
+Invariantes operativas:
+
+- ambas modalidades comparten correlativo por `rbd + tipo_sesion`
+- `REGISTRO_DOCUMENTAL` debe tener `link_acta`
+- `REGISTRO_DOCUMENTAL` puede omitir horario detallado y contenido estructurado
+- la evolución futura debe convertir un registro documental en uno completo sin duplicar sesión
 
 ### Archivos clave
 
@@ -184,6 +217,91 @@ La app entera cuelga de `PortalAuthProvider` + `AppFrame`, que centraliza:
 | `types/domain.ts` | Tipos de dominio: `Acta`, `Profile`, `Establishment`, etc. |
 | `tailwind.config.ts` | Tokens visuales del portal |
 | `supabase/migrations/` | Historial de migraciones SQL |
+
+### Mapa rápido para mejoras (guía para IA)
+
+Usar esta sección como mapa operativo para ubicar rápido dónde tocar según el tipo de mejora.
+
+| Quieres cambiar... | Empieza en... | Apoyo secundario |
+|---|---|---|
+| Login, OTP, magic link, sesión | `components/auth/auth-screen.tsx` | `lib/supabase/auth-context.tsx`, `app/auth/login/page.tsx` |
+| Redirecciones y guardias globales | `components/portal/app-frame.tsx` | `lib/supabase/auth-context.tsx` |
+| Navegación lateral, logo, selector de escuela, header contextual | `components/portal/shell.tsx` | `lib/supabase/use-slep-directorio.ts`, `lib/supabase/auth-context.tsx` |
+| Persistencia de escuela seleccionada | `lib/supabase/auth-context.tsx` | `components/portal/shell.tsx`, `lib/supabase/use-portal-snapshot.tsx` |
+| Precarga de establecimiento activo en nueva acta | `components/portal/acta-form.tsx` | `lib/supabase/auth-context.tsx`, `lib/supabase/use-slep-directorio.ts`, `app/actas/page.tsx` |
+| Resumen del establecimiento | `app/resumen/page.tsx` | `components/portal/section-card.tsx`, `components/portal/attendance-chart.tsx` |
+| Programación y tabla operativa | `app/programacion/page.tsx` | `components/portal/session-table.tsx`, `lib/supabase/queries.ts` |
+| Métricas y visualizaciones | `app/metricas/page.tsx` | `components/portal/attendance-chart.tsx`, `components/portal/section-card.tsx` |
+| Panel admin y directorio SLEP | `app/admin/page.tsx` | `lib/supabase/use-slep-directorio.ts`, `types/domain.ts` |
+| Listado, filtro y flujo de actas | `app/actas/page.tsx` | `components/portal/acta-form.tsx`, `components/portal/acta-detail.tsx`, `lib/supabase/queries.ts` |
+| Formularios y persistencia de borradores | `components/portal/acta-form.tsx` | `components/ui/button.tsx`, `components/ui/toast.tsx` |
+| Modal de confirmación | `components/portal/confirm-dialog.tsx` | `components/ui/button.tsx` |
+| Estilos globales, skeletons, animaciones base | `app/globals.css` | `tailwind.config.ts` |
+| Sistema visual de cards y bloques | `components/portal/section-card.tsx` | `components/portal/stat-card.tsx`, `tailwind.config.ts` |
+| Botones, badges, toasts | `components/ui/button.tsx` | `components/ui/badge.tsx`, `components/ui/toast.tsx` |
+| Fetch de snapshot portal | `lib/supabase/use-portal-snapshot.tsx` | `lib/supabase/queries.ts` |
+| Consultas, mutaciones y uploads Supabase | `lib/supabase/queries.ts` | `lib/supabase/client.ts` |
+| Directorio filtrado de escuelas | `lib/supabase/use-slep-directorio.ts` | `supabase/migrations/20260424_consejos_representante_scope.sql` |
+| Roles, RLS, bootstrap y permisos | `supabase/migrations/20260424_consejos_representante_scope.sql` | `supabase/migrations/20260416_consejos_fix_rls_recursion.sql` |
+
+### Mapa por carpetas
+
+`app/`
+- routing y páginas del portal
+- cada subcarpeta representa una vista principal
+- `layout.tsx` y `globals.css` controlan la experiencia global
+
+`components/portal/`
+- shell autenticado, tablas, cards, gráficos y vistas de negocio
+- aquí viven casi todas las mejoras visuales reutilizables del portal autenticado
+
+`components/ui/`
+- primitivas visuales base reutilizadas por todo el proyecto
+
+`components/auth/`
+- experiencia de entrada y autenticación
+
+`lib/supabase/`
+- contexto de auth, hooks de datos y consultas/mutaciones al backend
+- si algo “se resetea”, “no carga” o “pierde contexto”, casi siempre revisar aquí primero
+
+`supabase/migrations/`
+- fuente de verdad del comportamiento de permisos, bootstrap y RPC SQL
+- cualquier mejora de acceso o filtrado debe documentarse aquí y en este `context.md`
+
+`types/`
+- contratos de dominio que conectan frontend con la forma de los datos
+
+### Rutas de trabajo frecuentes
+
+Ruta 1 — mejorar navegación admin:
+- `components/portal/shell.tsx`
+- `lib/supabase/auth-context.tsx`
+- `lib/supabase/use-slep-directorio.ts`
+
+Ruta 2 — mejorar paneles visuales y consistencia:
+- `app/globals.css`
+- `components/portal/section-card.tsx`
+- `components/ui/button.tsx`
+- `tailwind.config.ts`
+
+Ruta 3 — mejorar experiencia de datos por establecimiento:
+- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/supabase/queries.ts`
+- `app/resumen/page.tsx`
+- `app/programacion/page.tsx`
+- `app/metricas/page.tsx`
+
+Ruta 4 — mejorar actas:
+- `app/actas/page.tsx`
+- `components/portal/acta-form.tsx`
+- `components/portal/acta-detail.tsx`
+- `lib/supabase/queries.ts`
+
+Ruta 5 — mejorar permisos o acceso por correo:
+- `supabase/migrations/20260424_consejos_representante_scope.sql`
+- `lib/supabase/auth-context.tsx`
+- `lib/supabase/use-slep-directorio.ts`
 
 ### Migraciones SQL relevantes
 
@@ -420,8 +538,88 @@ Trabajo realizado por archivo:
 - se mejoró la respuesta visual de cards territoriales
 
 `app/admin/page.tsx`
-- se agregó skeleton de carga para KPI, gráfico y directorio
-- se mejoró el comportamiento del directorio con scroll vertical y cabecera sticky
+- se agregó skeleton de carga para KPI, resumen territorial y tabla del directorio
+- se mejoró la tabla con scroll vertical y cabecera sticky
+
+### Avance 8 — Persistencia de escuela seleccionada
+
+Se corrigió el problema donde el dropdown de escuela del menú lateral perdía la selección al navegar entre páginas o al rehidratar el portal.
+
+Archivo intervenido:
+- `lib/supabase/auth-context.tsx`
+
+Trabajo realizado:
+- se agregó una clave `localStorage` para `selectedRbd`
+- el valor se restaura al inicializar `PortalAuthProvider`
+- la persistencia solo se mantiene para perfiles `ADMIN`
+- al cerrar sesión o al entrar con un perfil no admin, la selección persistida se limpia
+
+Resultado esperado:
+- la escuela activa permanece seleccionada al cambiar entre `/resumen`, `/programacion`, `/actas` y `/metricas`
+- se evita que el portal vuelva a estado “sin escuela” entre secciones del flujo admin
+
+Detalle técnico del fix:
+- la sincronización con `localStorage` ya no limpia `selectedRbd` mientras `profile` todavía es `null` durante la carga inicial
+- eso evita el race donde el selector mostraba una escuela, la navegación redirigía a `/resumen/`, y luego el contexto quedaba nuevamente sin escuela activa
+
+### Avance 9 — Dropdown acotado por representante autenticado
+
+Se reforzó el comportamiento para que el menú de navegación no dependa solo del rol `ADMIN`, sino también del alcance real del usuario autenticado.
+
+Archivos intervenidos:
+- `lib/supabase/auth-context.tsx`
+- `lib/supabase/use-slep-directorio.ts`
+
+Trabajo realizado:
+- se agregó `isGlobalAdmin` al contexto de autenticación
+- `auth-context.tsx` consulta la RPC `is_global_admin()` cuando el perfil autenticado es `ADMIN`
+- `use-slep-directorio.ts` aplica una segunda barrera en cliente:
+  - si el usuario es admin global, ve todas las escuelas disponibles
+  - si el usuario es `ADMIN` pero no global, solo ve escuelas cuyo `correo_representante` coincide con su `correo_electronico`
+
+Resultado esperado:
+- integrantes del equipo definidos como admin global siguen viendo todos los colegios
+- si una persona entra con Google y solo hace match como representante, el dropdown del menú solo habilita las escuelas que le corresponden
+- el comportamiento queda alineado con el correo autenticado en sesión y no solo con el hecho de tener navegación administrativa
+
+### Avance 10 — Panel general alineado al alcance territorial
+
+Se ajustó la experiencia del panel admin para que la vista agregada también respete el alcance del usuario cuando no es admin global.
+
+Archivos intervenidos:
+- `components/portal/shell.tsx`
+- `app/admin/page.tsx`
+
+Trabajo realizado:
+- el menú lateral ahora cambia la etiqueta de `/admin` a `Mi Territorio` cuando el usuario no es admin global
+- el header contextual deja de comunicar “cobertura completa” para usuarios acotados y muestra cobertura asignada
+- la página `/admin` cambia su título, descripción y copy para reflejar que la vista agregada está limitada a escuelas/comunas autorizadas
+- se agregó un banner explicativo en el panel admin para usuarios con cobertura parcial
+
+Resultado esperado:
+- el “panel general” ya no se interpreta como acceso a todo para representantes
+- la vista agregada sigue existiendo, pero solo sobre las escuelas y territorios habilitados al correo autenticado
+
+### Avance 11 — Tipo de acceso visible en sidebar
+
+Se agregó una señal explícita en la barra lateral para que el usuario vea inmediatamente qué nivel de acceso tiene dentro del portal.
+
+Archivo intervenido:
+- `components/portal/shell.tsx`
+
+Trabajo realizado:
+- se agregó un bloque visual encima del selector de escuela para perfiles `ADMIN`
+- el bloque muestra el tipo de acceso actual:
+  - `Administrador global`
+  - `Cobertura asignada`
+- se incorporó un `Badge` de apoyo visual:
+  - `Admin global`
+  - `Alcance parcial`
+- se añadió texto contextual para explicar el efecto práctico del permiso actual
+
+Resultado esperado:
+- el usuario entiende desde el sidebar si tiene visibilidad total o solo territorial
+- se reduce la ambigüedad entre admin global y representante con acceso acotado
 
 Resultado esperado de esta iteración:
 - navegación más clara y profesional
@@ -429,6 +627,30 @@ Resultado esperado de esta iteración:
 - mejor transición percibida durante carga y navegación
 - tablas más utilizables en operación diaria
 - sistema visual más consistente entre módulos
+
+### Avance 12 — Precarga del establecimiento activo en Nueva acta
+
+Se ajustó el drawer de creación de actas para que, cuando el portal ya tiene una escuela activa, el formulario se abra con esa información precargada.
+
+Archivos intervenidos:
+- `components/portal/acta-form.tsx`
+- `app/actas/page.tsx`
+- `lib/supabase/auth-context.tsx`
+
+Trabajo realizado:
+- `ActaForm` ahora toma `selectedRbd`, `profile.rbd` y `establishment` desde `PortalAuthProvider`
+- al abrir `Nueva acta`, si no se está editando un registro existente, el formulario rellena automáticamente:
+  - `rbd`
+  - `nombre_establecimiento`
+  - `direccion`
+  - `comuna`
+- el número de sesión inicial también se recalcula para el establecimiento activo
+- si el directorio SLEP o el establecimiento terminan de cargar después de abrir el drawer, el formulario completa esos datos en cuanto estén disponibles
+
+Resultado esperado:
+- si el usuario ya está trabajando sobre una escuela activa, no necesita volver a seleccionarla dentro del formulario de acta
+- el flujo queda alineado con la experiencia esperada para directores que operan siempre dentro de su propio establecimiento
+- se reduce el riesgo de crear un acta asociada al RBD incorrecto por omisión manual
 
 ---
 
@@ -440,6 +662,8 @@ Resultado esperado de esta iteración:
 - `usuarios_perfiles` sigue permitiendo lectura completa solo a admins globales; el representante solo puede leer su propio perfil.
 - `admin_user_roles` no está definido en este repo; la migración quedó defensiva y solo lo consulta si la tabla existe en la base real.
 - El shell principal ya no depende de un ancho máximo fijo; futuras vistas deben respetar esa expansión y evitar wrappers internos demasiado angostos.
+- La escuela activa en contexto ya es una dependencia funcional del flujo de actas; cualquier cambio en `selectedRbd` debe validarse también abriendo `Nueva acta`.
+- Si una mejora toca experiencia y permisos al mismo tiempo, actualizar siempre este `context.md` además del archivo funcional y la migración SQL correspondiente.
 
 ---
 

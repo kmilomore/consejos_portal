@@ -3,6 +3,7 @@ export type UserRole = "ADMIN" | "DIRECTOR";
 export type SessionType = "Ordinaria" | "Extraordinaria";
 export type SessionFormat = "Presencial" | "Online" | "Híbrido";
 export type PlanningStatus = "PROGRAMADA" | "REALIZADA" | "CANCELADA";
+export type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL";
 
 export interface Establishment {
   rbd: string;
@@ -37,6 +38,7 @@ export interface Programacion {
 export interface AttendeeSlot {
   rol: string;
   nombre: string;
+  rut?: string;
   correo: string;
   asistio: boolean;
   modalidad?: "Presencial" | "Virtual";
@@ -52,11 +54,12 @@ export interface Acta {
   id: string;
   rbd: string;
   sesion: number;
+  modo_registro: ActaRecordMode;
   tipo_sesion: SessionType;
   formato: SessionFormat;
   fecha: string;
-  hora_inicio: string;
-  hora_termino: string;
+  hora_inicio: string | null;
+  hora_termino: string | null;
   lugar: string;
   comuna: string;
   direccion: string;
@@ -64,6 +67,7 @@ export interface Acta {
   desarrollo: string;
   acuerdos: string;
   varios: string;
+  observacion_documental: string;
   proxima_sesion: string | null;
   link_acta: string | null;
   asistentes: AttendeeSlot[];

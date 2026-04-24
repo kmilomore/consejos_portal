@@ -35,6 +35,11 @@ const museoSans = localFont({
 export const metadata: Metadata = {
   title: "Portal Consejos Escolares",
   description: "Programación, actas y métricas para consejos escolares del SLEP.",
+  icons: {
+    icon: "/SLEPCOLCHAGUA.webp",
+    shortcut: "/SLEPCOLCHAGUA.webp",
+    apple: "/SLEPCOLCHAGUA.webp",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

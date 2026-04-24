@@ -9,6 +9,8 @@ interface AuthResult {
   error?: string;
 }
 
+const SELECTED_RBD_STORAGE_KEY = "consejos.portal.selected-rbd";
+
 function resolveOtpRedirectUrl() {
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
@@ -28,6 +30,7 @@ interface PortalAuthContextValue {
   user: User | null;
   profile: Profile | null;
   establishment: Establishment | null;
+  isGlobalAdmin: boolean;
   isLoading: boolean;
   accessError: string | null;
   selectedRbd: string | null;
@@ -46,11 +49,27 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [selectedRbd, setSelectedRbd] = useState<string | null>(null);
   const [allEstablishments, setAllEstablishments] = useState<Establishment[]>([]);
   const profileLoaded = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const storedRbd = window.localStorage.getItem(SELECTED_RBD_STORAGE_KEY);
+      if (storedRbd) {
+        setSelectedRbd(storedRbd);
+      }
+    } catch {
+      // localStorage may be unavailable; keep in-memory state only
+    }
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -97,6 +116,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         setSession(null);
         setProfile(null);
         setEstablishment(null);
+        setIsGlobalAdmin(false);
         setAccessError(null);
         setIsLoading(false);
       }
@@ -159,7 +179,18 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       const nextProfile = profileResult.data as Profile;
+      let nextIsGlobalAdmin = false;
+
+      if (nextProfile.rol === "ADMIN") {
+        const globalAdminResult = await client.rpc("is_global_admin");
+
+        if (!cancelled && !globalAdminResult.error) {
+          nextIsGlobalAdmin = Boolean(globalAdminResult.data);
+        }
+      }
+
       setProfile(nextProfile);
+      setIsGlobalAdmin(nextIsGlobalAdmin);
 
       if (!nextProfile.rbd) {
         setEstablishment(null);
@@ -213,6 +244,34 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         setAllEstablishments((data as Establishment[]) ?? []);
       });
   }, [profile, supabase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      if (!session || !profile) {
+        return;
+      }
+
+      if (profile.rol !== "ADMIN") {
+        window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
+        if (selectedRbd !== null) {
+          setSelectedRbd(null);
+        }
+        return;
+      }
+
+      if (selectedRbd) {
+        window.localStorage.setItem(SELECTED_RBD_STORAGE_KEY, selectedRbd);
+      } else {
+        window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
+      }
+    } catch {
+      // localStorage may be unavailable; ignore silently
+    }
+  }, [profile, selectedRbd, session]);
 
   async function sendOtp(email: string): Promise<AuthResult> {
     if (!supabase) {
@@ -293,6 +352,14 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       return;
     }
 
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
+      }
+    } catch {
+      // localStorage may be unavailable; ignore silently
+    }
+
     await supabase.auth.signOut();
   }
 
@@ -303,6 +370,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         user: session?.user ?? null,
         profile,
         establishment,
+        isGlobalAdmin,
         isLoading,
         accessError,
         selectedRbd,

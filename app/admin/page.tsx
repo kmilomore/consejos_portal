@@ -105,7 +105,7 @@ function DirectoryRow({ e }: { e: SlepEscuela }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { profile } = usePortalAuth();
+  const { profile, isGlobalAdmin } = usePortalAuth();
   const router = useRouter();
   const { data, metrics, isLoading, error } = useSlepDirectorio();
   const [query, setQuery] = useState("");
@@ -176,12 +176,20 @@ export default function AdminPage() {
           SLEP Colchagua
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">
-          Panel Administrador
+          {isGlobalAdmin ? "Panel Administrador" : "Panel de territorio asignado"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Directorio de establecimientos educacionales y métricas por territorio.
+          {isGlobalAdmin
+            ? "Directorio de establecimientos educacionales y métricas por territorio."
+            : "Vista agregada únicamente de las escuelas y comunas asociadas al correo autenticado."}
         </p>
       </div>
+
+      {!isGlobalAdmin && (
+        <div className="rounded-[24px] border border-ocean/15 bg-ocean/5 px-5 py-4 text-sm text-slate-700">
+          Este panel no entrega acceso global. Las métricas, territorios y escuelas mostradas corresponden solo a tu cobertura asignada como representante.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4 xl:grid-cols-2">
@@ -239,7 +247,7 @@ export default function AdminPage() {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 p-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400">
-              Directorio completo
+              {isGlobalAdmin ? "Directorio completo" : "Directorio asignado"}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-ink">
               {filtered.length} de {metrics.total} establecimientos
