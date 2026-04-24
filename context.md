@@ -44,19 +44,26 @@ Experiencia principal:
   - Crear, editar, ver (solo lectura) y eliminar actas
   - Soporte fase 1 para `Registro documental` con PDF obligatorio y metadatos mínimos de sesión
   - Búsqueda y filtros en el listado
+  - Filtro por `modo_registro` y badge visual para distinguir `Acta completa` vs `Registro documental`
   - Asistencia estamental con validación de RUT (módulo-11 chileno)
+  - Persistencia de `rut` por asistente en formulario, snapshot y vista detalle
+  - Nombre, RUT válido, correo y modalidad obligatorios para asistentes marcados como presentes
   - Quórum en tiempo real (4/6 mínimo)
   - Grilla dinámica de invitados
   - Upload de PDF con drag & drop
-  - Borrador persistido en `localStorage`
+  - Borrador persistido en `localStorage` para creación y edición, con clave por acta
   - Precarga automática del establecimiento activo al abrir `Nueva acta`
   - Guardia de cambios sin guardar (dirty guard)
+  - Advertencia `beforeunload` si hay cambios sin guardar
   - Toast de confirmación post-guardado
   - Vista de solo lectura con impresión A4
+  - Vista detalle adaptada para `Registro documental` y horario nullable
   - Eliminación con confirmación
   - Rate limit cliente-side (cooldown 3 s)
   - Validación de RBD en submit para rol DIRECTOR
   - Sanitización de texto antes de persistir
+- Métricas separadas entre `actas completas` y `registros documentales`
+- `lib/supabase/queries.ts` restaurado como loader canónico del portal, con soporte para `modo_registro`, `observacion_documental`, `rut` en asistentes y `actasByMode`
 - Sistema de toasts global (`toast()` + `<Toaster>`)
 - `ConfirmDialog` reutilizable
 - Branding institucional: Museo Sans local, paleta azul/blanco/rojo
@@ -314,6 +321,7 @@ Ruta 5 — mejorar permisos o acceso por correo:
 | `20260417_slep_directorio_fn.sql` | RPC `get_slep_directorio()` |
 | `20260417_sync_establecimientos_full.sql` | Sincronización completa de establecimientos |
 | `20260418_save_acta_atomic.sql` | RPC `save_acta_complete` (transacción atómica) |
+| `20260424_consejos_actas_registro_documental.sql` | Extiende `actas` para modo híbrido documental y horarios nullable |
 | `20260424_consejos_representante_scope.sql` | Acceso por representante + alcance por RBD + directorio SLEP filtrado |
 
 ---
@@ -652,6 +660,96 @@ Resultado esperado:
 - el flujo queda alineado con la experiencia esperada para directores que operan siempre dentro de su propio establecimiento
 - se reduce el riesgo de crear un acta asociada al RBD incorrecto por omisión manual
 
+### Avance 13 — Modelo híbrido de actas para las 4 comunas
+
+Se implementó la fase 1 del esquema híbrido para operar durante 2026 con sesiones que pueden iniciar como acta completa o como registro documental sin abrir subsistemas separados.
+
+Archivos intervenidos:
+- `types/domain.ts`
+- `components/portal/acta-form.tsx`
+- `components/portal/acta-detail.tsx`
+- `app/actas/page.tsx`
+- `app/metricas/page.tsx`
+- `lib/supabase/queries.ts`
+- `lib/supabase/use-portal-snapshot.tsx`
+- `supabase/migrations/20260418_save_acta_atomic.sql`
+- `supabase/migrations/20260424_consejos_actas_registro_documental.sql`
+
+Trabajo realizado:
+- se agregó `ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL"`
+- `actas` ahora soporta `modo_registro` y `observacion_documental`
+- `hora_inicio` y `hora_termino` pasan a ser nullable para registros documentales
+- el formulario permite alternar entre modo completo y documental
+- en modo documental se exige respaldo adjunto y se omite el bloque estructurado de asistencia/desarrollo
+- listado, detalle, snapshot y métricas reconocen ambos modos sobre la misma entidad `actas`
+
+Resultado esperado:
+- el portal sostiene un correlativo único por sesión aunque parte del histórico siga entrando con PDF y metadatos mínimos
+- durante 2026 las 4 comunas pueden convivir entre captura completa y documental sin configuración diferenciada en frontend
+
+### Avance 14 — Métricas y lectura operativa por tipo de registro
+
+Se separó la lectura de actas para distinguir claramente entre sesiones completamente sistematizadas y registros documentales de transición.
+
+Archivos intervenidos:
+- `app/metricas/page.tsx`
+- `app/actas/page.tsx`
+- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/supabase/queries.ts`
+
+Trabajo realizado:
+- se agregaron contadores `actasCompletas`, `registrosDocumentales` y `porcentajeCompletas`
+- el snapshot expone `actasByMode`
+- `/actas/` ahora filtra por `modo_registro`
+- el buscador de actas también considera `observacion_documental`
+- el listado muestra badge visual para diferenciar documental vs completa
+
+Resultado esperado:
+- el seguimiento de avance ya no mezcla sesiones completas con ingresos documentales mínimos
+- se puede medir transición operativa sin perder trazabilidad del correlativo
+
+### Avance 15 — Endurecimiento del flujo de ingreso de actas
+
+Se corrigieron los falsos negativos del validador de RUT y se endureció el flujo para asistentes presentes y borradores.
+
+Archivos intervenidos:
+- `components/portal/acta-form.tsx`
+- `components/portal/acta-detail.tsx`
+- `types/domain.ts`
+- `lib/supabase/queries.ts`
+
+Trabajo realizado:
+- se reemplazó la validación de RUT por módulo-11 chileno estándar
+- el `rut` del asistente se persiste y se muestra en detalle
+- cuando un estamento queda marcado como presente, nombre, RUT válido, correo y modalidad pasan a ser obligatorios
+- el borrador ahora se guarda tanto en nuevas actas como en edición, usando clave por acta
+- se agregó advertencia `beforeunload` si el formulario está dirty
+- el horario en detalle y dominio queda preparado para valores nulos cuando la sesión es documental
+
+Resultado esperado:
+- baja el riesgo de rechazar RUT reales por un algoritmo frágil
+- el flujo deja de aceptar asistentes presentes sin trazabilidad mínima de identidad y contacto
+- el usuario puede retomar una edición interrumpida sin perder avance local
+
+### Avance 16 — Restauración del loader canónico y validación final
+
+Se restauró `lib/supabase/queries.ts` después de una contaminación accidental con código ajeno al proyecto.
+
+Archivo intervenido:
+- `lib/supabase/queries.ts`
+
+Trabajo realizado:
+- se eliminó el uso incorrecto de `@/utils/supabase/client`
+- se restituyó el import correcto `@/lib/supabase/client`
+- se restauraron `fetchPortalSnapshot`, `upsertActa`, `replaceActaInvitados`, `uploadActaPdf`, `updateActaLink` y `deleteActa`
+- se mantuvo compatibilidad con `modo_registro`, `observacion_documental`, `rut` en asistentes y `actasByMode`
+
+Validación ejecutada:
+- `npm run build`
+
+Resultado:
+- compilación Next.js exitosa con el loader restaurado y el flujo híbrido activo
+
 ---
 
 ## 9. Riesgos y Observaciones Actuales
@@ -664,6 +762,10 @@ Resultado esperado:
 - El shell principal ya no depende de un ancho máximo fijo; futuras vistas deben respetar esa expansión y evitar wrappers internos demasiado angostos.
 - La escuela activa en contexto ya es una dependencia funcional del flujo de actas; cualquier cambio en `selectedRbd` debe validarse también abriendo `Nueva acta`.
 - Si una mejora toca experiencia y permisos al mismo tiempo, actualizar siempre este `context.md` además del archivo funcional y la migración SQL correspondiente.
+- Si la migración `20260424_consejos_actas_registro_documental.sql` no está aplicada, el frontend híbrido quedará desalineado con la base y fallarán `modo_registro`, `observacion_documental` o los horarios nullable.
+- `lib/supabase/queries.ts` es el punto canónico del snapshot y de las mutaciones de actas; no debe reemplazarse con implementaciones externas ni imports a `@/utils/...`.
+- El flujo documental depende de que `link_acta` exista al guardar; cualquier relajación futura debe coordinarse simultáneamente entre UI, migración y RPC SQL.
+- Las métricas del portal ahora distinguen entre completitud y registro documental; cualquier KPI nuevo debe decidir explícitamente si cuenta ambos modos o solo `ACTA_COMPLETA`.
 
 ---
 
@@ -688,6 +790,7 @@ type UserRole      = "ADMIN" | "DIRECTOR"
 type SessionType   = "Ordinaria" | "Extraordinaria"
 type SessionFormat = "Presencial" | "Online" | "Híbrido"
 type PlanningStatus = "PROGRAMADA" | "REALIZADA" | "CANCELADA"
+type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL"
 ```
 
 ### Reglas de negocio modeladas
@@ -697,6 +800,9 @@ type PlanningStatus = "PROGRAMADA" | "REALIZADA" | "CANCELADA"
 - El rol `ADMIN` puede ver y gestionar datos de cualquier establecimiento
 - El N° de sesión se calcula del servidor (`count(actas por rbd+tipo) + 1`) — nunca editable en UI
 - Los PDFs de evidencia viven en el bucket `actas` con path `{rbd}/{año}/{actaId}.pdf`
+- `ACTA_COMPLETA` y `REGISTRO_DOCUMENTAL` comparten la misma tabla `actas` y el mismo correlativo operativo
+- `REGISTRO_DOCUMENTAL` exige documento adjunto y puede omitir horario detallado y contenido estructurado
+- `AttendeeSlot` ahora puede incluir `rut` para trazabilidad mínima de asistentes presentes
 
 ---
 
@@ -735,6 +841,12 @@ Si la base real difiere del esquema inferido, el bootstrap puede vincular mal us
 Construye derivados:
 - `attendanceByRole` — ratio de asistencia por rol
 - `planningByComuna` — totales de programación por comuna
+- `actasByMode` — separación entre `ACTA_COMPLETA` y `REGISTRO_DOCUMENTAL`
+
+Normalizaciones vigentes en cliente:
+- `fetchPortalSnapshot()` normaliza `modo_registro`
+- los asistentes de `actas.asistentes` se normalizan incluyendo `rut`
+- `hora_inicio` y `hora_termino` pueden venir como `null`
 
 ### Diagnósticos
 
