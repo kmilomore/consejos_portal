@@ -40,14 +40,6 @@ const ESTAMENTOS = [
 const SESSION_FORMATS: SessionFormat[] = ["Presencial", "Online", "Híbrido"];
 const QUORUM_MIN = 4;
 const DRAFT_KEY_PREFIX = "acta-draft";
-const ALLOWED_DOC_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
 // Minimum ms between consecutive saves (client-side rate limit) — #4
 const SAVE_COOLDOWN_MS = 3000;
 
@@ -568,6 +560,8 @@ export function ActaForm({
   const { establishment, profile, selectedRbd } = usePortalAuth(); // used for RBD validation — #8
   const [form, setForm] = useState<FormState>(makeEmptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [fileReadyProgress, setFileReadyProgress] = useState(0);
+  const [fileReadyStatus, setFileReadyStatus] = useState<"idle" | "preparing" | "ready">("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [dragOver, setDragOver] = useState(false);
@@ -579,8 +573,34 @@ export function ActaForm({
   const initialFormRef = useRef<FormState | null>(null); // #25 dirty tracking
   const lastSaveTimeRef = useRef<number>(0); // #4 rate limit
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null); // #12
+  const fileReadyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeRbd = selectedRbd ?? profile?.rbd ?? null;
   const draftStorageKey = getDraftStorageKey(editActa?.id);
+
+  function clearFileReadyFeedback() {
+    if (fileReadyTimerRef.current) {
+      clearInterval(fileReadyTimerRef.current);
+      fileReadyTimerRef.current = null;
+    }
+  }
+
+  function startFileReadyFeedback() {
+    clearFileReadyFeedback();
+    setFileReadyStatus("preparing");
+    setFileReadyProgress(12);
+
+    fileReadyTimerRef.current = setInterval(() => {
+      setFileReadyProgress((current) => {
+        const next = Math.min(current + 22, 100);
+        if (next >= 100) {
+          clearFileReadyFeedback();
+          setFileReadyStatus("ready");
+          return 100;
+        }
+        return next;
+      });
+    }, 90);
+  }
 
   const buildActiveSchoolFormPatch = useCallback((rbd: string) => {
     const slep = slepData.find((item) => item.rbd === rbd);
@@ -636,6 +656,9 @@ export function ActaForm({
     setForm(initial);
     initialFormRef.current = initial; // snapshot for dirty check — #25
     setSubmitting(false);
+    clearFileReadyFeedback();
+    setFileReadyProgress(0);
+    setFileReadyStatus("idle");
     setUploadProgress(0);
     setUploadStatus("idle");
     setErrors({});
@@ -684,6 +707,12 @@ export function ActaForm({
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [form, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      clearFileReadyFeedback();
+    };
+  }, []);
 
   // ── Dirty-aware close — #25 ───────────────────────────────────────────────
 
@@ -776,9 +805,12 @@ export function ActaForm({
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && ALLOWED_DOC_TYPES.includes(file.type)) {
+    if (file) {
       pendingFile.current = file;
+      setSaveError(null);
+      setUploadProgress(0);
       setUploadStatus("idle");
+      startFileReadyFeedback();
     }
   }
 
@@ -786,7 +818,10 @@ export function ActaForm({
     const file = e.target.files?.[0];
     if (file) {
       pendingFile.current = file;
+      setSaveError(null);
+      setUploadProgress(0);
       setUploadStatus("idle");
+      startFileReadyFeedback();
     }
   }
 
@@ -844,9 +879,41 @@ export function ActaForm({
     setSubmitting(true);
     setSaveError(null);
 
-    const { upsertActa, replaceActaInvitados, uploadActaPdf, updateActaLink } = await import(
+    const { upsertActa, replaceActaInvitados, uploadActaDocument, updateActaLink, deleteActaDocument } = await import(
       "@/lib/supabase/queries"
     );
+
+    const isNewActa = !form.id;
+    const generatedActaId = isNewActa ? crypto.randomUUID() : null;
+    let documentUrl = form.link_acta || null;
+    let shouldRollbackUploadedDocument = false;
+
+    if (isDocumentalMode && pendingFile.current && !documentUrl) {
+      if (!generatedActaId) {
+        setSaveError("No se pudo preparar el identificador del registro documental.");
+        setSubmitting(false);
+        return;
+      }
+
+      setUploadStatus("uploading");
+      const uploadedUrl = await uploadActaDocument(
+        generatedActaId,
+        form.rbd,
+        pendingFile.current,
+        (progress) => setUploadProgress(progress),
+      );
+
+      if (!uploadedUrl) {
+        setUploadStatus("error");
+        setSaveError("No se pudo subir el documento de respaldo. El registro documental requiere un archivo válido.");
+        setSubmitting(false);
+        return;
+      }
+
+      setUploadStatus("done");
+      documentUrl = uploadedUrl;
+      shouldRollbackUploadedDocument = true;
+    }
 
     // #7 — Sanitize text fields before persisting
     const asistentes = form.estamentos
@@ -860,8 +927,8 @@ export function ActaForm({
         modalidad: e.modalidad ?? undefined,
       }));
 
-    const savedId = await upsertActa({
-      id: form.id ?? undefined,
+    const { id: savedId, errorMessage } = await upsertActa({
+      id: form.id ?? generatedActaId ?? undefined,
       programacion_origen_id: form.id_programacion_origen ?? undefined,
       rbd: form.rbd,
       sesion: Number(form.sesion) || 1,
@@ -880,33 +947,67 @@ export function ActaForm({
       varios: sanitizeText(form.varios),
       observacion_documental: sanitizeText(form.observacion_documental),
       proxima_sesion: form.proxima_sesion || null,
-      link_acta: form.link_acta || null,
+      link_acta: documentUrl,
       asistentes: isDocumentalMode ? [] : asistentes,
     });
 
     if (!savedId) {
-      setSaveError("No se pudo guardar el acta. Revisa la conexión con Supabase.");
+      if (shouldRollbackUploadedDocument && generatedActaId && pendingFile.current) {
+        await deleteActaDocument(generatedActaId, form.rbd, pendingFile.current.name);
+      }
+
+      setUploadStatus("error");
+      setSaveError(
+        errorMessage
+          ? `No se pudo registrar la sesion en Supabase: ${errorMessage}`
+          : "No se pudo registrar la sesion en Supabase.",
+      );
       setSubmitting(false);
       return;
     }
 
-    await replaceActaInvitados(
+    const invitadosResult = await replaceActaInvitados(
       savedId,
       isDocumentalMode
         ? []
         : form.guests.map((g) => ({ nombre: sanitizeText(g.nombre), cargo: sanitizeText(g.cargo) })),
     );
 
-    if (pendingFile.current) {
+    if (!invitadosResult.ok) {
+      setSaveError(
+        invitadosResult.errorMessage
+          ? `Se guardo la sesion, pero fallo la persistencia de invitados: ${invitadosResult.errorMessage}`
+          : "Se guardo la sesion, pero fallo la persistencia de invitados.",
+      );
+      setSubmitting(false);
+      return;
+    }
+
+    if (pendingFile.current && (!isDocumentalMode || form.link_acta)) {
       setUploadStatus("uploading");
-      const url = await uploadActaPdf(
+      const url = await uploadActaDocument(
         savedId,
         form.rbd,
         pendingFile.current,
         (p) => setUploadProgress(p),
       );
       setUploadStatus(url ? "done" : "error");
-      if (url) await updateActaLink(savedId, url);
+      if (url) {
+        const linkResult = await updateActaLink(savedId, url);
+        if (!linkResult.ok) {
+          setSaveError(
+            linkResult.errorMessage
+              ? `Se guardo la sesion, pero no se pudo actualizar el enlace del documento: ${linkResult.errorMessage}`
+              : "Se guardo la sesion, pero no se pudo actualizar el enlace del documento.",
+          );
+          setSubmitting(false);
+          return;
+        }
+      } else if (!isDocumentalMode) {
+        setSaveError("Se guardo la sesion, pero no se pudo subir el documento de respaldo a Supabase Storage.");
+        setSubmitting(false);
+        return;
+      }
     }
 
     // #4 — Record last save timestamp
@@ -1364,11 +1465,12 @@ export function ActaForm({
             )}
 
             {/* ── 5. Evidencia documental PDF ──────────────────────────────── */}
+            {/* ── 5. Evidencia documental ──────────────────────────────────── */}
             <section>
               <SectionHeader>Evidencia documental</SectionHeader>
               {isDocumentalMode && (
                 <p className="mb-3 text-sm text-slate-600">
-                  En registro documental el archivo adjunto es obligatorio para abrir el correlativo operativo.
+                  En registro documental el archivo adjunto en Supabase Storage es obligatorio para abrir el correlativo operativo.
                 </p>
               )}
 
@@ -1438,7 +1540,7 @@ export function ActaForm({
                           : "Arrastra el documento aquí o haz clic para seleccionar"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        PDF, imágenes (JPG, PNG) o Word · máximo 10 MB
+                        Cualquier tipo de documento o archivo de respaldo · máximo 10 MB
                       </p>
                     </div>
                   </div>
@@ -1446,10 +1548,32 @@ export function ActaForm({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="application/pdf,image/jpeg,image/png,image/webp,.doc,.docx"
+                    accept="*/*"
                     className="hidden"
                     onChange={handleFileInput}
                   />
+
+                  {(fileReadyStatus === "preparing" || fileReadyStatus === "ready") && uploadStatus !== "uploading" && (
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                        <span>
+                          {fileReadyStatus === "preparing"
+                            ? "Preparando documento en el formulario…"
+                            : "Documento listo para guardar"}
+                        </span>
+                        <span>{fileReadyProgress}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className={cn(
+                            "h-2 rounded-full transition-all duration-300",
+                            fileReadyStatus === "ready" ? "bg-emerald-500" : "bg-ocean",
+                          )}
+                          style={{ width: `${fileReadyProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Progress bar */}
                   {uploadStatus === "uploading" && (
@@ -1474,10 +1598,18 @@ export function ActaForm({
                     </p>
                   )}
 
+                  {fileReadyStatus === "ready" && uploadStatus === "idle" && (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                      <FileCheck className="h-3.5 w-3.5" />
+                      Documento seleccionado y listo para guardarse en Supabase Storage.
+                    </p>
+                  )}
+
                   {uploadStatus === "error" && (
                     <p className="mt-2 text-xs text-ember">
-                      Error al subir el documento. El acta fue guardada sin
-                      evidencia.
+                      {isDocumentalMode
+                        ? "No se pudo subir el documento a Supabase Storage. El registro documental no fue guardado."
+                        : "No se pudo subir el documento a Supabase Storage. El acta fue guardada sin actualizar la evidencia."}
                     </p>
                   )}
 

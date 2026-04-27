@@ -300,7 +300,7 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
   return (
     <div className="flex min-h-screen w-full flex-col gap-4 px-3 py-3 lg:flex-row lg:px-4 lg:py-4 2xl:px-6">
       {/* ── Sidebar ── */}
-      <aside className="flex w-full flex-col rounded-[30px] border border-white/70 bg-white/82 shadow-panel backdrop-blur lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[320px] xl:w-[336px]">
+      <aside className="flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-white/70 bg-white/82 shadow-panel backdrop-blur lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:w-[320px] xl:w-[336px]">
         {/* Brand */}
         <div className="px-5 pt-5 lg:px-6 lg:pt-6">
           <Link href={isAdmin ? "/admin" : "/resumen"} className="block rounded-[22px] border border-slate-200/70 bg-white px-4 py-4 transition hover:border-slate-300 hover:shadow-sm">
@@ -324,58 +324,59 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
           </Link>
         </div>
 
-        {/* Identity / school info */}
-        <div className="mt-4 px-5 lg:px-6">
-          {isAdmin ? (
-            <div className="space-y-3">
-              <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Tipo de acceso</p>
-                    <p className="mt-1 text-sm font-semibold text-ink">
-                      {isGlobalAdmin ? "Administrador global" : "Cobertura asignada"}
-                    </p>
+        <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4 lg:px-6 lg:pb-6">
+          {/* Identity / school info */}
+          <div>
+            {isAdmin ? (
+              <div className="space-y-3">
+                <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Tipo de acceso</p>
+                      <p className="mt-1 text-sm font-semibold text-ink">
+                        {isGlobalAdmin ? "Administrador global" : "Cobertura asignada"}
+                      </p>
+                    </div>
+                    <Badge tone={isGlobalAdmin ? "success" : "warn"}>
+                      {isGlobalAdmin ? "Admin global" : "Alcance parcial"}
+                    </Badge>
                   </div>
-                  <Badge tone={isGlobalAdmin ? "success" : "warn"}>
-                    {isGlobalAdmin ? "Admin global" : "Alcance parcial"}
-                  </Badge>
+                  <p className="mt-3 text-xs leading-5 text-slate-600">
+                    {isGlobalAdmin
+                      ? "Puedes navegar y consolidar información de todos los establecimientos habilitados en el portal."
+                      : "Solo puedes ver el territorio y las escuelas vinculadas a tu correo autenticado como representante."}
+                  </p>
                 </div>
-                <p className="mt-3 text-xs leading-5 text-slate-600">
-                  {isGlobalAdmin
-                    ? "Puedes navegar y consolidar información de todos los establecimientos habilitados en el portal."
-                    : "Solo puedes ver el territorio y las escuelas vinculadas a tu correo autenticado como representante."}
-                </p>
-              </div>
 
-              <SchoolSelector
-                selectedRbd={selectedRbd}
-                onSelect={setSelectedRbd}
-              />
-            </div>
-          ) : (
-            <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ocean/10 text-ocean">
-                <School2 className="h-4 w-4" />
+                <SchoolSelector
+                  selectedRbd={selectedRbd}
+                  onSelect={setSelectedRbd}
+                />
+              </div>
+            ) : (
+              <div className="rounded-[22px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-mist/80 px-4 py-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ocean/10 text-ocean">
+                  <School2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Escuela activa</p>
+                    <p className="truncate text-sm font-semibold text-ink">{activeDisplayName}</p>
+                    <p className="text-[11px] text-slate-400">{activeRbd ? `RBD ${activeRbd}` : "Sin RBD"} · {activeComuna}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Escuela activa</p>
-                  <p className="truncate text-sm font-semibold text-ink">{activeDisplayName}</p>
-                  <p className="text-[11px] text-slate-400">{activeRbd ? `RBD ${activeRbd}` : "Sin RBD"} · {activeComuna}</p>
+                <div className="mt-3 rounded-2xl bg-white/80 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200/80">
+                  Vista enfocada para trabajo operativo del establecimiento.
                 </div>
               </div>
-              <div className="mt-3 rounded-2xl bg-white/80 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200/80">
-                Vista enfocada para trabajo operativo del establecimiento.
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Nav */}
-        <div className="mt-5 px-5 lg:px-6">
-          <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-2.5">
-            <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Navegación</p>
-            <nav className="space-y-1">
+          {/* Nav */}
+          <div className="mt-5">
+            <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/70 p-2.5">
+              <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Navegación</p>
+              <nav className="space-y-1">
           {navigation.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
             return (
@@ -399,33 +400,34 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
               </Link>
             );
           })}
-            </nav>
+              </nav>
+            </div>
           </div>
-        </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+          {/* Spacer */}
+          <div className="flex-1" />
 
-        {/* User footer */}
-        <div className="border-t border-slate-100 px-5 py-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-ocean text-sm font-bold text-white">
-              {initial}
+          {/* User footer */}
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-ocean text-sm font-bold text-white">
+                {initial}
+              </div>
+              <div className="min-w-0 flex-1">
+                {displayName !== displayEmail && (
+                  <p className="truncate text-xs font-semibold text-ink">{displayName}</p>
+                )}
+                <p className="truncate text-xs text-slate-400">{displayEmail}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                title="Cerrar sesión"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-rose-600"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              {displayName !== displayEmail && (
-                <p className="truncate text-xs font-semibold text-ink">{displayName}</p>
-              )}
-              <p className="truncate text-xs text-slate-400">{displayEmail}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              title="Cerrar sesión"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-rose-600"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
           </div>
         </div>
       </aside>

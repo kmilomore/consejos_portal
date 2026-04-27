@@ -74,7 +74,7 @@ export default function ProgramacionPage() {
       >
         <div className="grid gap-4 md:grid-cols-3">
           {validationSteps.map((step, index) => (
-            <article key={step} className="panel-reveal rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-sm">
+            <article key={step} className="rounded-[24px] border border-slate-200/80 bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-ocean">Paso 0{index + 1}</p>
               <p className="mt-4 text-sm leading-6 text-slate-600">{step}</p>
             </article>

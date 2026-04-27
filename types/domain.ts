@@ -21,6 +21,15 @@ export interface Profile {
   nombre_director: string | null;
 }
 
+export interface PortalScope {
+  role_text: UserRole;
+  is_global_admin: boolean;
+  accessible_rbds: string[];
+  default_rbd: string | null;
+  can_select_school: boolean;
+  landing_route: "/admin" | "/resumen";
+}
+
 export interface Programacion {
   id: string;
   rbd: string;

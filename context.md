@@ -1,6 +1,6 @@
 # Contexto del Proyecto: Consejos
 
-> **Última actualización:** 2026-04-24  
+> **Última actualización:** 2026-04-27  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
 
 ---
@@ -18,7 +18,7 @@ Experiencia principal:
 
 ---
 
-## 2. Estado Actual del Producto (2026-04-24)
+## 2. Estado Actual del Producto (2026-04-27)
 
 ### Ya implementado y funcional
 
@@ -39,7 +39,8 @@ Experiencia principal:
 - Dropdown de escuelas diferenciado entre admin global y representante con alcance acotado por correo autenticado
 - Panel admin agregado también acotado por escuelas y territorios del representante cuando no es admin global
 - Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
-- `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar
+- `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar, nunca se desmonta mientras exista sesión
+- Navegación entre secciones sin flash visual ni pérdida de contenido (`app/loading.tsx` eliminado, `AppFrame` reestructurado)
 - Módulo de actas completo:
   - Crear, editar, ver (solo lectura) y eliminar actas
   - Soporte fase 1 para `Registro documental` con PDF obligatorio y metadatos mínimos de sesión
@@ -76,7 +77,7 @@ Experiencia principal:
 - CRUD de programación (solo lectura implementada)
 - Vínculo UI entre programación y acta (`id_programacion_origen` existe sin selector)
 - Columna `correo` en `actas_invitados` (capturado en UI, no persiste)
-- Política de storage bucket `actas` (escritura autenticada + lectura pública por RBD)
+- Política de storage bucket `evidencias_actas` (escritura autenticada + lectura pública por RBD)
 - Validación MIME real del PDF en servidor
 - Activar `save_acta_complete` en el cliente (migración SQL lista)
 - Aplicar en Supabase la migración `20260424_consejos_actas_registro_documental.sql` si aún no está corrida
@@ -163,6 +164,14 @@ Detalle operativo vigente:
 `PortalSnapshotProvider` vive en `app-frame.tsx`. Lee una sola vez al autenticar y expone `refresh()` para recargas explícitas. Las páginas solo consumen — nunca hacen fetch propio.
 
 **Invariante:** las páginas no deben tener `useEffect` para cargar datos del portal — siempre usar `usePortalSnapshot()`.
+
+### 4.5 Estabilidad de layout durante navegación
+
+`app/loading.tsx` fue eliminado deliberadamente. Este archivo creaba un Suspense boundary automático en App Router que mostraba un spinner vacío en cada navegación entre páginas, causando la sensación de "salir y volver a entrar".
+
+Además, `AppFrame` fue reestructurado para que `PortalSnapshotProvider` envuelva **todas** las ramas autenticadas. Con el esquema anterior, si `isLoading` era `true` aunque fuera un frame, todo el shell (incluyendo el sidebar) se desmontaba.
+
+**Invariante:** no volver a agregar `app/loading.tsx` a nivel del directorio `app/`. Si se necesita un indicador de carga específico para una ruta, debe hacerse dentro del `page.tsx` correspondiente con el patrón de skeleton ya establecido.
 
 ---
 
@@ -731,6 +740,35 @@ Resultado esperado:
 - el flujo deja de aceptar asistentes presentes sin trazabilidad mínima de identidad y contacto
 - el usuario puede retomar una edición interrumpida sin perder avance local
 
+### Avance 17 — Corrección de flash de navegación entre secciones
+
+Se corrigió el problema donde cambiar de sección (ej. `/actas` → `/programacion`) borraba todo el contenido visualmente, dejaba solo el fondo y luego recargaba la información.
+
+Causas identificadas:
+
+1. **`app/loading.tsx`** — Next.js App Router lo usa como Suspense boundary automático global. En cada navegación client-side mostraba un spinner vacío mientras cargaba el chunk JS de la nueva ruta, causando la sensación de salir de la página.
+2. **`AppFrame` retornando `null` durante `isLoading`** — si el estado de autenticación fluctuaba aunque fuera brevemente (renovación de token, revalidación de sesión), todo el árbol del shell (`PortalSnapshotProvider` + `PortalShell` + sidebar) se desmontaba y re-montaba desde cero.
+
+Archivos intervenidos:
+- `app/loading.tsx` → **eliminado**
+- `components/portal/app-frame.tsx`
+- `components/portal/section-card.tsx` (class `panel-reveal` eliminada)
+- `app/resumen/page.tsx` (class `panel-reveal` eliminada del hero)
+- `app/programacion/page.tsx` (class `panel-reveal` eliminada de artículos)
+
+Trabajo realizado:
+- Se eliminó `app/loading.tsx`. Sin este archivo React concurrent mode mantiene el contenido anterior visible hasta que el nuevo esté listo.
+- `PortalSnapshotProvider` fue movido para envolver **todas** las ramas autenticadas como capa exterior, sin importar el estado de `isLoading`. Así nunca se desmonta mientras haya sesión activa.
+- Cuando `isLoading` es `true` con sesión activa, `AppFrame` ahora muestra un skeleton de dos columnas (sidebar + main) en lugar de `null`, manteniendo la estructura visual estable.
+- Se eliminó la clase `panel-reveal` (animación `opacity: 0 → 1` + `translateY`) de `SectionCard`, del hero de resumen y de los artículos de programación, ya que esa animación se disparaba en cada navegación agravando la sensación de recarga.
+
+Resultado esperado:
+- La navegación entre `/resumen`, `/programacion`, `/actas`, `/metricas` y `/admin` es instantánea y sin flash visual.
+- El sidebar y el header nunca desaparecen al cambiar de sección.
+- El fondo y el layout permanecen estables durante toda la sesión autenticada.
+
+---
+
 ### Avance 16 — Restauración del loader canónico y validación final
 
 Se restauró `lib/supabase/queries.ts` después de una contaminación accidental con código ajeno al proyecto.
@@ -766,6 +804,9 @@ Resultado:
 - `lib/supabase/queries.ts` es el punto canónico del snapshot y de las mutaciones de actas; no debe reemplazarse con implementaciones externas ni imports a `@/utils/...`.
 - El flujo documental depende de que `link_acta` exista al guardar; cualquier relajación futura debe coordinarse simultáneamente entre UI, migración y RPC SQL.
 - Las métricas del portal ahora distinguen entre completitud y registro documental; cualquier KPI nuevo debe decidir explícitamente si cuenta ambos modos o solo `ACTA_COMPLETA`.
+- **No agregar `app/loading.tsx`** a nivel del directorio `app/`. Su presencia rompe la continuidad visual entre navegaciones. Si se necesita skeleton, hacerlo dentro del `page.tsx` correspondiente.
+- `PortalSnapshotProvider` debe permanecer como envoltura exterior de todas las ramas autenticadas en `AppFrame`. No moverlo dentro de ramas condicionales.
+- La clase `panel-reveal` sigue disponible en CSS para usos puntuales (primera carga, animaciones de modales), pero no debe aplicarse a componentes que se remontan en cada navegación.
 
 ---
 

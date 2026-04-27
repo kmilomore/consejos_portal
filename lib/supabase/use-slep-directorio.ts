@@ -23,7 +23,7 @@ export interface SlepMetrics {
 }
 
 export function useSlepDirectorio() {
-  const { profile, isGlobalAdmin } = usePortalAuth();
+  const { accessibleRbds, isGlobalAdmin } = usePortalAuth();
   const [data, setData] = useState<SlepEscuela[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,14 +56,17 @@ export function useSlepDirectorio() {
   }, []);
 
   const visibleData = useMemo(() => {
-    if (profile?.rol !== "ADMIN" || isGlobalAdmin) {
+    if (isGlobalAdmin) {
       return data;
     }
 
-    const currentEmail = profile.correo_electronico.trim().toLowerCase();
+    if (accessibleRbds.length === 0) {
+      return [];
+    }
 
-    return data.filter((school) => school.correo_representante?.trim().toLowerCase() === currentEmail);
-  }, [data, isGlobalAdmin, profile]);
+    const allowedRbds = new Set(accessibleRbds);
+    return data.filter((school) => school.rbd != null && allowedRbds.has(school.rbd));
+  }, [accessibleRbds, data, isGlobalAdmin]);
 
   const metrics = useMemo<SlepMetrics>(() => {
     const total = visibleData.length;

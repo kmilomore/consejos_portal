@@ -1,479 +1,481 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-04-18  
-> **Sprint:** Optimización, seguridad y UI (ítems 4, 7, 8, 11, 12, 23, 25, 27, 29, 34, 38)
+> **Última actualización:** 2026-04-24
+> **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
+> **Estado actual:** flujo híbrido operativo, compilando correctamente y con hallazgos recientes en permisos/scope territorial.
 
 ---
 
 ## 1. Propósito
 
-El módulo de actas cubre el **Flujo 02** del portal: registro, edición, consulta y eliminación de actas oficiales de sesiones de Consejo Escolar. Cada acta documenta la asistencia estamental, los temas tratados, los acuerdos alcanzados y la evidencia documental oficial en formato PDF.
+El módulo de actas cubre el flujo de registro, edición, revisión, impresión y eliminación de actas de Consejo Escolar.
+
+Desde 2026-04-24 el módulo ya no modela una sola forma de captura. Opera con dos modalidades sobre la misma entidad `actas`:
+
+- `ACTA_COMPLETA`: formulario estructurado con asistencia, tabla de temas, acuerdos, desarrollo y evidencia.
+- `REGISTRO_DOCUMENTAL`: ingreso mínimo para sostener correlativo operativo con datos generales + documento adjunto obligatorio.
+
+El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 comunas sin separar subsistemas ni duplicar sesiones.
 
 ---
 
-## 2. Archivos Involucrados
+## 2. Estado Vigente del Módulo
 
-| Archivo | Rol |
+### Implementado y validado
+
+- listado de actas con búsqueda, filtros y acciones
+- creación y edición en drawer lateral
+- detalle de solo lectura con impresión A4
+- eliminación con confirmación
+- soporte híbrido `ACTA_COMPLETA` / `REGISTRO_DOCUMENTAL`
+- filtro visual por `modo_registro` en listado
+- badges para distinguir acta completa vs documental
+- métricas separadas entre completas y documentales
+- horarios nullable para registros documentales
+- validación RUT chileno con módulo-11 estándar
+- `rut` persistido por asistente en dominio, snapshot, formulario y detalle
+- nombre, RUT válido, correo y modalidad obligatorios para asistentes marcados como presentes
+- borradores locales para actas nuevas y también para edición, con clave por acta
+- advertencia `beforeunload` cuando el formulario tiene cambios sin guardar
+- precarga del establecimiento activo al abrir `Nueva acta`
+- restauración de `lib/supabase/queries.ts` como loader canónico del módulo
+- corrección del guardado documental nuevo con `upsert` real sobre `actas` aun cuando el `id` se pregenere antes del upload
+- rollback del archivo en Supabase Storage si el insert/update de la fila `actas` falla
+- feedback visual inmediato al seleccionar documento en el modal, previo a la subida real
+- `npm run build` exitoso tras restaurar el loader y dejar activo el flujo híbrido
+
+### Pendiente o parcial
+
+- activación del RPC `save_acta_complete` en cliente
+- eliminación del PDF en Storage al borrar acta
+- validación en entorno real de la migración `20260424_consejos_storage_evidencias_public_any_file.sql`
+- validación MIME real del archivo en servidor
+- persistencia de correo de invitados en BD
+- selector UI para `programacion_origen_id`
+- definición final de KPIs que cuentan solo `ACTA_COMPLETA` vs ambos modos
+- confirmación en entorno real de que `20260424_consejos_representante_scope.sql` está aplicada; sin esa migración el alcance por comuna/escuela/representante no queda garantizado
+
+---
+
+## 3. Rutas y Archivos que Mandan
+
+### Rutas principales
+
+| Ruta | Rol |
 |---|---|
-| `app/actas/page.tsx` | Página listado + búsqueda/filtro + acciones por tarjeta |
-| `components/portal/acta-form.tsx` | Drawer lateral con formulario completo |
-| `components/portal/acta-detail.tsx` | Panel de solo lectura + impresión |
-| `components/portal/confirm-dialog.tsx` | Modal de confirmación reutilizable |
-| `components/ui/toast.tsx` | Sistema de toasts global (función `toast()`) |
-| `components/portal/shell.tsx` | Sidebar con selector de escuela admin (`SchoolSelector`) |
-| `components/portal/data-banner.tsx` | Banner de estado (solo errores reales) |
-| `lib/supabase/queries.ts` | Mutaciones: `upsertActa`, `replaceActaInvitados`, `uploadActaPdf`, `deleteActa` |
-| `lib/supabase/use-portal-snapshot.tsx` | Contexto compartido; expone `refresh()` |
-| `lib/supabase/use-slep-directorio.ts` | Hook que llama RPC `get_slep_directorio()` |
-| `lib/supabase/auth-context.tsx` | Sesión, `profile`, `selectedRbd`, `setSelectedRbd` |
-| `types/domain.ts` | Tipos `Acta`, `AttendeeSlot`, `InvitedGuest`, `SlepEscuela` |
-| `supabase/migrations/20260415_consejos_escolares.sql` | Tablas `actas` y `actas_invitados` |
-| `supabase/migrations/20260418_save_acta_atomic.sql` | RPC `save_acta_complete` (transacción atómica) |
-| `app/globals.css` | Estilos base + `@media print` para impresión de actas |
-| `app/layout.tsx` | Monta `<Toaster />` una sola vez para todo el portal |
+| `/actas/` | listado, filtros, apertura de formulario, detalle y eliminación |
+| `/metricas/` | lectura agregada incluyendo separación por `modo_registro` |
+
+### Archivos clave del flujo
+
+| Archivo | Rol real hoy |
+|---|---|
+| `app/actas/page.tsx` | listado tabular, búsqueda, filtros `tipo` y `modo`, acciones editar/eliminar, apertura de detalle |
+| `components/portal/acta-form.tsx` | formulario principal de creación/edición, con bifurcación entre modo completo y documental |
+| `components/portal/acta-detail.tsx` | vista de solo lectura, impresión y adaptación visual según `modo_registro` |
+| `components/portal/confirm-dialog.tsx` | confirmar descarte de cambios y eliminación |
+| `components/ui/toast.tsx` | feedback de guardado o error |
+| `lib/supabase/queries.ts` | loader canónico y mutaciones del módulo |
+| `lib/supabase/use-portal-snapshot.tsx` | snapshot compartido; fuente única de datos para la página |
+| `lib/supabase/auth-context.tsx` | `profile`, `selectedRbd`, `establishment`, alcance de la escuela activa |
+| `lib/supabase/use-slep-directorio.ts` | filtrado visible del directorio para representantes y cobertura parcial |
+| `lib/supabase/use-slep-directorio.ts` | catálogo visible de escuelas para el selector |
+| `types/domain.ts` | `Acta`, `AttendeeSlot`, `InvitedGuest`, `ActaRecordMode` |
+| `supabase/migrations/20260418_save_acta_atomic.sql` | RPC atómica alineada al modo híbrido, aún no activada en cliente |
+| `supabase/migrations/20260424_consejos_actas_registro_documental.sql` | migración que habilita `modo_registro`, `observacion_documental` y horarios nullable |
+
+### Orden recomendado para investigar un problema
+
+1. `components/portal/acta-form.tsx`
+2. `app/actas/page.tsx`
+3. `components/portal/acta-detail.tsx`
+4. `lib/supabase/queries.ts`
+5. `lib/supabase/use-portal-snapshot.tsx`
+6. migraciones SQL del módulo
 
 ---
 
-## 3. Esquema de Base de Datos
+## 4. Modelo de Datos Vigente
 
-### Tabla `actas`
+### Tipo de dominio relevante
+
+```ts
+type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL"
+```
+
+### Tabla `actas` en su forma operativa actual
+
+Campos relevantes del módulo:
 
 ```sql
 actas (
-  id                    uuid PK,
-  programacion_origen_id uuid FK → programacion.id  (nullable),
-  rbd                   text NOT NULL FK → establecimientos.rbd,
-  sesion                integer NOT NULL CHECK > 0,
-  tipo_sesion           session_type  -- 'Ordinaria' | 'Extraordinaria'
-  formato               session_format -- 'Presencial' | 'Online' | 'Híbrido'
-  fecha                 date NOT NULL,
-  hora_inicio           time NOT NULL,
-  hora_termino          time NOT NULL,
-  lugar                 text NOT NULL,
-  comuna                text NOT NULL,
-  direccion             text NOT NULL,
-  tabla_temas           text NOT NULL,
-  desarrollo            text NOT NULL,
-  acuerdos              text NOT NULL,
-  varios                text NOT NULL,
-  proxima_sesion        date,
-  link_acta             text,
-  asistentes            jsonb NOT NULL DEFAULT '[]'
+  id                     uuid primary key,
+  programacion_origen_id uuid null,
+  rbd                    text not null,
+  sesion                 integer not null,
+  modo_registro          text not null default 'ACTA_COMPLETA',
+  tipo_sesion            session_type not null,
+  formato                session_format not null,
+  fecha                  date not null,
+  hora_inicio            time null,
+  hora_termino           time null,
+  lugar                  text not null,
+  comuna                 text not null,
+  direccion              text not null,
+  tabla_temas            text not null,
+  desarrollo             text not null,
+  acuerdos               text not null,
+  varios                 text not null,
+  observacion_documental text not null default '',
+  proxima_sesion         date null,
+  link_acta              text null,
+  asistentes             jsonb not null default '[]'
 )
 ```
 
-La columna `asistentes` almacena:
-```json
-[{ "rol": "Director", "nombre": "…", "correo": "…", "asistio": true }]
-```
+### Reglas estructurales actuales
+
+- `ACTA_COMPLETA` y `REGISTRO_DOCUMENTAL` viven en la misma tabla.
+- ambas modalidades comparten correlativo por `rbd + tipo_sesion`.
+- `REGISTRO_DOCUMENTAL` debe tener `link_acta`.
+- `REGISTRO_DOCUMENTAL` puede omitir horario detallado y contenido estructurado.
+- los asistentes ahora pueden incluir `rut` además de `nombre`, `correo`, `asistio` y `modalidad`.
 
 ### Tabla `actas_invitados`
 
 ```sql
 actas_invitados (
-  id       uuid PK,
-  acta_id  uuid NOT NULL FK → actas.id ON DELETE CASCADE,
-  nombre   text NOT NULL,
-  cargo    text NOT NULL
+  id       uuid primary key,
+  acta_id  uuid not null references actas(id) on delete cascade,
+  nombre   text not null,
+  cargo    text not null
 )
 ```
 
-> **Pendiente:** columna `correo` en `actas_invitados` para persistir el correo capturado en UI.
+Observación vigente:
+
+- el formulario sigue capturando correo de invitados, pero ese dato todavía no persiste en BD.
 
 ---
 
-## 4. Vista de Lista (`app/actas/page.tsx`)
+## 5. Flujos Reales del Módulo
 
-- Usa `usePortalSnapshot()` para obtener `snapshot.actas`, `snapshot.establishments` y `refresh()`.
-- Muestra tarjetas en grid de 1 o 2 columnas (`xl:grid-cols-2`).
-- **Búsqueda y filtro (#27):** barra de búsqueda full-text (busca en `tabla_temas`, `acuerdos`, `lugar`, `rbd`, `comuna`) + selector de tipo de sesión. El filtrado es `useMemo` sobre `rows` — sin roundtrips al servidor.
-- **Acciones por tarjeta:** tres botones en cada tarjeta:
-  - **"Ver"** (#29) → abre `ActaDetail` en modo solo lectura
-  - **"Editar"** → abre `ActaForm` con el acta precargada
-  - **"Eliminar"** (#38) → abre `ConfirmDialog` y llama `deleteActa(id)` tras confirmar
-- Tras guardar o eliminar, el handler llama `refresh()` para recargar el snapshot.
-- Estado de búsqueda vacía muestra mensaje diferenciado: "Sin datos" vs "Ningún acta coincide".
+### Flujo A — Abrir listado y filtrar
 
----
+Fuente:
+- `usePortalSnapshot()` en `app/actas/page.tsx`
 
-## 5. Formulario (`components/portal/acta-form.tsx`)
+Comportamiento actual:
+- usa `snapshot.actas` y `snapshot.establishments`
+- filtra por texto libre sobre `tabla_temas`, `acuerdos`, `observacion_documental`, `lugar`, `rbd`, `comuna`
+- filtra además por `tipo_sesion`
+- filtra además por `modo_registro`
+- muestra badge `Completa` o `Documental` por fila
+- el horario renderiza tolerando `null`
 
-### 5.1 Tipo de apertura
+Hallazgo importante:
 
-`ActaForm` es un **drawer lateral** (`fixed inset-0 z-50`) con backdrop con blur. Se monta condicionalmente (`if (!isOpen) return null`) — no existe en el DOM cuando está cerrado.
+- el listado ya no es solo un buscador de actas completas; también funciona como panel de seguimiento de la transición documental.
 
-### 5.2 Props
+### Flujo B — Nueva acta
 
-```ts
-interface ActaFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  establishments: Establishment[];
-  actas: Acta[];          // para calcular N° de sesión
-  editActa?: Acta | null; // null = modo creación
-  onSaved: () => void;    // el padre llama refresh()
-}
-```
+Entrada:
+- botón `Nueva acta`
 
-### 5.3 Estado interno principal
+Comportamiento actual:
+- si existe `selectedRbd` o escuela activa en contexto, precarga `rbd`, nombre, dirección y comuna
+- recalcula `sesion` automáticamente según `rbd + tipo_sesion`
+- restaura borrador local si existe una clave de draft para nueva acta
+- el usuario decide si está creando una `ACTA_COMPLETA` o un `REGISTRO_DOCUMENTAL`
 
-```ts
-interface FormState {
-  id: string | null;
-  id_programacion_origen: string | null;
-  rbd: string;
-  nombre_establecimiento: string;
-  direccion: string;
-  comuna: string;
-  tipo_sesion: SessionType;
-  sesion: string;
-  formato: SessionFormat;
-  lugar: string;
-  fecha: string;
-  hora_inicio: string;
-  hora_termino: string;
-  estamentos: EstamentoState[];  // 6 estamentos fijos
-  showGuests: boolean;
-  guests: GuestRow[];
-  tabla_temas: string;
-  desarrollo: string;
-  acuerdos: string;
-  varios: string;
-  proxima_sesion: string;
-  link_acta: string;
-}
-```
+### Flujo C — Editar acta existente
 
-El estado se reinicia en cada apertura (`useEffect` sobre `[isOpen, editActa]`).  
-En modo **creación**, antes de reiniciar a vacío se intenta restaurar un borrador desde `localStorage` (clave `acta-draft-new`).
+Entrada:
+- botón `Editar` en el listado
 
-### 5.4 Refs internos importantes
+Comportamiento actual:
+- `actaToForm()` lleva los datos a `FormState`
+- si existe draft local para esa acta, se prioriza ese draft por sobre la data persistida
+- el borrador queda aislado por `id` de acta, no comparte clave con creación
 
-| Ref | Propósito |
-|---|---|
-| `pendingFile` | Archivo PDF pendiente de upload hasta el submit |
-| `initialFormRef` | Snapshot del estado al abrir, para detección de cambios sucios (#25) |
-| `lastSaveTimeRef` | Timestamp del último guardado, para cooldown de 3 s (#4) |
-| `draftSaveTimerRef` | Timer del debounce de escritura a localStorage (#12) |
+### Flujo D — Guardar acta completa
 
-### 5.5 Secciones del formulario
+Validaciones obligatorias:
+- `rbd`
+- `fecha`
+- `hora_inicio`
+- `hora_termino`
+- `tabla_temas`
+- `acuerdos`
+- para todo estamento con `asistio === true`: nombre, RUT válido, correo válido y modalidad
 
-#### Sección 1 — Información de la sesión
+Persistencia:
+Persistencia:
+1. cooldown cliente de 3 s
+2. guard de `DIRECTOR -> rbd`
+3. `upsertActa(...)`
+4. `replaceActaInvitados(...)`
+5. `uploadActaDocument(...)` si hay archivo pendiente
+6. `updateActaLink(...)` si el upload devuelve URL
+7. limpieza del draft local
+8. `toast(...)`
+9. `refresh()` desde el padre
 
-- `<select>` de establecimiento cargado desde SLEP via `useSlepDirectorio()`.
-- Al seleccionar escuela, se auto-completan y **bloquean**: `rbd`, `nombre_establecimiento`, `comuna`, `direccion`.
-- **N° de sesión** siempre bloqueado. Se auto-calcula como `actas.filter(rbd+tipo).length + 1` en creación; mantiene el original en edición.
-- Campos editables: tipo de sesión, formato, lugar, fecha, hora inicio, hora término.
+### Flujo E — Guardar registro documental
 
-#### Sección 2 — Asistencia estamental
+Validaciones obligatorias:
+- `rbd`
+- `fecha`
+- `link_acta` o archivo pendiente
 
-| key | Label |
-|---|---|
-| `Director` | Director(a) |
-| `Sostenedor` | Representante Sostenedor |
-| `Docente` | Representante Docente |
-| `Asistente` | Representante Asistente de Educación |
-| `Apoderado` | Representante Apoderado |
-| `Estudiante` | Representante Estudiante |
+Comportamiento diferencial:
+- no exige horario completo
+- no exige tabla de temas ni acuerdos
+- no guarda asistentes
+- no guarda invitados
+- usa `observacion_documental` como nota breve de contexto
+- sube el archivo de respaldo a Supabase Storage antes de insertar la fila cuando es un documental nuevo
+- si la persistencia en `actas` falla, intenta borrar el archivo recién subido para evitar huérfanos en Storage
+- el insert/update de la fila usa `upsert` real por `id`, evitando el bug en que un documental nuevo se trataba como `update` y nunca se insertaba
+- el botón final cambia texto a `Guardar registro documental`
 
-Cada uno es un `EstamentoCard` (accordion):
-- Punto de color: verde = asistió, ámbar = ausente, gris = sin respuesta.
-- Radio "Sí / No" → al marcar "Sí" aparece panel con nombre (required), correo, y RUT (solo Apoderado).
-- RUT aplica módulo-11 chileno (`calcDv`). Error inline en rojo; no bloquea guardado.
+### Flujo F — Cierre con cambios sin guardar
 
-**Quórum:** badge con `aria-label` en tiempo real. Válido desde 4/6 (`QUORUM_MIN = 4`). Solo informativo.
+Disparadores:
+- botón cerrar
+- botón cancelar
+- click en backdrop
+- navegación fuera de la página o recarga del navegador
 
-#### Sección 3 — Invitados externos
+Comportamiento:
+- `isFormDirty(...)` compara el estado actual con el snapshot inicial
+- si hay cambios, abre `ConfirmDialog`
+- además se registra `beforeunload` para proteger salidas duras del navegador
 
-Toggle de visibilidad. Filas dinámicas con `crypto.randomUUID()` como clave local.  
-Captura: nombre, cargo/rol, correo (UI only — correo no persiste en BD todavía).  
-Se envían a `replaceActaInvitados` como `{ nombre, cargo }[]`.
+### Flujo G — Ver detalle e imprimir
 
-#### Sección 4 — Desarrollo y acuerdos
+Comportamiento actual:
+- `ActaDetail` detecta `modo_registro`
+- si es documental, prioriza bloque de observación documental
+- si es completa, muestra asistencia, invitados, acuerdos y desarrollo
+- la tabla de asistentes incluye columna `RUT`
+- impresión usa `window.print()` y layout A4
 
-Textareas: `tabla_temas` (req.), `desarrollo`, `acuerdos` (req.), `varios`, `proxima_sesion` (date picker).
+### Flujo H — Eliminar acta
 
-#### Sección 5 — Evidencia documental PDF
+Comportamiento actual:
+- usa `ConfirmDialog`
+- ejecuta `deleteActa(id)`
+- refresca snapshot
 
-- **Sin documento:** zona drag & drop + input oculto. Solo `application/pdf`. Queda en `pendingFile` ref.
-- **Con documento:** muestra "Ver documento" + "Reemplazar".
-- Barra de progreso: 50% pre-upload, 100% al confirmar URL pública.
-
-### 5.6 Lógica de guardado
-
-| Botón | Validación | Comportamiento |
-|---|---|---|
-| **Guardar avance** | Sin validación (`draft = true`) | Persiste como borrador |
-| **Guardar acta final** | Valida campos obligatorios | Persiste completo |
-
-Campos requeridos en final: `rbd`, `fecha`, `hora_inicio`, `hora_termino`, `tabla_temas`, `acuerdos`.
-
-**Secuencia de persistencia:**
-1. Verifica cooldown de 3 s desde el último guardado (#4).
-2. Verifica que el RBD del formulario coincida con `profile.rbd` si el usuario es DIRECTOR (#8).
-3. `upsertActa(payload)` con todos los campos sanitizados (`.trim()`) (#7) → devuelve `id`.
-4. `replaceActaInvitados(id, guests)` → borra y re-inserta.
-5. Si hay `pendingFile` → `uploadActaPdf(id, rbd, file, onProgress)`.
-6. Registra `lastSaveTimeRef.current = Date.now()`.
-7. Limpia borrador de `localStorage` si era acta nueva (#12).
-8. `toast("Acta guardada correctamente.")` (#23).
-9. `onSaved()` → padre llama `refresh()`.
-10. `onClose()`.
-
-Si `upsertActa` devuelve `null`: muestra banner de error, no continúa.
-
-### 5.7 Guardia de cambios sin guardar (#25)
-
-Al intentar cerrar el drawer (botón X, "Cancelar", o clic en el backdrop), el formulario verifica si el estado actual difiere del snapshot `initialFormRef`. Si hay diferencias, muestra `ConfirmDialog` con tone `danger` preguntando "¿Descartar cambios?". El usuario puede cancelar (volver al formulario) o confirmar (cerrar y perder cambios).
-
-La comparación `isFormDirty` evalúa: `rbd`, `tipo_sesion`, `formato`, `lugar`, `fecha`, `hora_inicio`, `hora_termino`, `tabla_temas`, `desarrollo`, `acuerdos`, `varios`, `proxima_sesion`, asistencia de estamentos, y cantidad de invitados. **No** evalúa `expanded` (estado puramente visual de los acordeones).
-
-### 5.8 Borrador en localStorage (#12)
-
-- **Solo actas nuevas** (`editActa === null`).
-- Clave: `acta-draft-new`.
-- Escritura: debounced 800 ms tras cada cambio de `form`.
-- Restauración: al abrir el drawer en modo creación, si hay un draft guardado con `id === null`, se carga en lugar del formulario vacío.
-- Limpieza: se elimina del `localStorage` tras un guardado exitoso.
-- Si `localStorage` no está disponible (full, bloqueado), el error se silencia.
+Pendiente:
+- no elimina aún el archivo del bucket `evidencias_actas`
 
 ---
 
-## 6. Funciones de Mutación (`lib/supabase/queries.ts`)
+## 6. Snapshot, Queries y Dependencias Críticas
 
-### `upsertActa(input: ActaUpsertInput): Promise<string | null>`
+### `usePortalSnapshot()` es la única fuente de datos de la página
 
-- UPDATE si `input.id` existe, INSERT si no.
-- Devuelve el `id` guardado, o `null` en error.
-- `asistentes` se serializa a `jsonb` por Supabase.
+No hacer fetch propio desde `app/actas/page.tsx`.
 
-### `replaceActaInvitados(actaId, guests): Promise<void>`
+Razón:
+- el portal está diseñado para consumir un snapshot único compartido
+- reintroducir `useEffect` locales rompe consistencia y multiplica estados de carga
 
-- DELETE de todas las filas con `acta_id = actaId`.
-- INSERT de las nuevas. Permite cero invitados.
-- **No es atómica** con `upsertActa` a nivel cliente — ver RPC `save_acta_complete` para la versión atómica.
+### `lib/supabase/queries.ts` es el punto canónico
 
-### `uploadActaPdf(actaId, rbd, file, onProgress?): Promise<string | null>`
+Responsabilidades actuales:
+- `fetchPortalSnapshot(rbdFilter?)`
+- `upsertActa(...)`
+- `replaceActaInvitados(...)`
+- `uploadActaPdf(...)`
+- `updateActaLink(...)`
+- `deleteActa(...)`
 
-- Bucket: `actas`. Path: `{rbd}/{año}/{actaId}.pdf` (el `/` en RBD → `-`).
-- `upsert: true` para sobrescribir versiones anteriores.
-- `onProgress` recibe `50` pre-upload y `100` al confirmar (no hay progreso real por chunks en el SDK JS).
-- Devuelve URL pública o `null`.
+Normalizaciones actuales del loader:
+- normaliza `modo_registro`
+- reconstruye invitados desde `actas_invitados`
+- normaliza asistentes incluyendo `rut`
+- acepta `hora_inicio` y `hora_termino` como `null`
+- expone `actasByMode`
 
-### `deleteActa(actaId: string): Promise<boolean>`
+Hallazgo crítico del sprint:
+- este archivo fue contaminado por una implementación externa incorrecta y tuvo que ser restaurado
+- hoy está nuevamente alineado al repo y al import correcto `@/lib/supabase/client`
 
-- DELETE de `actas` donde `id = actaId`.
-- Los invitados se eliminan automáticamente por `ON DELETE CASCADE`.
-- Devuelve `true` en éxito. No elimina el PDF en storage (pendiente).
-
----
-
-## 7. RPC Atómica `save_acta_complete` (#11)
-
-**Archivo:** `supabase/migrations/20260418_save_acta_atomic.sql`
-
-Función PostgreSQL `SECURITY DEFINER` que ejecuta en una sola transacción:
-1. Valida que un DIRECTOR no guarde un acta de otro RBD (segunda capa además de RLS).
-2. UPDATE o INSERT de la fila en `actas` (con guard de RBD en el WHERE del UPDATE).
-3. DELETE + INSERT en `actas_invitados`.
-
-**Uso futuro vía cliente JS:**
-```ts
-const { data, error } = await supabase.rpc('save_acta_complete', {
-  p_id: form.id ?? null,
-  p_rbd: form.rbd,
-  // ... resto de campos
-  p_invitados: JSON.stringify(guests),
-});
-const savedId = data as string;
-```
-
-El upload de PDF **no puede ser parte** de la transacción porque Supabase Storage no comparte la transacción Postgres. La atomicidad cubre solo la parte de BD.
-
-> **Estado:** migración creada. Para activarla ejecutar `supabase db push` o aplicarla manualmente en el dashboard de Supabase.
+No tocar sin revisar primero:
+- imports base del cliente Supabase
+- shape de `PortalSnapshot`
+- compatibilidad con `modo_registro`, `observacion_documental`, `rut`, `actasByMode`
 
 ---
 
-## 8. Vista de Detalle y Impresión (`components/portal/acta-detail.tsx`)
+## 7. Hallazgos y Aciertos del Módulo
 
-### Comportamiento (#29)
+### Hallazgos confirmados
 
-Panel lateral de solo lectura con toda la información del acta:
-- Datos de sesión (fecha, horario, formato, lugar, comuna, dirección) en grid.
-- Tabla completa de asistentes con badges Sí/No.
-- Tabla de invitados (si existen).
-- Campos de desarrollo, acuerdos y varios con `whitespace-pre-wrap`.
-- Enlace al PDF si `link_acta` existe.
+- el validador anterior de RUT era demasiado frágil y marcaba como inválidos RUT reales
+- el borrador limitado solo a nuevas actas era insuficiente para operación real; la edición también necesita recuperación local
+- el ingreso documental requiere existir como modalidad explícita, no como “acta incompleta” informal
+- separar métricas por modo evita leer como avance real lo que todavía es solo respaldo documental
+- `queries.ts` es dependencia de primer orden: si se rompe, la validación del resto del módulo se vuelve engañosa
+- el flujo documental nuevo tenía un bug real: al pre-generar `id`, la mutación trataba el guardado como `update` y dejaba archivos en Storage sin fila en `actas`
+- el nombre del bucket debía alinearse con SQL (`evidencias_actas`) y no con el alias histórico `actas`
+- el scope territorial no depende del texto del rol por sí solo; representantes pueden persistirse con rol textual `ADMIN`, pero el alcance efectivo lo define `isGlobalAdmin()` + `has_school_scope_access(...)`
+- cualquier pantalla que use `profile.rol === 'ADMIN'` como sinónimo de acceso global introduce riesgo de mostrar más contexto del debido
 
-### Impresión (#34)
+### Aciertos del diseño actual
 
-- Botón "Imprimir" llama `window.print()`.
-- Clases `print:hidden` ocultan el header del panel, el backdrop y el botón.
-- Se muestra un header alternativo (`hidden print:block`) con nombre del módulo y del acta.
-- `globals.css` define `@media print` que oculta la navegación lateral, fuerza `background: white`, y configura `@page { size: A4; margin: 20mm }`.
-- El panel usa `print:fixed print:inset-0 print:max-w-full` para ocupar toda la hoja al imprimir.
-
----
-
-## 9. Sistema de Toasts (`components/ui/toast.tsx`)
-
-**Función global:** `toast(message, tone?)` invocable desde cualquier archivo sin pasar props.  
-**Tones disponibles:** `"success"` (verde), `"error"` (rojo), `"info"` (gris oscuro). Default: `"success"`.  
-**Duración:** 4 s, luego desaparece automáticamente.  
-**Montaje:** `<Toaster />` en `app/layout.tsx` — una instancia para todo el portal.  
-**Z-index:** `z-[100]` — encima de drawers (`z-50`) y diálogos de confirmación (`z-[70]`).
-
-```ts
-// Uso desde cualquier módulo:
-import { toast } from "@/components/ui/toast";
-toast("Acta guardada correctamente.");
-toast("Error de conexión.", "error");
-```
+- mantener un solo modelo `actas` evita duplicar sesiones y correlativos
+- el modo documental permite operar ya sin esperar digitalización total del histórico
+- el snapshot compartido simplifica refrescos y consistencia del listado
+- la precarga por escuela activa reduce errores de RBD en creación
+- endurecer asistentes presentes mejora trazabilidad sin complicar el caso documental
+- separar `isGlobalAdmin` del rol textual permite sostener representantes del sostenedor con navegación tipo admin pero alcance parcial real
 
 ---
 
-## 10. Diálogo de Confirmación (`components/portal/confirm-dialog.tsx`)
+## 8. Problemas, Riesgos y Fragilidades Actuales
 
-Reutilizado por el formulario (guardia de cambios, #25) y por la página (eliminar acta, #38).
-
-```ts
-<ConfirmDialog
-  open={boolean}
-  title="¿Eliminar acta N° 03?"
-  description="Esta acción no se puede deshacer."
-  confirmLabel="Eliminar"
-  tone="danger"         // "danger" = botón rojo | "default" = botón ocean
-  onConfirm={fn}
-  onCancel={fn}
-/>
-```
-
-Z-index `z-[70]` — encima del drawer (`z-50`) pero por debajo del toast (`z-[100]`).
+- si no está aplicada `20260424_consejos_actas_registro_documental.sql`, el frontend híbrido queda desalineado con la base
+- si no está aplicada `20260424_consejos_representante_scope.sql`, los representantes pueden terminar viendo un comportamiento incoherente con la cobertura esperada
+- si se rompe `queries.ts`, el módulo puede compilar pero cargar semántica equivocada
+- el flujo cliente-side todavía no es transaccional entre acta e invitados
+- el documento adjunto sigue fuera de la transacción SQL
+- el bucket real del módulo es `evidencias_actas`; `link_acta` depende de que el bucket exista con acceso público compatible con `getPublicUrl()`
+- el bucket/documento puede quedar huérfano si falla también el rollback de Storage después de un error de BD o si hubo intentos anteriores al parche
+- el correo de invitados se pierde porque no existe columna persistente
+- cualquier KPI nuevo puede inducir error si no aclara si cuenta solo completas o ambas modalidades
+- el texto del perfil en `usuarios_perfiles.rol` no basta para inferir alcance: hoy el verdadero permiso global está en `is_global_admin()` y el scope territorial en `current_accessible_rbds()`
 
 ---
 
-## 11. Hook `usePortalSnapshot` — Contexto compartido
+## 9. Cosas que No Debe Hacer ni Tocar una Mejora Nueva
 
-`PortalSnapshotProvider` vive en `app-frame.tsx`. Las páginas consumen via `usePortalSnapshot()`.
+### No debe hacer
 
-```ts
-const { snapshot, status, refresh } = usePortalSnapshot();
-```
+1. No crear un subsistema separado para `REGISTRO_DOCUMENTAL`.
+2. No duplicar la sesión para “convertir” documental en completa; la evolución debe ocurrir sobre la misma acta.
+3. No volver a cargar datos del módulo con `useEffect` locales en la página.
+4. No asumir que toda acta tiene `hora_inicio` y `hora_termino`.
+5. No asumir que toda acta tiene asistencia o invitados.
+6. No contar automáticamente documentales como avance equivalente a acta completa en nuevas métricas.
+7. No confiar en imports `@/utils/supabase/client`; en este repo el import correcto es `@/lib/supabase/client`.
+8. No volver al borrador único `acta-draft-new` para todos los casos; hoy el draft es por acta.
+9. No relajar la obligación de RUT/correo/modalidad para asistentes presentes sin rediseño explícito.
+10. No volver a tratar `profile.rol === 'ADMIN'` como equivalente a “admin global” sin revisar también `isGlobalAdmin`.
 
-- Cero re-fetch al navegar entre páginas.
-- `refresh()` incrementa un `refreshKey` que activa un nuevo fetch.
-- La página de actas llama `refresh()` en `onSaved` y tras `deleteActa`.
+### No tocar sin revisar también
 
----
+- `types/domain.ts`
+- `lib/supabase/queries.ts`
+- `supabase/migrations/20260424_consejos_actas_registro_documental.sql`
+- `supabase/migrations/20260418_save_acta_atomic.sql`
+- `lib/supabase/use-portal-snapshot.tsx`
 
-## 12. Selector de Escuela Admin (`shell.tsx` › `SchoolSelector`)
-
-- Solo visible para `profile.rol === "ADMIN"`.
-- Carga desde SLEP via `useSlepDirectorio()`. No usa `allEstablishments`.
-- Dropdown con "Todas las escuelas" (`null`) como primera opción.
-- `setSelectedRbd(rbd)` filtra **todos los datos del portal** vía `fetchPortalSnapshot(selectedRbd)`.
-- El DIRECTOR no ve este selector; su RBD es fijo desde `profile.rbd`.
-
----
-
-## 13. Seguridad
-
-### Capas de protección aplicadas
-
-| Capa | Mecanismo |
-|---|---|
-| Base de datos | RLS en `actas` y `actas_invitados` por `rbd` del usuario autenticado |
-| RPC atómica | `save_acta_complete` valida `DIRECTOR → rbd` antes de escribir |
-| Cliente JS (#8) | `handleSubmit` verifica `profile.rbd === form.rbd` si `profile.rol === "DIRECTOR"` |
-| Rate limit cliente (#4) | Cooldown de 3 s entre guardados vía `lastSaveTimeRef` |
-| Sanitización (#7) | `.trim()` aplicado a todos los campos de texto antes de `upsertActa` |
-| Render seguro | Contenidos de textareas se renderizan como texto plano en JSX — React escapa automáticamente |
-| Storage | Bucket `actas`, path `{rbd}/{año}/{actaId}.pdf` — la política debe validar que el path comience con el RBD del usuario |
-| MIME type | Frontend filtra `application/pdf`; validación real en servidor pendiente |
-
-### Pendientes de seguridad
-
-- **Política del bucket `actas`:** debe crearse explícitamente en Supabase Dashboard para permitir lectura pública de PDFs y escritura solo autenticada restringida al RBD del path.
-- **Validación MIME en servidor:** el frontend filtra `application/pdf` pero un atacante puede enviar cualquier binario con ese tipo. Una Edge Function o trigger de storage debería verificar la firma mágica del archivo.
-- **Migrar a RPC atómica:** reemplazar el flow de 3 pasos cliente-side por llamada a `save_acta_complete` para garantizar consistencia.
+Razón:
+- estos archivos forman el contrato del módulo entre UI, snapshot y BD
 
 ---
 
-## 14. Invariantes — Cosas que NO deben cambiar
+## 10. Invariantes del Módulo
 
-Estas decisiones de diseño tienen razón de ser. Cambiarlas requiere discusión explícita.
-
-1. **N° de sesión siempre bloqueado en UI.** Se calcula del servidor (`actas.filter(rbd+tipo).length + 1`) para garantizar consistencia. Hacerlo editable abre brechas de duplicación.
-
-2. **`asistentes` como jsonb en `actas`.** Permite guardar el estado histórico exacto del acta (nombres, correos al momento de la reunión) sin normalizar. La tabla `actas_invitados` es separada porque los invitados son variables; los 6 estamentos son fijos.
-
-3. **`SECURITY DEFINER` en toda función helper usada dentro de políticas RLS.** Violar esto causa recursión infinita (incidente 2026-04-16). Ver sección 18 de `context.md`.
-
-4. **Export estático de Next.js (`output: "export"`).** No hay runtime Node en producción. No usar API routes, server actions, ni dependencias de servidor para data crítica del portal.
-
-5. **`usePortalSnapshot` como Context Provider único.** El proveedor vive en `app-frame.tsx`. Las páginas solo consumen — nunca hacen fetch propio. Esto garantiza cero re-fetch al navegar.
-
-6. **`DataBanner` solo muestra errores reales.** Silenciado deliberadamente para estados vacíos, cargando y éxito. No revertir a mostrar mensajes de "Datos sincronizados".
-
-7. **Drawer de formulario con `if (!isOpen) return null`.** El componente no existe en el DOM cuando está cerrado. No volver al patrón de ocultamiento con CSS (`hidden`) que sigue ocupando memoria.
-
-8. **`useSlepDirectorio` como fuente de verdad del selector de establecimientos.** Usa el RPC `get_slep_directorio()` que lee desde `BASE DE DATOS ESCUELAS SLEP`. No reemplazar por `allEstablishments` del auth-context que viene de `establecimientos` (tabla derivada).
-
-9. **Cooldown de 3 s entre guardados.** Previene doble-submit accidental y spam. No reducir por debajo de 2 s.
-
-10. **Borrador en localStorage solo para actas nuevas.** Actas existentes ya están persistidas; sobrescribir el draft con datos de edición podría confundir si el usuario alterna entre nueva y edición.
+1. El número de sesión sigue bloqueado en UI.
+2. El correlativo se calcula por `rbd + tipo_sesion`.
+3. `ACTA_COMPLETA` y `REGISTRO_DOCUMENTAL` comparten la misma tabla `actas`.
+4. `REGISTRO_DOCUMENTAL` debe tener `link_acta`.
+5. `usePortalSnapshot()` sigue siendo la única fuente de datos de la página.
+6. `ActaForm` sigue montándose condicionalmente con `if (!isOpen) return null`.
+7. `DataBanner` solo debe mostrar errores reales.
+8. `queries.ts` sigue siendo el loader y mutador canónico del módulo.
+9. los asistentes presentes requieren trazabilidad mínima: nombre, RUT, correo, modalidad.
+10. la operación híbrida debe seguir funcionando para las 4 comunas sin flags separados en frontend.
+11. el representante del sostenedor puede navegar con perfil tipo admin, pero su visibilidad efectiva debe seguir limitada por RBD/comuna autorizados en Supabase.
 
 ---
 
-## 15. Pendientes del Módulo
+## 11. Checklist para Tocar este Módulo
 
-### Funcionalidad
+Antes de editar:
 
-| Pendiente | Prioridad | Notas |
-|---|---|---|
-| Eliminar PDF en storage al borrar acta | Alta | `deleteActa()` existe pero no llama a `supabase.storage.remove()` |
-| Política del bucket `actas` | Alta | Sin política, cualquier autenticado puede escribir en cualquier path |
-| Activar RPC `save_acta_complete` en cliente | Media | Migración SQL creada, falta migrar `handleSubmit` a `.rpc()` |
-| Vínculo con programación (selector UI) | Media | `id_programacion_origen` existe en el estado pero sin selector |
-| Columna `correo` en `actas_invitados` | Media | Capturado en UI, no persiste |
-| Validación MIME en servidor para PDFs | Media | Solo se valida tipo MIME en frontend |
-| Autocompletar invitados frecuentes | Baja | Query a `actas_invitados` por `rbd` de actas anteriores |
+1. Revisar `context.md` y este archivo.
+2. Verificar si está aplicada `20260424_consejos_storage_evidencias_public_any_file.sql` cuando haya cambios de storage o tipos de archivo.
+3. Verificar si está aplicada `20260424_consejos_representante_scope.sql` antes de concluir que un problema de visibilidad es “solo frontend”.
+2. Confirmar si el cambio afecta `ACTA_COMPLETA`, `REGISTRO_DOCUMENTAL` o ambos.
+3. Verificar si toca contrato de dominio, snapshot o migración.
 
-### UX/UI
+Si tocas formulario:
 
-| Pendiente | Notas |
-|---|---|
-| Progreso multi-paso en guardado | Mostrar `[1/3] Guardando acta…` → `[2/3] Invitados…` → `[3/3] PDF…` |
-| Indicador "borrador restaurado" | Avisar al usuario cuando se restauró un borrador de localStorage |
-| Ordenamiento del listado | Por fecha, N° sesión, o escuela |
-| Estado visual borrador/final | Badge en tarjeta indicando si el acta fue guardada como final |
+1. revisar `components/portal/acta-form.tsx`
+2. validar `isFormDirty(...)`
+3. validar drafts por acta
+4. validar asistentes presentes
+
+Si tocas persistencia:
+
+1. revisar `lib/supabase/queries.ts`
+2. revisar migraciones SQL relacionadas
+3. confirmar compatibilidad con `fetchPortalSnapshot()`
+
+Si tocas métricas o listado:
+
+1. revisar `app/actas/page.tsx`
+2. revisar `app/metricas/page.tsx`
+3. decidir explícitamente cómo cuenta `REGISTRO_DOCUMENTAL`
+
+Validación mínima esperada:
+
+1. `npm run build`
+2. prueba manual de nueva acta completa
+3. prueba manual de nuevo registro documental
+4. prueba manual de edición con draft restaurable
 
 ---
 
-## 16. Flujo Completo de la Página de Actas
+## 12. Flujo Resumido del Módulo
 
-```
+```text
 ActasPage monta
-  ↓
-usePortalSnapshot() → snapshot.actas, snapshot.establishments
-  ↓
-filteredRows = useMemo(rows, searchQuery, filterTipo)   ← #27
-  ↓
-Render grid de tarjetas filtradas
-  ↓
-Usuario hace clic en:
-  ├── "Ver" → setViewActa(acta) → <ActaDetail> (#29)
-  │     └── "Imprimir" → window.print() (#34)
-  ├── "Editar" → openEdit(acta) → <ActaForm editActa={acta}>
-  │     ├── Carga estado desde actaToForm()
-  │     ├── Snapshot inicial en initialFormRef (#25)
-  │     ├── Borrador en localStorage (solo creación) (#12)
-  │     ├── Cambios dirty → ConfirmDialog al cerrar (#25)
-  │     └── handleSubmit → cooldown (#4) + RBD guard (#8) + sanitize (#7)
-  │           → upsertActa → replaceActaInvitados → uploadActaPdf
-  │           → clearDraft → toast (#23) → refresh() → onClose()
-  ├── "Eliminar" → setDeleteTarget(acta) → <ConfirmDialog> (#38)
-  │     └── Confirmar → deleteActa(id) → refresh()
-  └── "Nueva acta" → openNew() → <ActaForm editActa={null}>
-        └── Restaura borrador de localStorage si existe (#12)
+  -> usePortalSnapshot()
+  -> rows = snapshot.actas
+  -> filtro por texto + tipo + modo
+
+Usuario abre nueva acta
+  -> ActaForm precarga escuela activa si existe
+  -> restaura draft local por clave
+  -> elige ACTA_COMPLETA o REGISTRO_DOCUMENTAL
+
+Si guarda ACTA_COMPLETA
+  -> valida fecha, horas, temas, acuerdos y asistentes presentes
+  -> upsertActa
+  -> replaceActaInvitados
+  -> uploadActaPdf / updateActaLink si aplica
+  -> limpia draft
+  -> toast
+  -> refresh
+
+Si guarda REGISTRO_DOCUMENTAL
+  -> valida fecha + documento
+  -> upsertActa sin asistentes ni invitados
+  -> uploadActaPdf / updateActaLink si aplica
+  -> limpia draft
+  -> toast específico
+  -> refresh
+
+Usuario ve detalle
+  -> ActaDetail adapta la lectura según modo_registro
+
+Usuario elimina
+  -> ConfirmDialog
+  -> deleteActa
+  -> refresh
 ```
+
+---
+
+## 13. Nota Final para Futuras Iteraciones
+
+La tentación más peligrosa en este módulo es tratar `REGISTRO_DOCUMENTAL` como una excepción temporal sin contrato propio. Eso ya no es cierto. Hoy el modo documental es parte explícita del modelo, del snapshot, de las métricas, del formulario y de la migración.
+
+Si una mejora nueva no parte desde esa realidad, es muy probable que rompa compatibilidad entre UI, dominio, SQL y lectura operativa.

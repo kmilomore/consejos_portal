@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import type { Establishment, Profile } from "@/types/domain";
+import type { Establishment, PortalScope, Profile } from "@/types/domain";
 
 interface AuthResult {
   error?: string;
@@ -31,6 +31,9 @@ interface PortalAuthContextValue {
   profile: Profile | null;
   establishment: Establishment | null;
   isGlobalAdmin: boolean;
+  accessibleRbds: string[];
+  canSelectSchool: boolean;
+  landingRoute: "/admin" | "/resumen";
   isLoading: boolean;
   accessError: string | null;
   selectedRbd: string | null;
@@ -50,6 +53,9 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   const [profile, setProfile] = useState<Profile | null>(null);
   const [establishment, setEstablishment] = useState<Establishment | null>(null);
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
+  const [accessibleRbds, setAccessibleRbds] = useState<string[]>([]);
+  const [canSelectSchool, setCanSelectSchool] = useState(false);
+  const [landingRoute, setLandingRoute] = useState<"/admin" | "/resumen">("/resumen");
   const [isLoading, setIsLoading] = useState(true);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [selectedRbd, setSelectedRbd] = useState<string | null>(null);
@@ -117,6 +123,9 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         setProfile(null);
         setEstablishment(null);
         setIsGlobalAdmin(false);
+        setAccessibleRbds([]);
+        setCanSelectSchool(false);
+        setLandingRoute("/resumen");
         setAccessError(null);
         setIsLoading(false);
       }
@@ -179,18 +188,41 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       const nextProfile = profileResult.data as Profile;
-      let nextIsGlobalAdmin = false;
+      let resolvedScope: PortalScope = {
+        role_text: nextProfile.rol,
+        is_global_admin: false,
+        accessible_rbds: nextProfile.rbd ? [nextProfile.rbd] : [],
+        default_rbd: nextProfile.rbd,
+        can_select_school: false,
+        landing_route: nextProfile.rol === "ADMIN" ? "/admin" : "/resumen",
+      };
 
-      if (nextProfile.rol === "ADMIN") {
-        const globalAdminResult = await client.rpc("is_global_admin");
+      const scopeResult = await client.rpc("get_current_portal_scope");
 
-        if (!cancelled && !globalAdminResult.error) {
-          nextIsGlobalAdmin = Boolean(globalAdminResult.data);
+      if (!cancelled && !scopeResult.error) {
+        const scopeRow = Array.isArray(scopeResult.data)
+          ? scopeResult.data[0]
+          : scopeResult.data;
+
+        if (scopeRow) {
+          resolvedScope = {
+            role_text: scopeRow.role_text,
+            is_global_admin: Boolean(scopeRow.is_global_admin),
+            accessible_rbds: Array.isArray(scopeRow.accessible_rbds)
+              ? scopeRow.accessible_rbds.filter((value: unknown): value is string => typeof value === "string")
+              : [],
+            default_rbd: typeof scopeRow.default_rbd === "string" ? scopeRow.default_rbd : null,
+            can_select_school: Boolean(scopeRow.can_select_school),
+            landing_route: scopeRow.landing_route === "/admin" ? "/admin" : "/resumen",
+          };
         }
       }
 
       setProfile(nextProfile);
-      setIsGlobalAdmin(nextIsGlobalAdmin);
+      setIsGlobalAdmin(resolvedScope.is_global_admin);
+      setAccessibleRbds(resolvedScope.accessible_rbds);
+      setCanSelectSchool(resolvedScope.can_select_school);
+      setLandingRoute(resolvedScope.landing_route);
 
       if (!nextProfile.rbd) {
         setEstablishment(null);
@@ -230,7 +262,33 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   }, [userId, supabase]);
 
   useEffect(() => {
-    if (!supabase || profile?.rol !== "ADMIN") {
+    if (!session || isLoading) {
+      return;
+    }
+
+    if (isGlobalAdmin) {
+      return;
+    }
+
+    if (accessibleRbds.length === 1) {
+      if (selectedRbd !== accessibleRbds[0]) {
+        setSelectedRbd(accessibleRbds[0]);
+      }
+      return;
+    }
+
+    if (accessibleRbds.length === 0 && selectedRbd !== null) {
+      setSelectedRbd(null);
+      return;
+    }
+
+    if (selectedRbd && !accessibleRbds.includes(selectedRbd)) {
+      setSelectedRbd(null);
+    }
+  }, [accessibleRbds, isGlobalAdmin, isLoading, selectedRbd, session]);
+
+  useEffect(() => {
+    if (!supabase || profile?.rol !== "ADMIN" || !isGlobalAdmin) {
       setAllEstablishments([]);
       return;
     }
@@ -243,7 +301,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       .then(({ data }) => {
         setAllEstablishments((data as Establishment[]) ?? []);
       });
-  }, [profile, supabase]);
+  }, [isGlobalAdmin, profile, supabase]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -371,6 +429,9 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         profile,
         establishment,
         isGlobalAdmin,
+        accessibleRbds,
+        canSelectSchool,
+        landingRoute,
         isLoading,
         accessError,
         selectedRbd,

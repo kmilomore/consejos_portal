@@ -234,7 +234,7 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
                 className="inline-flex items-center gap-1.5 text-sm font-semibold text-ocean hover:underline print:hidden"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Ver documento PDF
+                Ver documento
               </a>
               <p className="hidden text-sm text-slate-600 print:block">{acta.link_acta}</p>
             </section>

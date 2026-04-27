@@ -30,6 +30,16 @@ export interface PortalSnapshot {
   diagnostics: PortalDiagnostic[];
 }
 
+export interface ActaMutationResult {
+  id: string | null;
+  errorMessage?: string;
+}
+
+export interface PersistenceStepResult {
+  ok: boolean;
+  errorMessage?: string;
+}
+
 type ActaRow = Omit<Acta, "asistentes" | "invitados"> & {
   asistentes: unknown;
 };
@@ -214,11 +224,18 @@ export interface ActaUpsertInput {
   asistentes: AttendeeSlot[];
 }
 
-export async function upsertActa(input: ActaUpsertInput): Promise<string | null> {
+function buildActaDocumentPath(actaId: string, rbd: string, fileName: string): string {
+  const year = new Date().getFullYear();
+  const ext = fileName.includes(".") ? fileName.split(".").pop()!.toLowerCase() : "pdf";
+  return `${rbd.replace(/\//g, "-")}/${year}/${actaId}.${ext}`;
+}
+
+export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationResult> {
   const supabase = createClient();
-  if (!supabase) return null;
+  if (!supabase) return { id: null, errorMessage: "Cliente Supabase no disponible." };
 
   const payload = {
+    id: input.id,
     programacion_origen_id: input.programacion_origen_id ?? null,
     rbd: input.rbd,
     sesion: input.sesion,
@@ -241,40 +258,49 @@ export async function upsertActa(input: ActaUpsertInput): Promise<string | null>
     asistentes: input.asistentes,
   };
 
-  if (input.id) {
-    const { error } = await supabase.from("actas").update(payload).eq("id", input.id);
-    if (error) {
-      console.error("upsertActa (update):", error.message);
-      return null;
-    }
-    return input.id;
+  const { data, error } = await supabase
+    .from("actas")
+    .upsert(payload, { onConflict: "id" })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("upsertActa (upsert):", error.message);
+    return { id: null, errorMessage: error.message };
   }
 
-  const { data, error } = await supabase.from("actas").insert(payload).select("id").single();
-  if (error) {
-    console.error("upsertActa (insert):", error.message);
-    return null;
-  }
-  return (data as { id: string }).id;
+  return { id: (data as { id: string }).id };
 }
 
 export async function replaceActaInvitados(
   actaId: string,
   guests: { nombre: string; cargo: string }[],
-): Promise<void> {
+): Promise<PersistenceStepResult> {
   const supabase = createClient();
-  if (!supabase) return;
+  if (!supabase) return { ok: false, errorMessage: "Cliente Supabase no disponible." };
 
-  await supabase.from("actas_invitados").delete().eq("acta_id", actaId);
+  const { error: deleteError } = await supabase.from("actas_invitados").delete().eq("acta_id", actaId);
+
+  if (deleteError) {
+    console.error("replaceActaInvitados (delete):", deleteError.message);
+    return { ok: false, errorMessage: deleteError.message };
+  }
 
   if (guests.length > 0) {
-    await supabase
+    const { error: insertError } = await supabase
       .from("actas_invitados")
       .insert(guests.map((guest) => ({ acta_id: actaId, nombre: guest.nombre, cargo: guest.cargo })));
+
+    if (insertError) {
+      console.error("replaceActaInvitados (insert):", insertError.message);
+      return { ok: false, errorMessage: insertError.message };
+    }
   }
+
+  return { ok: true };
 }
 
-export async function uploadActaPdf(
+export async function uploadActaDocument(
   actaId: string,
   rbd: string,
   file: File,
@@ -282,36 +308,53 @@ export async function uploadActaPdf(
 ): Promise<string | null> {
   const supabase = createClient();
   if (!supabase) return null;
-
-  const year = new Date().getFullYear();
-  const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "pdf";
-  const safePath = `${rbd.replace(/\//g, "-")}/${year}/${actaId}.${ext}`;
+  const storageBucket = "evidencias_actas";
+  const safePath = buildActaDocumentPath(actaId, rbd, file.name);
 
   onProgress?.(50);
 
   const { error } = await supabase.storage
-    .from("actas")
+    .from(storageBucket)
     .upload(safePath, file, { upsert: true, contentType: file.type || "application/octet-stream" });
 
   if (error) {
-    console.error("uploadActaPdf:", error.message);
+    console.error("uploadActaDocument:", error.message);
     onProgress?.(0);
     return null;
   }
 
   onProgress?.(100);
-  const { data } = supabase.storage.from("actas").getPublicUrl(safePath);
+  const { data } = supabase.storage.from(storageBucket).getPublicUrl(safePath);
   return data.publicUrl;
 }
 
-export async function updateActaLink(actaId: string, url: string): Promise<void> {
+export async function deleteActaDocument(actaId: string, rbd: string, fileName: string): Promise<boolean> {
   const supabase = createClient();
-  if (!supabase) return;
+  if (!supabase) return false;
+
+  const storageBucket = "evidencias_actas";
+  const safePath = buildActaDocumentPath(actaId, rbd, fileName);
+  const { error } = await supabase.storage.from(storageBucket).remove([safePath]);
+
+  if (error) {
+    console.error("deleteActaDocument:", error.message);
+    return false;
+  }
+
+  return true;
+}
+
+export async function updateActaLink(actaId: string, url: string): Promise<PersistenceStepResult> {
+  const supabase = createClient();
+  if (!supabase) return { ok: false, errorMessage: "Cliente Supabase no disponible." };
 
   const { error } = await supabase.from("actas").update({ link_acta: url }).eq("id", actaId);
   if (error) {
     console.error("updateActaLink:", error.message);
+    return { ok: false, errorMessage: error.message };
   }
+
+  return { ok: true };
 }
 
 export async function deleteActa(actaId: string): Promise<boolean> {

@@ -59,7 +59,7 @@ export default function SummaryPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <section className="panel-reveal overflow-hidden rounded-[32px] bg-hero-grid p-8">
+      <section className="overflow-hidden rounded-[32px] bg-hero-grid p-8">
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-ocean">Consejo Escolar</p>
           <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink lg:text-5xl">{schoolName}</h1>
