@@ -2,6 +2,7 @@
 
 > **Última actualización:** 2026-04-27  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
+> **Contexto específico de programación:** ver `context_programacion.md` para el detalle operativo completo del módulo `programacion/`, sus invariantes, flujos y criterios para iterar con IA.
 
 ---
 
@@ -41,6 +42,13 @@ Experiencia principal:
 - Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
 - `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar, nunca se desmonta mientras exista sesión
 - Navegación entre secciones sin flash visual ni pérdida de contenido (`app/loading.tsx` eliminado, `AppFrame` reestructurado)
+- Módulo de programación operativo:
+  - calendario mensual por establecimiento activo
+  - creación real de sesiones ordinarias y extraordinarias
+  - edición de programaciones existentes
+  - cancelación lógica de sesiones (`estado = CANCELADA`)
+  - creación de acta desde la misma pantalla de programación
+  - vínculo persistente entre `programacion` y `actas`
 - Módulo de actas completo:
   - Crear, editar, ver (solo lectura) y eliminar actas
   - Soporte fase 1 para `Registro documental` con PDF obligatorio y metadatos mínimos de sesión
@@ -74,8 +82,7 @@ Experiencia principal:
 ### Pendiente o parcial
 
 - Eliminar PDF en storage al borrar acta (el DELETE en BD sí funciona)
-- CRUD de programación (solo lectura implementada)
-- Vínculo UI entre programación y acta (`id_programacion_origen` existe sin selector)
+- Eliminación dura de programaciones (hoy existe edición + cancelación lógica, no delete físico)
 - Columna `correo` en `actas_invitados` (capturado en UI, no persiste)
 - Política de storage bucket `evidencias_actas` (escritura autenticada + lectura pública por RBD)
 - Validación MIME real del PDF en servidor
@@ -165,6 +172,17 @@ Detalle operativo vigente:
 
 **Invariante:** las páginas no deben tener `useEffect` para cargar datos del portal — siempre usar `usePortalSnapshot()`.
 
+### 4.4.1 Programación y correlativos
+
+La numeración de `programacion` no debe resolverse como fuente de verdad en cliente. El correlativo oficial sale de `get_next_session_number(session_type, establishment_rbd, target_year)`, considerando tanto filas en `programacion` como actas ya realizadas del mismo `rbd`, `tipo_sesion` y año.
+
+Detalle vigente:
+- las sesiones ordinarias siguen limitadas a 4 por año y RBD
+- editar una programación puede conservar o recalcular su `numero_sesion` según cambie tipo/año
+- al guardar un acta desde una programación, `programacion.acta_vinculada_id` se actualiza y la sesión queda en estado `REALIZADA`
+
+**Invariante:** cualquier flujo nuevo que cree, edite o migre programaciones debe pasar por la RPC de correlativo o respetar explícitamente el `numero_sesion` ya validado.
+
 ### 4.5 Estabilidad de layout durante navegación
 
 `app/loading.tsx` fue eliminado deliberadamente. Este archivo creaba un Suspense boundary automático en App Router que mostraba un spinner vacío en cada navegación entre páginas, causando la sensación de "salir y volver a entrar".
@@ -227,7 +245,7 @@ Invariantes operativas:
 | `components/ui/button.tsx` | Botón base con variantes `primary`, `secondary`, `ghost` |
 | `components/ui/badge.tsx` | Badge con tones |
 | `lib/supabase/auth-context.tsx` | Sesión, perfil, establecimiento, auth flow |
-| `lib/supabase/queries.ts` | `fetchPortalSnapshot`, `upsertActa`, `replaceActaInvitados`, `uploadActaPdf`, `deleteActa` |
+| `lib/supabase/queries.ts` | `fetchPortalSnapshot`, mutaciones de `programacion`, `upsertActa`, `replaceActaInvitados`, uploads y delete |
 | `lib/supabase/use-portal-snapshot.tsx` | Context Provider + `usePortalSnapshot()` hook |
 | `lib/supabase/use-slep-directorio.ts` | Hook → RPC `get_slep_directorio()` |
 | `types/domain.ts` | Tipos de dominio: `Acta`, `Profile`, `Establishment`, etc. |
@@ -246,7 +264,7 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 | Persistencia de escuela seleccionada | `lib/supabase/auth-context.tsx` | `components/portal/shell.tsx`, `lib/supabase/use-portal-snapshot.tsx` |
 | Precarga de establecimiento activo en nueva acta | `components/portal/acta-form.tsx` | `lib/supabase/auth-context.tsx`, `lib/supabase/use-slep-directorio.ts`, `app/actas/page.tsx` |
 | Resumen del establecimiento | `app/resumen/page.tsx` | `components/portal/section-card.tsx`, `components/portal/attendance-chart.tsx` |
-| Programación y tabla operativa | `app/programacion/page.tsx` | `components/portal/session-table.tsx`, `lib/supabase/queries.ts` |
+| Programación, calendario y acciones operativas | `app/programacion/page.tsx` | `components/portal/acta-form.tsx`, `lib/supabase/queries.ts` |
 | Métricas y visualizaciones | `app/metricas/page.tsx` | `components/portal/attendance-chart.tsx`, `components/portal/section-card.tsx` |
 | Panel admin y directorio SLEP | `app/admin/page.tsx` | `lib/supabase/use-slep-directorio.ts`, `types/domain.ts` |
 | Listado, filtro y flujo de actas | `app/actas/page.tsx` | `components/portal/acta-form.tsx`, `components/portal/acta-detail.tsx`, `lib/supabase/queries.ts` |
@@ -739,6 +757,29 @@ Resultado esperado:
 - baja el riesgo de rechazar RUT reales por un algoritmo frágil
 - el flujo deja de aceptar asistentes presentes sin trazabilidad mínima de identidad y contacto
 - el usuario puede retomar una edición interrumpida sin perder avance local
+
+### Avance 18 — Programación real con calendario, edición y puente a actas
+
+Se reemplazó la vista estática de programación por un flujo operativo real conectado a Supabase.
+
+Archivos intervenidos:
+- `app/programacion/page.tsx`
+- `lib/supabase/queries.ts`
+- `components/portal/acta-form.tsx`
+
+Trabajo realizado:
+- se agregó calendario mensual con lectura de sesiones por día para el establecimiento activo
+- se implementó creación real de programaciones usando inserción en `public.programacion`
+- se habilitó edición de programaciones existentes desde la misma pantalla
+- se habilitó cancelación lógica de sesiones existentes actualizando `estado = 'CANCELADA'`
+- la numeración se resuelve con la RPC `get_next_session_number` y se mantiene coherente con programaciones y actas ya creadas
+- se agregó apertura de `ActaForm` desde una programación concreta, precargando `rbd`, `tipo_sesion`, `numero_sesion`, `fecha`, `hora`, `formato`, `lugar` y `tematicas`
+- al guardar el acta, `upsertActa` actualiza la programación de origen dejando `acta_vinculada_id` y `estado = 'REALIZADA'`
+
+Resultado esperado:
+- cada director puede calendarizar sus sesiones directamente desde `/programacion/`
+- una sesión programada puede pasar a acta sin reingresar los datos base
+- la tabla de programación refleja sesiones `PROGRAMADA`, `REALIZADA` y `CANCELADA` con continuidad correcta del correlativo
 
 ### Avance 17 — Corrección de flash de navegación entre secciones
 

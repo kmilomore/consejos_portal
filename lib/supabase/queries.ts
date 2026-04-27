@@ -40,6 +40,19 @@ export interface PersistenceStepResult {
   errorMessage?: string;
 }
 
+export interface ProgramacionUpsertInput {
+  id?: string;
+  rbd: string;
+  numero_sesion?: number;
+  tipo_sesion: SessionType;
+  fecha_programada: string;
+  hora_programada: string;
+  formato_planeado: SessionFormat;
+  lugar_tentativo: string;
+  tematicas: string;
+  estado?: Programacion["estado"];
+}
+
 type ActaRow = Omit<Acta, "asistentes" | "invitados"> & {
   asistentes: unknown;
 };
@@ -196,6 +209,129 @@ export function getProgramaciones(): Programacion[] {
   return [];
 }
 
+export async function getNextSessionNumber(
+  establishmentRbd: string,
+  sessionType: SessionType,
+  targetYear: number,
+): Promise<{ value: number | null; errorMessage?: string }> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { value: null, errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { data, error } = await supabase.rpc("get_next_session_number", {
+    establishment_rbd: establishmentRbd,
+    session_type: sessionType,
+    target_year: targetYear,
+  });
+
+  if (error) {
+    return { value: null, errorMessage: error.message };
+  }
+
+  return { value: typeof data === "number" ? data : Number(data) };
+}
+
+export async function createProgramacion(input: ProgramacionUpsertInput): Promise<ActaMutationResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { id: null, errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const targetYear = Number(input.fecha_programada.slice(0, 4));
+  const nextSessionResult = await getNextSessionNumber(input.rbd, input.tipo_sesion, targetYear);
+
+  if (!nextSessionResult.value) {
+    return { id: null, errorMessage: nextSessionResult.errorMessage ?? "No fue posible calcular el número de sesión." };
+  }
+
+  const payload = {
+    id: input.id,
+    rbd: input.rbd,
+    tipo_sesion: input.tipo_sesion,
+    numero_sesion: nextSessionResult.value,
+    fecha_programada: input.fecha_programada,
+    hora_programada: input.hora_programada,
+    formato_planeado: input.formato_planeado,
+    lugar_tentativo: input.lugar_tentativo,
+    tematicas: input.tematicas,
+    estado: input.estado ?? "PROGRAMADA",
+  };
+
+  const { data, error } = await supabase
+    .from("programacion")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) {
+    return { id: null, errorMessage: error.message };
+  }
+
+  return { id: (data as { id: string }).id };
+}
+
+export async function updateProgramacion(input: ProgramacionUpsertInput): Promise<ActaMutationResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { id: null, errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  if (!input.id) {
+    return { id: null, errorMessage: "Falta el identificador de la programación a editar." };
+  }
+
+  const targetYear = Number(input.fecha_programada.slice(0, 4));
+  let numeroSesion = input.numero_sesion ?? null;
+
+  if (!numeroSesion) {
+    const nextSessionResult = await getNextSessionNumber(input.rbd, input.tipo_sesion, targetYear);
+    if (!nextSessionResult.value) {
+      return { id: null, errorMessage: nextSessionResult.errorMessage ?? "No fue posible calcular el número de sesión." };
+    }
+    numeroSesion = nextSessionResult.value;
+  }
+
+  const { error } = await supabase
+    .from("programacion")
+    .update({
+      rbd: input.rbd,
+      tipo_sesion: input.tipo_sesion,
+      numero_sesion: numeroSesion,
+      fecha_programada: input.fecha_programada,
+      hora_programada: input.hora_programada,
+      formato_planeado: input.formato_planeado,
+      lugar_tentativo: input.lugar_tentativo,
+      tematicas: input.tematicas,
+      estado: input.estado ?? "PROGRAMADA",
+    })
+    .eq("id", input.id);
+
+  if (error) {
+    return { id: null, errorMessage: error.message };
+  }
+
+  return { id: input.id };
+}
+
+export async function cancelProgramacion(programacionId: string): Promise<PersistenceStepResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { ok: false, errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { error } = await supabase
+    .from("programacion")
+    .update({ estado: "CANCELADA" })
+    .eq("id", programacionId);
+
+  if (error) {
+    return { ok: false, errorMessage: error.message };
+  }
+
+  return { ok: true };
+}
+
 export function getActas(): Acta[] {
   return [];
 }
@@ -269,7 +405,21 @@ export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationRe
     return { id: null, errorMessage: error.message };
   }
 
-  return { id: (data as { id: string }).id };
+  const savedId = (data as { id: string }).id;
+
+  if (input.programacion_origen_id) {
+    const { error: programacionError } = await supabase
+      .from("programacion")
+      .update({ acta_vinculada_id: savedId, estado: "REALIZADA" })
+      .eq("id", input.programacion_origen_id);
+
+    if (programacionError) {
+      console.error("upsertActa (link programacion):", programacionError.message);
+      return { id: savedId, errorMessage: `Acta guardada, pero no se pudo vincular la programación: ${programacionError.message}` };
+    }
+  }
+
+  return { id: savedId };
 }
 
 export async function replaceActaInvitados(

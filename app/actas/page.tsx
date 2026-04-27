@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ function formatSchedule(acta: Acta) {
 
 export default function ActasPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
+  const searchParams = useSearchParams();
   const rows = snapshot.actas;
 
   // ── Form drawer ──────────────────────────────────────────────────────────
@@ -44,6 +46,18 @@ export default function ActasPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTipo, setFilterTipo] = useState<SessionType | "">("");
   const [filterModo, setFilterModo] = useState<ActaRecordMode | "">("");
+
+  useEffect(() => {
+    const actaId = searchParams.get("acta");
+    if (!actaId) {
+      return;
+    }
+
+    const targetActa = rows.find((acta) => acta.id === actaId);
+    if (targetActa) {
+      setViewActa(targetActa);
+    }
+  }, [rows, searchParams]);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();

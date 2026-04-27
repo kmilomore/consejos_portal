@@ -266,9 +266,10 @@ interface PortalShellProps extends PropsWithChildren {
 
 export function PortalShell({ children, profile, establishment }: PortalShellProps): React.ReactElement {
   const pathname = usePathname();
-  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin } = usePortalAuth();
+  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin, accessibleRbds } = usePortalAuth();
   const { data: slepSchools } = useSlepDirectorio();
   const isAdmin = profile.rol === "ADMIN";
+  const assignedSchoolCount = accessibleRbds.length;
   const navigation = isAdmin
     ? adminNavigation.map((item) => item.href === "/admin"
       ? { ...item, label: isGlobalAdmin ? "Panel General" : "Mi Territorio" }
@@ -344,8 +345,13 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
                   <p className="mt-3 text-xs leading-5 text-slate-600">
                     {isGlobalAdmin
                       ? "Puedes navegar y consolidar información de todos los establecimientos habilitados en el portal."
-                      : "Solo puedes ver el territorio y las escuelas vinculadas a tu correo autenticado como representante."}
+                      : `Solo puedes ver el territorio y las ${assignedSchoolCount} escuela${assignedSchoolCount === 1 ? "" : "s"} vinculada${assignedSchoolCount === 1 ? "" : "s"} a tu correo autenticado.`}
                   </p>
+                  {!isGlobalAdmin && (
+                    <div className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+                      Este acceso no abre un panel general del SLEP. Solo habilita las escuelas relacionadas a tu cobertura.
+                    </div>
+                  )}
                 </div>
 
                 <SchoolSelector
@@ -366,7 +372,7 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
                   </div>
                 </div>
                 <div className="mt-3 rounded-2xl bg-white/80 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200/80">
-                  Vista enfocada para trabajo operativo del establecimiento.
+                  Vista enfocada para trabajo operativo del establecimiento. Esta cuenta no entra al panel territorial general.
                 </div>
               </div>
             )}

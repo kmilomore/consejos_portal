@@ -24,7 +24,7 @@ import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
 import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
-import type { Acta, ActaRecordMode, AttendeeSlot, Establishment, SessionFormat, SessionType } from "@/types/domain";
+import type { Acta, ActaRecordMode, AttendeeSlot, Establishment, Programacion, SessionFormat, SessionType } from "@/types/domain";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -157,6 +157,7 @@ export interface ActaFormProps {
   establishments: Establishment[];
   actas: Acta[];
   editActa?: Acta | null;
+  initialProgramacion?: Programacion | null;
   onSaved: () => void;
 }
 
@@ -242,6 +243,24 @@ function actaToForm(acta: Acta): FormState {
     observacion_documental: acta.observacion_documental,
     proxima_sesion: acta.proxima_sesion ?? "",
     link_acta: acta.link_acta ?? "",
+  };
+}
+
+function programacionToForm(programacion: Programacion, establishmentPatch?: Partial<FormState>): FormState {
+  return {
+    ...makeEmptyForm(),
+    id_programacion_origen: programacion.id,
+    rbd: programacion.rbd,
+    nombre_establecimiento: establishmentPatch?.nombre_establecimiento ?? "",
+    direccion: establishmentPatch?.direccion ?? "",
+    comuna: establishmentPatch?.comuna ?? "",
+    tipo_sesion: programacion.tipo_sesion,
+    sesion: String(programacion.numero_sesion),
+    formato: programacion.formato_planeado,
+    lugar: programacion.lugar_tentativo,
+    fecha: programacion.fecha_programada,
+    hora_inicio: programacion.hora_programada,
+    tabla_temas: programacion.tematicas,
   };
 }
 
@@ -554,6 +573,7 @@ export function ActaForm({
   establishments,
   actas,
   editActa,
+  initialProgramacion,
   onSaved,
 }: ActaFormProps) {
   const { data: slepData, isLoading: slepLoading } = useSlepDirectorio();
@@ -633,6 +653,11 @@ export function ActaForm({
       } catch {
         initial = actaToForm(editActa);
       }
+    } else if (initialProgramacion) {
+      initial = programacionToForm(
+        initialProgramacion,
+        buildActiveSchoolFormPatch(initialProgramacion.rbd),
+      );
     } else {
       // #12 — Try to restore a saved draft for new actas
       try {
@@ -664,10 +689,10 @@ export function ActaForm({
     setErrors({});
     setSaveError(null);
     pendingFile.current = null;
-  }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, isOpen]);
+  }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, initialProgramacion, isOpen]);
 
   useEffect(() => {
-    if (!isOpen || editActa || form.rbd || !activeRbd) {
+    if (!isOpen || editActa || initialProgramacion || form.rbd || !activeRbd) {
       return;
     }
 
@@ -676,7 +701,7 @@ export function ActaForm({
       ...buildActiveSchoolFormPatch(activeRbd),
       sesion: String(nextSessionNumber(actas, activeRbd, prev.tipo_sesion)),
     }));
-  }, [actas, activeRbd, buildActiveSchoolFormPatch, editActa, form.rbd, isOpen]);
+  }, [actas, activeRbd, buildActiveSchoolFormPatch, editActa, form.rbd, initialProgramacion, isOpen]);
 
   // #12 — Persist acta drafts to localStorage (debounced 800 ms)
   useEffect(() => {

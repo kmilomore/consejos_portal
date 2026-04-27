@@ -105,7 +105,7 @@ function DirectoryRow({ e }: { e: SlepEscuela }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { profile, isGlobalAdmin } = usePortalAuth();
+  const { profile, isGlobalAdmin, accessibleRbds } = usePortalAuth();
   const router = useRouter();
   const { data, metrics, isLoading, error } = useSlepDirectorio();
   const [query, setQuery] = useState("");
@@ -187,7 +187,7 @@ export default function AdminPage() {
 
       {!isGlobalAdmin && (
         <div className="rounded-[24px] border border-ocean/15 bg-ocean/5 px-5 py-4 text-sm text-slate-700">
-          Este panel no entrega acceso global. Las métricas, territorios y escuelas mostradas corresponden solo a tu cobertura asignada como representante.
+          Este panel no entrega acceso global. Las metricas, territorios y escuelas mostradas corresponden solo a tu cobertura asignada. Hoy tienes {accessibleRbds.length} escuela{accessibleRbds.length === 1 ? "" : "s"} dentro de alcance. Los directores no entran aqui: ellos aterrizan en /resumen y ven solo su establecimiento.
         </div>
       )}
 
