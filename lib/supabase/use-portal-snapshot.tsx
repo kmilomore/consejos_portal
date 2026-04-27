@@ -23,6 +23,8 @@ const EMPTY_SNAPSHOT: PortalSnapshot = {
   diagnostics: [],
 };
 
+const snapshotCache = new Map<string, PortalSnapshot>();
+
 const PortalSnapshotContext = createContext<PortalSnapshotState>({
   snapshot: EMPTY_SNAPSHOT,
   status: "loading",
@@ -34,12 +36,17 @@ const PortalSnapshotContext = createContext<PortalSnapshotState>({
 export function PortalSnapshotProvider({ children }: PropsWithChildren): React.ReactElement {
   const { session, selectedRbd } = usePortalAuth();
   const userId = session?.user?.id ?? null;
+  const snapshotCacheKey = `${userId ?? "anon"}:${selectedRbd ?? "all"}`;
   const [refreshKey, setRefreshKey] = useState(0);
-  const [snapshot, setSnapshot] = useState<PortalSnapshot>(EMPTY_SNAPSHOT);
-  const [status, setStatus] = useState<"loading" | "ready">("loading");
+  const [snapshot, setSnapshot] = useState<PortalSnapshot>(() => snapshotCache.get(snapshotCacheKey) ?? EMPTY_SNAPSHOT);
+  const [status, setStatus] = useState<"loading" | "ready">(() =>
+    userId && !snapshotCache.has(snapshotCacheKey) ? "loading" : "ready",
+  );
 
   useEffect(() => {
     let ignore = false;
+
+    const cachedSnapshot = snapshotCache.get(snapshotCacheKey);
 
     if (!userId) {
       setSnapshot({ ...EMPTY_SNAPSHOT, source: "supabase" });
@@ -49,11 +56,17 @@ export function PortalSnapshotProvider({ children }: PropsWithChildren): React.R
       };
     }
 
-    setStatus("loading");
+    if (cachedSnapshot) {
+      setSnapshot(cachedSnapshot);
+      setStatus("ready");
+    } else {
+      setStatus("loading");
+    }
 
     async function loadSnapshot() {
       const nextSnapshot = await fetchPortalSnapshot(selectedRbd ?? undefined);
       if (!ignore) {
+        snapshotCache.set(snapshotCacheKey, nextSnapshot);
         setSnapshot(nextSnapshot);
         setStatus("ready");
       }
@@ -64,7 +77,7 @@ export function PortalSnapshotProvider({ children }: PropsWithChildren): React.R
     return () => {
       ignore = true;
     };
-  }, [userId, selectedRbd, refreshKey]);
+  }, [refreshKey, selectedRbd, snapshotCacheKey, userId]);
 
   function refresh() {
     setRefreshKey((k) => k + 1);

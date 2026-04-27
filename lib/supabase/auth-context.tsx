@@ -11,6 +11,42 @@ interface AuthResult {
 
 const SELECTED_RBD_STORAGE_KEY = "consejos.portal.selected-rbd";
 
+interface AuthStateCache {
+  session: Session | null;
+  profile: Profile | null;
+  establishment: Establishment | null;
+  isGlobalAdmin: boolean;
+  accessibleRbds: string[];
+  canSelectSchool: boolean;
+  landingRoute: "/admin" | "/resumen";
+  accessError: string | null;
+  profileLoaded: boolean;
+}
+
+const authStateCache: AuthStateCache = {
+  session: null,
+  profile: null,
+  establishment: null,
+  isGlobalAdmin: false,
+  accessibleRbds: [],
+  canSelectSchool: false,
+  landingRoute: "/resumen",
+  accessError: null,
+  profileLoaded: false,
+};
+
+function resetAuthStateCache() {
+  authStateCache.session = null;
+  authStateCache.profile = null;
+  authStateCache.establishment = null;
+  authStateCache.isGlobalAdmin = false;
+  authStateCache.accessibleRbds = [];
+  authStateCache.canSelectSchool = false;
+  authStateCache.landingRoute = "/resumen";
+  authStateCache.accessError = null;
+  authStateCache.profileLoaded = false;
+}
+
 function resolveOtpRedirectUrl() {
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
@@ -49,18 +85,30 @@ const PortalAuthContext = createContext<PortalAuthContextValue | null>(null);
 
 export function PortalAuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [supabase] = useState(() => createClient());
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [establishment, setEstablishment] = useState<Establishment | null>(null);
-  const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
-  const [accessibleRbds, setAccessibleRbds] = useState<string[]>([]);
-  const [canSelectSchool, setCanSelectSchool] = useState(false);
-  const [landingRoute, setLandingRoute] = useState<"/admin" | "/resumen">("/resumen");
-  const [isLoading, setIsLoading] = useState(true);
-  const [accessError, setAccessError] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(() => authStateCache.session);
+  const [profile, setProfile] = useState<Profile | null>(() => authStateCache.profile);
+  const [establishment, setEstablishment] = useState<Establishment | null>(() => authStateCache.establishment);
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(() => authStateCache.isGlobalAdmin);
+  const [accessibleRbds, setAccessibleRbds] = useState<string[]>(() => authStateCache.accessibleRbds);
+  const [canSelectSchool, setCanSelectSchool] = useState(() => authStateCache.canSelectSchool);
+  const [landingRoute, setLandingRoute] = useState<"/admin" | "/resumen">(() => authStateCache.landingRoute);
+  const [isLoading, setIsLoading] = useState(() => !authStateCache.profileLoaded);
+  const [accessError, setAccessError] = useState<string | null>(() => authStateCache.accessError);
   const [selectedRbd, setSelectedRbd] = useState<string | null>(null);
   const [allEstablishments, setAllEstablishments] = useState<Establishment[]>([]);
-  const profileLoaded = useRef(false);
+  const profileLoaded = useRef(authStateCache.profileLoaded);
+
+  useEffect(() => {
+    authStateCache.session = session;
+    authStateCache.profile = profile;
+    authStateCache.establishment = establishment;
+    authStateCache.isGlobalAdmin = isGlobalAdmin;
+    authStateCache.accessibleRbds = accessibleRbds;
+    authStateCache.canSelectSchool = canSelectSchool;
+    authStateCache.landingRoute = landingRoute;
+    authStateCache.accessError = accessError;
+    authStateCache.profileLoaded = profileLoaded.current;
+  }, [accessError, accessibleRbds, canSelectSchool, establishment, isGlobalAdmin, landingRoute, profile, session]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -118,6 +166,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       } else if (event === "SIGNED_OUT") {
         // Only wipe state on explicit sign-out, not on transient null events
         // (createBrowserClient fires INITIAL_SESSION with null before reading cookies)
+        resetAuthStateCache();
         profileLoaded.current = false;
         setSession(null);
         setProfile(null);
@@ -409,6 +458,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     if (!supabase) {
       return;
     }
+
+    resetAuthStateCache();
 
     try {
       if (typeof window !== "undefined") {

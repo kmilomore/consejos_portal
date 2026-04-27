@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 import type { SlepEscuela } from "@/types/domain";
 
+let slepDirectorioCache: SlepEscuela[] | null = null;
+let slepDirectorioErrorCache: string | null = null;
+
 export interface ComunaStats {
   total: number;
   rural: number;
@@ -24,14 +27,20 @@ export interface SlepMetrics {
 
 export function useSlepDirectorio() {
   const { accessibleRbds, isGlobalAdmin } = usePortalAuth();
-  const [data, setData] = useState<SlepEscuela[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<SlepEscuela[]>(() => slepDirectorioCache ?? []);
+  const [isLoading, setIsLoading] = useState(() => slepDirectorioCache === null && slepDirectorioErrorCache === null);
+  const [error, setError] = useState<string | null>(() => slepDirectorioErrorCache);
 
   useEffect(() => {
+    if (slepDirectorioCache || slepDirectorioErrorCache) {
+      return;
+    }
+
     const client = createClient();
     if (!client) {
-      setError("Cliente Supabase no disponible.");
+      const nextError = "Cliente Supabase no disponible.";
+      slepDirectorioErrorCache = nextError;
+      setError(nextError);
       setIsLoading(false);
       return;
     }
@@ -43,9 +52,12 @@ export function useSlepDirectorio() {
       .then(({ data: rows, error: rpcError }) => {
         if (cancelled) return;
         if (rpcError) {
+          slepDirectorioErrorCache = rpcError.message;
           setError(rpcError.message);
         } else {
-          setData((rows as SlepEscuela[]) ?? []);
+          const nextData = (rows as SlepEscuela[]) ?? [];
+          slepDirectorioCache = nextData;
+          setData(nextData);
         }
         setIsLoading(false);
       });

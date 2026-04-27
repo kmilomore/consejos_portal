@@ -39,8 +39,8 @@ export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) 
   // auth-state transitions (profile loading, token refresh, etc.).
   return (
     <PortalSnapshotProvider>
-      {/* Session exists but profile still loading — persistent shell skeleton so layout never flashes */}
-      {isLoading || (!profile && !accessError) ? (
+      {/* Only show shell skeleton on the very first auth bootstrap when no profile is cached yet. */}
+      {!profile && isLoading && !accessError ? (
         <div className="flex min-h-screen w-full flex-col gap-4 px-3 py-3 lg:flex-row lg:px-4 lg:py-4 2xl:px-6">
           <div className="skeleton-shimmer h-24 w-full rounded-[30px] lg:h-[calc(100vh-2rem)] lg:w-[320px] xl:w-[336px]" />
           <div className="skeleton-shimmer min-w-0 flex-1 rounded-[32px] lg:min-h-[calc(100vh-2rem)]" />
