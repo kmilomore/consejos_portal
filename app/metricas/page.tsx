@@ -69,9 +69,10 @@ function buildSessionMetricRows(
 export default function MetricasPage() {
   const { snapshot, status } = usePortalSnapshot();
   const sessionRows = buildSessionMetricRows(snapshot.actas, snapshot.programaciones, snapshot.establishments);
-  const totalSesiones = sessionRows.length;
-  const sesionesOrdinarias = sessionRows.filter((session) => session.tipoSesion === "Ordinaria").length;
-  const sesionesExtraordinarias = totalSesiones - sesionesOrdinarias;
+  const establishmentByRbd = new Map(snapshot.establishments.map((item) => [item.rbd, item]));
+  const totalSesionesRealizadas = snapshot.actas.length;
+  const sesionesOrdinariasRealizadas = snapshot.actas.filter((acta) => acta.tipo_sesion === "Ordinaria").length;
+  const sesionesExtraordinariasRealizadas = totalSesionesRealizadas - sesionesOrdinariasRealizadas;
   const totalActas = snapshot.actas.length;
   const actasCompletas = snapshot.actas.filter((acta) => acta.modo_registro === "ACTA_COMPLETA").length;
   const registrosDocumentales = totalActas - actasCompletas;
@@ -81,24 +82,66 @@ export default function MetricasPage() {
     1,
   );
   const metaSesionesOrdinarias = establecimientosEnScope * 4;
-  const sesionesOrdinariasRegistradas = snapshot.actas.filter((acta) => acta.tipo_sesion === "Ordinaria").length;
+  const sesionesOrdinariasRegistradas = sesionesOrdinariasRealizadas;
   const cumplimientoNormativo = metaSesionesOrdinarias === 0
     ? 0
     : Math.min(sesionesOrdinariasRegistradas / metaSesionesOrdinarias, 1);
   const porcentajeCompletas = totalActas === 0 ? 0 : Math.round((actasCompletas / totalActas) * 100);
-  const sesionesPorComuna = sessionRows.reduce<Array<{ comuna: string; total: number; porcentaje: number }>>((acc, session) => {
-    const current = acc.find((item) => item.comuna === session.comuna);
-    if (current) {
-      current.total += 1;
-      return acc;
+  const sesionesOrdinariasPorNumero = [1, 2, 3, 4].map((numeroSesion) => {
+    const total = snapshot.actas.filter(
+      (acta) => acta.tipo_sesion === "Ordinaria" && acta.sesion === numeroSesion,
+    ).length;
+    const porcentaje = establecimientosEnScope === 0 ? 0 : Math.min(total / establecimientosEnScope, 1);
+
+    return {
+      numeroSesion,
+      total,
+      porcentaje,
+      faltantes: Math.max(establecimientosEnScope - total, 0),
+    };
+  });
+  const sesionesPorComuna = [...snapshot.actas.reduce((acc, acta) => {
+    const comuna = acta.comuna || establishmentByRbd.get(acta.rbd)?.comuna || "Sin comuna";
+    const current = acc.get(comuna) ?? { comuna, ordinarias: 0, extraordinarias: 0, total: 0, porcentaje: 0 };
+
+    current.total += 1;
+    if (acta.tipo_sesion === "Ordinaria") {
+      current.ordinarias += 1;
+    } else {
+      current.extraordinarias += 1;
     }
 
-    acc.push({ comuna: session.comuna, total: 1, porcentaje: 0 });
+    acc.set(comuna, current);
     return acc;
-  }, []).map((item) => ({
-    ...item,
-    porcentaje: totalSesiones === 0 ? 0 : item.total / totalSesiones,
-  })).sort((left, right) => right.total - left.total || left.comuna.localeCompare(right.comuna));
+  }, new Map<string, { comuna: string; ordinarias: number; extraordinarias: number; total: number; porcentaje: number }>()).values()]
+    .map((item) => ({
+      ...item,
+      porcentaje: totalSesionesRealizadas === 0 ? 0 : item.total / totalSesionesRealizadas,
+    }))
+    .sort((left, right) => right.total - left.total || left.comuna.localeCompare(right.comuna));
+  const topEscuelas = [...snapshot.actas.reduce((acc, acta) => {
+    const establecimiento = establishmentByRbd.get(acta.rbd);
+    const current = acc.get(acta.rbd) ?? {
+      rbd: acta.rbd,
+      nombre: establecimiento?.nombre || `Establecimiento ${acta.rbd}`,
+      comuna: acta.comuna || establecimiento?.comuna || "Sin comuna",
+      ordinarias: 0,
+      extraordinarias: 0,
+      total: 0,
+    };
+
+    current.total += 1;
+    if (acta.tipo_sesion === "Ordinaria") {
+      current.ordinarias += 1;
+    } else {
+      current.extraordinarias += 1;
+    }
+
+    acc.set(acta.rbd, current);
+    return acc;
+  }, new Map<string, { rbd: string; nombre: string; comuna: string; ordinarias: number; extraordinarias: number; total: number }>()).values()]
+    .sort((left, right) => right.total - left.total || left.nombre.localeCompare(right.nombre))
+    .slice(0, 3);
 
   if (status === "loading") {
     return (
@@ -125,28 +168,28 @@ export default function MetricasPage() {
         <p className="text-xs font-bold uppercase tracking-[0.34em] text-ocean">Análisis</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Métricas</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Indicadores de participación, cumplimiento normativo y trazabilidad de sesiones del establecimiento.
+          Indicadores globales de sesiones realizadas, avance normativo y distribución territorial del año en curso.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total de sesiones"
-          value={String(totalSesiones)}
-          detail={`Incluye ${snapshot.programaciones.length} programacione${snapshot.programaciones.length === 1 ? "" : "s"} y ${totalActas} acta${totalActas === 1 ? "" : "s"} dentro del alcance actual.`}
+          label="Sesiones realizadas"
+          value={String(totalSesionesRealizadas)}
+          detail={`Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro del alcance actual.`}
         />
         <StatCard
           label="Sesiones ordinarias"
-          value={String(sesionesOrdinarias)}
-          detail={`Meta normativa: ${metaSesionesOrdinarias} sesiones ordinarias al año para ${establecimientosEnScope} establecimiento${establecimientosEnScope === 1 ? "" : "s"} en alcance.`}
+          value={String(sesionesOrdinariasRealizadas)}
+          detail={`Meta normativa anual: ${metaSesionesOrdinarias} sesiones ordinarias para ${establecimientosEnScope} establecimiento${establecimientosEnScope === 1 ? "" : "s"}.`}
         />
         <StatCard
           label="Sesiones extraordinarias"
-          value={String(sesionesExtraordinarias)}
+          value={String(sesionesExtraordinariasRealizadas)}
           detail={`Se registran ${registrosDocumentales} respaldo${registrosDocumentales === 1 ? "" : "s"} documental${registrosDocumentales === 1 ? "" : "es"} y ${actasCompletas} acta${actasCompletas === 1 ? "" : "s"} completas.`}
         />
         <StatCard
-          label="Cumplimiento normativo"
+          label="Cumplimiento de ordinarias"
           value={formatPercent(cumplimientoNormativo)}
           detail={`${sesionesOrdinariasRegistradas} de ${metaSesionesOrdinarias} sesiones ordinarias requeridas por la normativa vigente.`}
         />
@@ -162,34 +205,101 @@ export default function MetricasPage() {
         </SectionCard>
 
         <SectionCard
+          eyebrow="Cumplimiento"
+          title="Avance de sesiones ordinarias 1 a 4"
+          description="Cada bloque muestra cuántos establecimientos ya cerraron esa sesión ordinaria y cuánto falta para completar la meta anual."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {sesionesOrdinariasPorNumero.map((item) => (
+              <div key={item.numeroSesion} className="rounded-2xl bg-mist p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Sesión {item.numeroSesion}</p>
+                    <p className="mt-2 text-3xl font-semibold text-ink">{item.total}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold text-ocean">{formatPercent(item.porcentaje)}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">avance</p>
+                  </div>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/80">
+                  <div
+                    className="h-full rounded-full bg-ocean"
+                    style={{ width: `${Math.max(item.porcentaje * 100, item.porcentaje > 0 ? 6 : 0)}%` }}
+                  />
+                </div>
+                <p className="mt-3 text-sm text-slate-600">
+                  Faltan {item.faltantes} establecimiento{item.faltantes === 1 ? "" : "s"} por cerrar esta sesión ordinaria.
+                </p>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <SectionCard
           eyebrow="Territorio"
-          title="Sesiones por comuna participante"
-          description="Cada comuna muestra su peso relativo sobre el total de sesiones visibles en el alcance actual."
+          title="Sesiones realizadas por comuna"
+          description="Desglose total con separación entre sesiones ordinarias y extraordinarias registradas en actas."
+        >
+          {sesionesPorComuna.length === 0 ? (
+            <p className="text-sm text-slate-400">Sin sesiones registradas aún.</p>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Comuna</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Ordinarias</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Extraordinarias</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Total</th>
+                    <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">Peso</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sesionesPorComuna.map((item) => (
+                    <tr key={item.comuna} className="transition-colors hover:bg-mist/60">
+                      <td className="px-4 py-3.5 font-semibold text-ink">{item.comuna}</td>
+                      <td className="px-4 py-3.5 text-right text-slate-600">{item.ordinarias}</td>
+                      <td className="px-4 py-3.5 text-right text-slate-600">{item.extraordinarias}</td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-ocean">{item.total}</td>
+                      <td className="hidden px-4 py-3.5 text-right text-slate-500 md:table-cell">{formatPercent(item.porcentaje)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          eyebrow="Ranking"
+          title="Top 3 escuelas con más sesiones"
+          description="Se consideran las sesiones efectivamente realizadas y registradas durante el año."
         >
           <div className="space-y-4">
-            {sesionesPorComuna.length === 0 ? (
+            {topEscuelas.length === 0 ? (
               <p className="text-sm text-slate-400">Sin sesiones registradas aún.</p>
             ) : (
-              sesionesPorComuna.map((item) => (
-                <div key={item.comuna} className="rounded-2xl bg-mist px-4 py-4 transition-transform duration-200 hover:-translate-y-0.5">
-                  <div className="flex items-center justify-between gap-4">
+              topEscuelas.map((item, index) => (
+                <div key={item.rbd} className="rounded-2xl bg-mist p-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-semibold text-ink">{item.comuna}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
-                        {formatPercent(item.porcentaje)} del total
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Top {index + 1}</p>
+                      <p className="mt-1 font-semibold text-ink">{item.nombre}</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {item.comuna} · RBD {item.rbd}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-3xl font-semibold text-ocean">{item.total}</p>
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">sesiones</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">sesiones</p>
                     </div>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
-                    <div
-                      className="h-full rounded-full bg-ocean"
-                      style={{ width: `${Math.max(item.porcentaje * 100, item.porcentaje > 0 ? 6 : 0)}%` }}
-                    />
-                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    {item.ordinarias} ordinaria{item.ordinarias === 1 ? "" : "s"} y {item.extraordinarias} extraordinaria{item.extraordinarias === 1 ? "" : "s"}.
+                  </p>
                 </div>
               ))
             )}

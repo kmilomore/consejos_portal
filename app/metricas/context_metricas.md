@@ -28,26 +28,48 @@ No se deben agregar consultas directas a Supabase desde esta pagina.
 
 ### 1. KPIs superiores
 
-La cabecera de metricas muestra cuatro indicadores:
+La cabecera de metricas muestra cuatro indicadores globales basados en `snapshot.actas`:
 
-- `Total de sesiones`: union logica entre actas y programaciones.
-- `Sesiones ordinarias`: conteo de sesiones del tipo `Ordinaria`.
-- `Sesiones extraordinarias`: conteo de sesiones del tipo `Extraordinaria`.
-- `Cumplimiento normativo`: porcentaje de sesiones ordinarias registradas contra la meta anual.
+- `Sesiones realizadas`: total de actas registradas dentro del alcance actual.
+- `Sesiones ordinarias`: conteo de actas del tipo `Ordinaria`.
+- `Sesiones extraordinarias`: conteo de actas del tipo `Extraordinaria`.
+- `Cumplimiento de ordinarias`: porcentaje de sesiones ordinarias registradas contra la meta anual.
 
 ### 2. Asistencia por estamento
 
 Se mantiene el grafico `AttendanceChart` usando `snapshot.attendanceByRole`.
 
-### 3. Sesiones por comuna participante
+### 3. Avance por sesion ordinaria
 
-La pagina calcula la distribucion territorial en base al consolidado de sesiones visibles en el alcance actual y muestra:
+La pagina calcula el avance normativo de las sesiones ordinarias `1`, `2`, `3` y `4`.
+
+Para cada numero de sesion muestra:
+
+- cantidad de establecimientos que ya registraron esa sesion ordinaria
+- porcentaje de avance respecto del total de establecimientos en alcance
+- cantidad de establecimientos pendientes para cerrar esa sesion
+
+### 4. Sesiones realizadas por comuna
+
+La pagina calcula la distribucion territorial en base a `snapshot.actas` y muestra:
 
 - total de sesiones por comuna
-- porcentaje relativo sobre el total
-- barra visual de participacion
+- separacion entre ordinarias y extraordinarias
+- porcentaje relativo sobre el total de sesiones realizadas
 
-### 4. Trazabilidad y acceso al registro
+### 5. Top de establecimientos
+
+La pagina arma un ranking `Top 3` de escuelas con mayor cantidad de sesiones realizadas en el ano.
+
+Para cada establecimiento muestra:
+
+- nombre
+- RBD
+- comuna
+- total de sesiones
+- desglose entre ordinarias y extraordinarias
+
+### 6. Trazabilidad y acceso al registro
 
 La tabla inferior lista cada sesion consolidada con:
 
@@ -94,6 +116,20 @@ La formula aplicada es:
 - `sesiones_ordinarias_registradas` se calcula con `snapshot.actas` del alcance actual.
 - `establecimientos_en_scope` toma `snapshot.establishments` y, como respaldo, los RBD presentes en las sesiones consolidadas.
 - El valor se limita a `100%` para evitar sobrepasar la meta visual.
+
+## Regla para avance por sesion 1 a 4
+
+La pagina calcula cada bloque de avance con la formula:
+
+`actas_ordinarias_del_numero / establecimientos_en_scope`
+
+Donde `numero` corresponde a `1`, `2`, `3` o `4`.
+
+### Detalle importante
+
+- Solo considera actas ordinarias efectivamente registradas.
+- El valor tambien se limita visualmente a `100%`.
+- El faltante se expresa como `establecimientos_en_scope - actas_ordinarias_del_numero`.
 
 ## Deep link con /actas
 
