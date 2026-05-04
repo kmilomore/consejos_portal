@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
@@ -68,6 +69,7 @@ function buildSessionMetricRows(
 
 export default function MetricasPage() {
   const { snapshot, status } = usePortalSnapshot();
+  const [selectedSessionNumber, setSelectedSessionNumber] = useState<number | null>(null);
   const sessionRows = buildSessionMetricRows(snapshot.actas, snapshot.programaciones, snapshot.establishments);
   const establishmentByRbd = new Map(snapshot.establishments.map((item) => [item.rbd, item]));
   const totalSesionesRealizadas = snapshot.actas.length;
@@ -88,18 +90,28 @@ export default function MetricasPage() {
     : Math.min(sesionesOrdinariasRegistradas / metaSesionesOrdinarias, 1);
   const porcentajeCompletas = totalActas === 0 ? 0 : Math.round((actasCompletas / totalActas) * 100);
   const sesionesOrdinariasPorNumero = [1, 2, 3, 4].map((numeroSesion) => {
+    const rbdsCumplidos = new Set(
+      snapshot.actas
+        .filter((acta) => acta.tipo_sesion === "Ordinaria" && acta.sesion === numeroSesion)
+        .map((acta) => acta.rbd),
+    );
     const total = snapshot.actas.filter(
       (acta) => acta.tipo_sesion === "Ordinaria" && acta.sesion === numeroSesion,
     ).length;
     const porcentaje = establecimientosEnScope === 0 ? 0 : Math.min(total / establecimientosEnScope, 1);
+    const escuelasFaltantes = snapshot.establishments
+      .filter((item) => !rbdsCumplidos.has(item.rbd))
+      .sort((left, right) => left.nombre.localeCompare(right.nombre));
 
     return {
       numeroSesion,
       total,
       porcentaje,
       faltantes: Math.max(establecimientosEnScope - total, 0),
+      escuelasFaltantes,
     };
   });
+  const selectedSession = sesionesOrdinariasPorNumero.find((item) => item.numeroSesion === selectedSessionNumber) ?? null;
   const sesionesPorComuna = [...snapshot.actas.reduce((acc, acta) => {
     const comuna = acta.comuna || establishmentByRbd.get(acta.rbd)?.comuna || "Sin comuna";
     const current = acc.get(comuna) ?? { comuna, ordinarias: 0, extraordinarias: 0, total: 0, porcentaje: 0 };
@@ -207,11 +219,19 @@ export default function MetricasPage() {
         <SectionCard
           eyebrow="Cumplimiento"
           title="Avance de sesiones ordinarias 1 a 4"
-          description="Cada bloque muestra cuántos establecimientos ya cerraron esa sesión ordinaria y cuánto falta para completar la meta anual."
+          description="Cada bloque muestra cuántos establecimientos ya cerraron esa sesión ordinaria, cuánto falta para completar la meta anual y permite revisar las escuelas pendientes al hacer click."
         >
           <div className="grid gap-4 sm:grid-cols-2">
             {sesionesOrdinariasPorNumero.map((item) => (
-              <div key={item.numeroSesion} className="rounded-2xl bg-mist p-4">
+              <button
+                key={item.numeroSesion}
+                type="button"
+                onClick={() => setSelectedSessionNumber((current) => current === item.numeroSesion ? null : item.numeroSesion)}
+                className={cn(
+                  "rounded-2xl bg-mist p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:bg-mist/80",
+                  selectedSessionNumber === item.numeroSesion && "ring-2 ring-ocean/30",
+                )}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Sesión {item.numeroSesion}</p>
@@ -231,9 +251,43 @@ export default function MetricasPage() {
                 <p className="mt-3 text-sm text-slate-600">
                   Faltan {item.faltantes} establecimiento{item.faltantes === 1 ? "" : "s"} por cerrar esta sesión ordinaria.
                 </p>
-              </div>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-ocean">
+                  {selectedSessionNumber === item.numeroSesion ? "Ocultar pendientes" : "Ver escuelas faltantes"}
+                </p>
+              </button>
             ))}
           </div>
+          {selectedSession ? (
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                    Escuelas pendientes
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-ink">
+                    Sesión ordinaria {selectedSession.numeroSesion}
+                  </h3>
+                </div>
+                <p className="text-sm text-slate-600">
+                  {selectedSession.escuelasFaltantes.length} establecimiento{selectedSession.escuelasFaltantes.length === 1 ? "" : "s"} aún no registra{selectedSession.escuelasFaltantes.length === 1 ? "" : "n"} esta sesión.
+                </p>
+              </div>
+              {selectedSession.escuelasFaltantes.length === 0 ? (
+                <p className="mt-4 text-sm text-emerald-700">Todos los establecimientos en alcance ya cumplieron esta sesión ordinaria.</p>
+              ) : (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {selectedSession.escuelasFaltantes.map((item) => (
+                    <div key={item.rbd} className="rounded-2xl bg-mist px-4 py-3">
+                      <p className="font-semibold text-ink">{item.nombre}</p>
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {item.comuna} · RBD {item.rbd}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
         </SectionCard>
       </div>
 

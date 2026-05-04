@@ -48,6 +48,7 @@ Para cada numero de sesion muestra:
 - cantidad de establecimientos que ya registraron esa sesion ordinaria
 - porcentaje de avance respecto del total de establecimientos en alcance
 - cantidad de establecimientos pendientes para cerrar esa sesion
+- accion de click para desplegar el listado de escuelas que aun no cumplen esa sesion
 
 ### 4. Sesiones realizadas por comuna
 
@@ -130,6 +131,8 @@ Donde `numero` corresponde a `1`, `2`, `3` o `4`.
 - Solo considera actas ordinarias efectivamente registradas.
 - El valor tambien se limita visualmente a `100%`.
 - El faltante se expresa como `establecimientos_en_scope - actas_ordinarias_del_numero`.
+- Al hacer click en una tarjeta de sesion, la pagina lista las escuelas pendientes comparando `snapshot.establishments` contra los RBD que ya tienen acta ordinaria para ese numero de sesion.
+- Si no quedan escuelas pendientes, la UI informa explicitamente que la sesion ya fue cumplida por todos los establecimientos en alcance.
 
 ## Deep link con /actas
 

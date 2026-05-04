@@ -921,22 +921,24 @@ export function ActaForm({
       }
 
       setUploadStatus("uploading");
-      const uploadedUrl = await uploadActaDocument(
+      const uploadResult = await uploadActaDocument(
         generatedActaId,
         form.rbd,
         pendingFile.current,
         (progress) => setUploadProgress(progress),
       );
 
-      if (!uploadedUrl) {
+      if (!uploadResult.url) {
         setUploadStatus("error");
-        setSaveError("No se pudo subir el documento de respaldo. El registro documental requiere un archivo válido.");
+        setSaveError(
+          `No se pudo subir el documento de respaldo: ${uploadResult.errorMessage}`,
+        );
         setSubmitting(false);
         return;
       }
 
       setUploadStatus("done");
-      documentUrl = uploadedUrl;
+      documentUrl = uploadResult.url;
       shouldRollbackUploadedDocument = true;
     }
 
@@ -1010,15 +1012,15 @@ export function ActaForm({
 
     if (pendingFile.current && (!isDocumentalMode || form.link_acta)) {
       setUploadStatus("uploading");
-      const url = await uploadActaDocument(
+      const uploadResult2 = await uploadActaDocument(
         savedId,
         form.rbd,
         pendingFile.current,
         (p) => setUploadProgress(p),
       );
-      setUploadStatus(url ? "done" : "error");
-      if (url) {
-        const linkResult = await updateActaLink(savedId, url);
+      setUploadStatus(uploadResult2.url ? "done" : "error");
+      if (uploadResult2.url) {
+        const linkResult = await updateActaLink(savedId, uploadResult2.url);
         if (!linkResult.ok) {
           setSaveError(
             linkResult.errorMessage
@@ -1029,7 +1031,9 @@ export function ActaForm({
           return;
         }
       } else if (!isDocumentalMode) {
-        setSaveError("Se guardo la sesion, pero no se pudo subir el documento de respaldo a Supabase Storage.");
+        setSaveError(
+          `Se guardo la sesion, pero no se pudo subir el documento de respaldo: ${uploadResult2.errorMessage}`,
+        );
         setSubmitting(false);
         return;
       }

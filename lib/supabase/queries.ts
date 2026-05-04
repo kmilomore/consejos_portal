@@ -455,9 +455,9 @@ export async function uploadActaDocument(
   rbd: string,
   file: File,
   onProgress?: (percent: number) => void,
-): Promise<string | null> {
+): Promise<{ url: string; errorMessage: null } | { url: null; errorMessage: string }> {
   const supabase = createClient();
-  if (!supabase) return null;
+  if (!supabase) return { url: null, errorMessage: "Cliente Supabase no disponible." };
   const storageBucket = "evidencias_actas";
   const safePath = buildActaDocumentPath(actaId, rbd, file.name);
 
@@ -470,12 +470,12 @@ export async function uploadActaDocument(
   if (error) {
     console.error("uploadActaDocument:", error.message);
     onProgress?.(0);
-    return null;
+    return { url: null, errorMessage: error.message };
   }
 
   onProgress?.(100);
   const { data } = supabase.storage.from(storageBucket).getPublicUrl(safePath);
-  return data.publicUrl;
+  return { url: data.publicUrl, errorMessage: null };
 }
 
 export async function deleteActaDocument(actaId: string, rbd: string, fileName: string): Promise<boolean> {
