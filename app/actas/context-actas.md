@@ -1,6 +1,6 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-04-24
+> **Última actualización:** 2026-05-04
 > **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
 > **Estado actual:** flujo híbrido operativo, compilando correctamente y con hallazgos recientes en permisos/scope territorial.
 
@@ -43,6 +43,8 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - rollback del archivo en Supabase Storage si el insert/update de la fila `actas` falla
 - feedback visual inmediato al seleccionar documento en el modal, previo a la subida real
 - `npm run build` exitoso tras restaurar el loader y dejar activo el flujo híbrido
+- corrección de `validate(draft)`: "Guardar avance" en `REGISTRO_DOCUMENTAL` ahora sigue exigiendo documento adjunto, evitando el constraint `actas_registro_documental_doc_check`
+- corrección del estado `uploadStatus` al rechazar archivos >10 MB: ahora se resetea a `"idle"` para no mostrar el banner de error anterior junto al nuevo mensaje de tamaño
 
 ### Pendiente o parcial
 
@@ -238,9 +240,7 @@ Comportamiento diferencial:
 - si la persistencia en `actas` falla, intenta borrar el archivo recién subido para evitar huérfanos en Storage
 - el insert/update de la fila usa `upsert` real por `id`, evitando el bug en que un documental nuevo se trataba como `update` y nunca se insertaba
 - el botón final cambia texto a `Guardar registro documental`
-
-### Flujo F — Cierre con cambios sin guardar
-
+  - **"Guardar avance" también exige documento**: `validate(draft=true)` verifica si el modo es `REGISTRO_DOCUMENTAL` y no hay `link_acta` ni archivo pendiente; si falta, bloquea el guardado antes de llegar a Supabase (necesario porque el constraint de BD es incondicional)
 Disparadores:
 - botón cerrar
 - botón cancelar
@@ -324,6 +324,8 @@ No tocar sin revisar primero:
 - el nombre del bucket debía alinearse con SQL (`evidencias_actas`) y no con el alias histórico `actas`
 - el scope territorial no depende del texto del rol por sí solo; representantes pueden persistirse con rol textual `ADMIN`, pero el alcance efectivo lo define `isGlobalAdmin()` + `has_school_scope_access(...)`
 - cualquier pantalla que use `profile.rol === 'ADMIN'` como sinónimo de acceso global introduce riesgo de mostrar más contexto del debido
+- `validate(draft=true)` no puede ser un `return true` incondicional: el constraint `actas_registro_documental_doc_check` se aplica en BD independientemente del modo de guardado; si el draft omite la validación de documento, la fila se inserta con `link_acta: null` y la BD la rechaza con un error 400 opaco
+- rechazar un archivo por tamaño no basta con mostrar el error de campo; hay que resetear `uploadStatus` a `"idle"` o el banner de upload-error anterior sigue visible en pantalla
 
 ### Aciertos del diseño actual
 
@@ -347,6 +349,7 @@ No tocar sin revisar primero:
 - el bucket/documento puede quedar huérfano si falla también el rollback de Storage después de un error de BD o si hubo intentos anteriores al parche
 - el correo de invitados se pierde porque no existe columna persistente
 - cualquier KPI nuevo puede inducir error si no aclara si cuenta solo completas o ambas modalidades
+- un archivo rechazado por tamaño máximo debe también resetear `uploadStatus`; de lo contrario el banner de error previo convive con el nuevo mensaje de validación
 - el texto del perfil en `usuarios_perfiles.rol` no basta para inferir alcance: hoy el verdadero permiso global está en `is_global_admin()` y el scope territorial en `current_accessible_rbds()`
 
 ---
@@ -364,8 +367,7 @@ No tocar sin revisar primero:
 7. No confiar en imports `@/utils/supabase/client`; en este repo el import correcto es `@/lib/supabase/client`.
 8. No volver al borrador único `acta-draft-new` para todos los casos; hoy el draft es por acta.
 9. No relajar la obligación de RUT/correo/modalidad para asistentes presentes sin rediseño explícito.
-10. No volver a tratar `profile.rol === 'ADMIN'` como equivalente a “admin global” sin revisar también `isGlobalAdmin`.
-
+10. No volver a tratar `profile.rol === 'ADMIN'` como equivalente a “admin global” sin revisar también `isGlobalAdmin`.11. No usar `if (draft) return true` como atajo total en `validate()`: las reglas que son constraints de BD deben aplicarse siempre, incluso para "Guardar avance".
 ### No tocar sin revisar también
 
 - `types/domain.ts`
@@ -392,6 +394,7 @@ Razón:
 9. los asistentes presentes requieren trazabilidad mínima: nombre, RUT, correo, modalidad.
 10. la operación híbrida debe seguir funcionando para las 4 comunas sin flags separados en frontend.
 11. el representante del sostenedor puede navegar con perfil tipo admin, pero su visibilidad efectiva debe seguir limitada por RBD/comuna autorizados en Supabase.
+12. `validate(draft)` debe proteger todas las reglas que son invariantes de BD aunque el guardado sea parcial.
 
 ---
 

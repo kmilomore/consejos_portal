@@ -834,6 +834,7 @@ export function ActaForm({
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setErrors((prev) => ({ ...prev, link_acta: "El archivo supera el tamaño máximo de 10 MB." }));
+      setUploadStatus("idle");
       return;
     }
     pendingFile.current = file;
@@ -849,6 +850,7 @@ export function ActaForm({
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setErrors((prev) => ({ ...prev, link_acta: "El archivo supera el tamaño máximo de 10 MB." }));
+      setUploadStatus("idle");
       e.target.value = "";
       return;
     }
@@ -868,7 +870,17 @@ export function ActaForm({
   // ── Validation ───────────────────────────────────────────────────────────
 
   function validate(draft: boolean): boolean {
-    if (draft) return true;
+    if (draft) {
+      // Even for draft saves, REGISTRO_DOCUMENTAL requires a document (DB constraint).
+      if (isDocumentalMode && !form.link_acta && !pendingFile.current) {
+        setErrors((prev) => ({
+          ...prev,
+          link_acta: "Adjunta el PDF o documento de respaldo antes de guardar el avance.",
+        }));
+        return false;
+      }
+      return true;
+    }
     const next: FormErrors = {};
     const hasInvalidAttendees = form.estamentos.some((estamento) => {
       const fieldErrors = getEstamentoValidationErrors(estamento);
