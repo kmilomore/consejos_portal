@@ -42,6 +42,7 @@ const QUORUM_MIN = 4;
 const DRAFT_KEY_PREFIX = "acta-draft";
 // Minimum ms between consecutive saves (client-side rate limit) — #4
 const SAVE_COOLDOWN_MS = 3000;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB — matches Supabase bucket limit
 
 // ─── RUT helpers ──────────────────────────────────────────────────────────────
 
@@ -830,24 +831,33 @@ export function ActaForm({
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) {
-      pendingFile.current = file;
-      setSaveError(null);
-      setUploadProgress(0);
-      setUploadStatus("idle");
-      startFileReadyFeedback();
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setErrors((prev) => ({ ...prev, link_acta: "El archivo supera el tamaño máximo de 10 MB." }));
+      return;
     }
+    pendingFile.current = file;
+    setSaveError(null);
+    setErrors((prev) => ({ ...prev, link_acta: undefined }));
+    setUploadProgress(0);
+    setUploadStatus("idle");
+    startFileReadyFeedback();
   }
 
   function handleFileInput(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
-      pendingFile.current = file;
-      setSaveError(null);
-      setUploadProgress(0);
-      setUploadStatus("idle");
-      startFileReadyFeedback();
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setErrors((prev) => ({ ...prev, link_acta: "El archivo supera el tamaño máximo de 10 MB." }));
+      e.target.value = "";
+      return;
     }
+    pendingFile.current = file;
+    setSaveError(null);
+    setErrors((prev) => ({ ...prev, link_acta: undefined }));
+    setUploadProgress(0);
+    setUploadStatus("idle");
+    startFileReadyFeedback();
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────
