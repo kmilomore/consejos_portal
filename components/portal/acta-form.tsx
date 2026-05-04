@@ -932,11 +932,12 @@ export function ActaForm({
 
     const isNewActa = !form.id;
     const generatedActaId = isNewActa ? crypto.randomUUID() : null;
+    const uploadTargetActaId = form.id ?? generatedActaId;
     let documentUrl = form.link_acta || null;
     let shouldRollbackUploadedDocument = false;
 
     if (isDocumentalMode && pendingFile.current && !documentUrl) {
-      if (!generatedActaId) {
+      if (!uploadTargetActaId) {
         setSaveError("No se pudo preparar el identificador del registro documental.");
         setSubmitting(false);
         return;
@@ -944,7 +945,7 @@ export function ActaForm({
 
       setUploadStatus("uploading");
       const uploadResult = await uploadActaDocument(
-        generatedActaId,
+        uploadTargetActaId,
         form.rbd,
         pendingFile.current,
         (progress) => setUploadProgress(progress),
@@ -961,7 +962,7 @@ export function ActaForm({
 
       setUploadStatus("done");
       documentUrl = uploadResult.url;
-      shouldRollbackUploadedDocument = true;
+      shouldRollbackUploadedDocument = isNewActa;
     }
 
     // #7 — Sanitize text fields before persisting
