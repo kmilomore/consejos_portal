@@ -265,6 +265,17 @@ function programacionToForm(programacion: Programacion, establishmentPatch?: Par
   };
 }
 
+function buildEstablishmentDisplayValue(item: {
+  rbd?: string | null;
+  nombre_establecimiento?: string | null;
+}) {
+  const name = item.nombre_establecimiento?.trim() ?? "";
+  const rbd = item.rbd?.trim() ?? "";
+  if (!name) return rbd;
+  if (!rbd) return name;
+  return `${name} (${rbd})`;
+}
+
 // Shallow comparison to detect dirty state — ignores estamentos.expanded which is pure UI — #25
 function isFormDirty(a: FormState, b: FormState): boolean {
   const keys: (keyof FormState)[] = [
@@ -598,16 +609,6 @@ export function ActaForm({
   const fileReadyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeRbd = selectedRbd ?? profile?.rbd ?? null;
   const draftStorageKey = getDraftStorageKey(editActa?.id);
-  const filteredSlepData = slepData.filter((item) => {
-    const query = establishmentQuery.trim().toLowerCase();
-    if (!query) return true;
-
-    return (
-      item.nombre_establecimiento?.toLowerCase().includes(query) ||
-      item.rbd?.toLowerCase().includes(query) ||
-      item.comuna?.toLowerCase().includes(query)
-    );
-  });
 
   function clearFileReadyFeedback() {
     if (fileReadyTimerRef.current) {
@@ -700,7 +701,7 @@ export function ActaForm({
     setUploadStatus("idle");
     setErrors({});
     setSaveError(null);
-    setEstablishmentQuery("");
+    setEstablishmentQuery(initial.nombre_establecimiento ? buildEstablishmentDisplayValue(initial) : "");
     pendingFile.current = null;
   }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, initialProgramacion, isOpen]);
 
@@ -776,6 +777,14 @@ export function ActaForm({
   function handleRbdChange(rbd: string) {
     const slep = slepData.find((e) => e.rbd === rbd);
     const est = establishments.find((e) => e.rbd === rbd);
+    setEstablishmentQuery(
+      rbd
+        ? buildEstablishmentDisplayValue({
+            rbd,
+            nombre_establecimiento: slep?.nombre_establecimiento ?? est?.nombre ?? "",
+          })
+        : "",
+    );
     setForm((prev) => {
       const nextNum =
         !prev.id && rbd
@@ -790,6 +799,28 @@ export function ActaForm({
         sesion: nextNum,
       };
     });
+  }
+
+  function handleEstablishmentInputChange(value: string) {
+    setEstablishmentQuery(value);
+
+    const query = value.trim().toLowerCase();
+    if (!query) {
+      handleRbdChange("");
+      return;
+    }
+
+    const matches = slepData.filter((item) => {
+      const displayValue = buildEstablishmentDisplayValue(item).toLowerCase();
+      const exactName = item.nombre_establecimiento?.trim().toLowerCase() ?? "";
+      const exactRbd = item.rbd?.trim().toLowerCase() ?? "";
+
+      return displayValue === query || exactName === query || exactRbd === query;
+    });
+
+    if (matches.length === 1 && matches[0].rbd) {
+      handleRbdChange(matches[0].rbd);
+    }
   }
 
   function handleTipoSesionChange(tipo: SessionType) {
@@ -1146,28 +1177,24 @@ export function ActaForm({
                   <FormLabel required>Establecimiento</FormLabel>
                   <FormInput
                     value={establishmentQuery}
-                    onChange={(e) => setEstablishmentQuery(e.target.value)}
+                    onChange={(e) => handleEstablishmentInputChange(e.target.value)}
                     disabled={slepLoading}
-                    placeholder="Escribe nombre, RBD o comuna para filtrar"
+                    placeholder={slepLoading ? "Cargando establecimientos…" : "Escribe y selecciona establecimiento"}
+                    list="acta-establecimientos"
+                    autoComplete="off"
                   />
-                  <FormSelect
-                    value={form.rbd}
-                    onChange={(e) => handleRbdChange(e.target.value)}
-                    disabled={slepLoading}
-                    className="mt-2"
-                  >
-                    <option value="">
-                      {slepLoading ? "Cargando establecimientos…" : "— Selecciona un establecimiento —"}
-                    </option>
-                    {filteredSlepData.map((e) => (
-                      <option key={e.rbd ?? ""} value={e.rbd ?? ""}>
-                        {e.nombre_establecimiento}
-                      </option>
+                  <datalist id="acta-establecimientos">
+                    {slepData.map((e) => (
+                      <option
+                        key={e.rbd ?? ""}
+                        value={buildEstablishmentDisplayValue(e)}
+                        label={`${e.comuna ?? "Sin comuna"} · RBD ${e.rbd ?? "s/i"}`}
+                      />
                     ))}
-                  </FormSelect>
-                  {!slepLoading && establishmentQuery.trim() && filteredSlepData.length === 0 && (
+                  </datalist>
+                  {!slepLoading && establishmentQuery.trim() && !form.rbd && (
                     <p className="mt-1 text-xs text-slate-500">
-                      No hay establecimientos que coincidan con la búsqueda.
+                      Escribe el nombre o RBD completo para seleccionar una escuela del listado.
                     </p>
                   )}
                   {errors.rbd && (
