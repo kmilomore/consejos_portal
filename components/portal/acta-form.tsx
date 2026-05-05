@@ -588,6 +588,7 @@ export function ActaForm({
   const [dragOver, setDragOver] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [establishmentQuery, setEstablishmentQuery] = useState("");
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false); // #25
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFile = useRef<File | null>(null);
@@ -597,6 +598,16 @@ export function ActaForm({
   const fileReadyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeRbd = selectedRbd ?? profile?.rbd ?? null;
   const draftStorageKey = getDraftStorageKey(editActa?.id);
+  const filteredSlepData = slepData.filter((item) => {
+    const query = establishmentQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    return (
+      item.nombre_establecimiento?.toLowerCase().includes(query) ||
+      item.rbd?.toLowerCase().includes(query) ||
+      item.comuna?.toLowerCase().includes(query)
+    );
+  });
 
   function clearFileReadyFeedback() {
     if (fileReadyTimerRef.current) {
@@ -689,6 +700,7 @@ export function ActaForm({
     setUploadStatus("idle");
     setErrors({});
     setSaveError(null);
+    setEstablishmentQuery("");
     pendingFile.current = null;
   }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, initialProgramacion, isOpen]);
 
@@ -1090,7 +1102,7 @@ export function ActaForm({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-6 sm:pt-10">
         {/* Backdrop */}
         <div
           className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
@@ -1098,7 +1110,7 @@ export function ActaForm({
         />
 
         {/* Modal */}
-        <aside className="relative flex w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh]">
+        <aside className="relative my-0 flex w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh]">
           {/* Header */}
           <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 px-6 py-4">
             <div>
@@ -1132,20 +1144,32 @@ export function ActaForm({
                 {/* Establecimiento */}
                 <div className="sm:col-span-2">
                   <FormLabel required>Establecimiento</FormLabel>
+                  <FormInput
+                    value={establishmentQuery}
+                    onChange={(e) => setEstablishmentQuery(e.target.value)}
+                    disabled={slepLoading}
+                    placeholder="Escribe nombre, RBD o comuna para filtrar"
+                  />
                   <FormSelect
                     value={form.rbd}
                     onChange={(e) => handleRbdChange(e.target.value)}
                     disabled={slepLoading}
+                    className="mt-2"
                   >
                     <option value="">
                       {slepLoading ? "Cargando establecimientos…" : "— Selecciona un establecimiento —"}
                     </option>
-                    {slepData.map((e) => (
+                    {filteredSlepData.map((e) => (
                       <option key={e.rbd ?? ""} value={e.rbd ?? ""}>
                         {e.nombre_establecimiento}
                       </option>
                     ))}
                   </FormSelect>
+                  {!slepLoading && establishmentQuery.trim() && filteredSlepData.length === 0 && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      No hay establecimientos que coincidan con la búsqueda.
+                    </p>
+                  )}
                   {errors.rbd && (
                     <p className="mt-1 text-xs text-ember">{errors.rbd}</p>
                   )}
