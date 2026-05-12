@@ -3,35 +3,7 @@
    Servicio Local de Educación Pública Colchagua
    ========================================================================= */
 
-/* ---------- Web fonts ---------- */
-@font-face {
-  font-family: "Museo Sans";
-  src: url("fonts/MuseoSans-100.woff") format("woff");
-  font-weight: 100 300;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Museo Sans";
-  src: url("fonts/MuseoSans-500.woff") format("woff");
-  font-weight: 400 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Museo Sans";
-  src: url("fonts/MuseoSans-700.woff") format("woff");
-  font-weight: 600 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Museo Sans";
-  src: url("fonts/MuseoSans-900.woff") format("woff");
-  font-weight: 800 900;
-  font-style: normal;
-  font-display: swap;
-}
+/* Web fonts are loaded by Next.js localFont (layout.tsx) as --font-museo-sans */
 
 :root {
   /* ---------- Brand colors (pure) ---------- */
@@ -172,8 +144,8 @@
   --space-24: 96px;
 
   /* ---------- Typography — families ---------- */
-  --font-sans: "Museo Sans", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Museo Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --font-sans: var(--font-museo-sans), "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-museo-sans), "Avenir Next", "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 
   /* ---------- Typography — weights ---------- */

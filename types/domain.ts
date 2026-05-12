@@ -27,7 +27,7 @@ export interface PortalScope {
   accessible_rbds: string[];
   default_rbd: string | null;
   can_select_school: boolean;
-  landing_route: "/admin" | "/resumen";
+  landing_route: "/admin/" | "/resumen/";
 }
 
 export interface Programacion {

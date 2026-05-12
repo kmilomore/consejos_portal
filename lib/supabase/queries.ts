@@ -40,6 +40,8 @@ export interface PersistenceStepResult {
   errorMessage?: string;
 }
 
+const SNAPSHOT_VERSION_STORAGE_KEY = "consejos.portal.snapshot.version";
+
 export interface ProgramacionUpsertInput {
   id?: string;
   rbd: string;
@@ -205,6 +207,24 @@ function buildQueryDiagnostic(scope: string, rowCount: number, errorMessage?: st
   };
 }
 
+export function readPortalSnapshotVersion(): number {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+
+  const raw = window.sessionStorage.getItem(SNAPSHOT_VERSION_STORAGE_KEY);
+  const parsed = raw ? Number(raw) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function bumpPortalSnapshotVersion() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem(SNAPSHOT_VERSION_STORAGE_KEY, String(Date.now()));
+}
+
 export function getProgramaciones(): Programacion[] {
   return [];
 }
@@ -268,6 +288,8 @@ export async function createProgramacion(input: ProgramacionUpsertInput): Promis
     return { id: null, errorMessage: error.message };
   }
 
+  bumpPortalSnapshotVersion();
+
   return { id: (data as { id: string }).id };
 }
 
@@ -311,6 +333,8 @@ export async function updateProgramacion(input: ProgramacionUpsertInput): Promis
     return { id: null, errorMessage: error.message };
   }
 
+  bumpPortalSnapshotVersion();
+
   return { id: input.id };
 }
 
@@ -328,6 +352,8 @@ export async function cancelProgramacion(programacionId: string): Promise<Persis
   if (error) {
     return { ok: false, errorMessage: error.message };
   }
+
+  bumpPortalSnapshotVersion();
 
   return { ok: true };
 }
@@ -419,6 +445,8 @@ export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationRe
     }
   }
 
+  bumpPortalSnapshotVersion();
+
   return { id: savedId };
 }
 
@@ -446,6 +474,8 @@ export async function replaceActaInvitados(
       return { ok: false, errorMessage: insertError.message };
     }
   }
+
+  bumpPortalSnapshotVersion();
 
   return { ok: true };
 }
@@ -504,6 +534,8 @@ export async function updateActaLink(actaId: string, url: string): Promise<Persi
     return { ok: false, errorMessage: error.message };
   }
 
+  bumpPortalSnapshotVersion();
+
   return { ok: true };
 }
 
@@ -517,6 +549,8 @@ export async function deleteActa(actaId: string): Promise<boolean> {
     console.error("deleteActa:", error.message);
     return false;
   }
+
+  bumpPortalSnapshotVersion();
 
   return true;
 }

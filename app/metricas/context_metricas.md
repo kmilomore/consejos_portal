@@ -1,5 +1,7 @@
 # Contexto del modulo /metricas
 
+> Ultima actualizacion: 2026-05-12
+
 ## Objetivo
 
 La pagina `/metricas` consolida indicadores operativos y normativos del portal de Consejos Escolares sin hacer fetch propio. Todo el contenido se deriva desde `usePortalSnapshot()`.
@@ -23,6 +25,30 @@ No se deben agregar consultas directas a Supabase desde esta pagina.
 2. `usePortalSnapshot()` expone `snapshot`, `status` y `refresh`.
 3. `fetchPortalSnapshot()` arma el snapshot en `lib/supabase/queries.ts`.
 4. `app/metricas/page.tsx` deriva todas las metricas y tablas en memoria.
+
+### Hallazgo operativo 2026-05-12
+
+Se confirmo que el problema de skeleton y recarga al cambiar de modulo no debia resolverse dentro de `/metricas`, sino en la capa compartida de providers:
+
+- aunque la pagina no hace fetch propio, podia volver a verse como “recargando” si `PortalSnapshotProvider` o `PortalAuthProvider` perdian estado efectivo al navegar
+- en export estatico, un cache solo en memoria no es suficiente para blindar la experiencia de `/metricas`
+- por eso este modulo depende de snapshot persistido, cliente Supabase singleton y deduplicacion de requests en vuelo
+
+Consecuencia practica:
+
+- si `/metricas` vuelve a mostrar skeleton o recalcular desde cero al cambiar de seccion, primero revisar `lib/supabase/use-portal-snapshot.tsx`, `lib/supabase/auth-context.tsx` y `lib/supabase/client.ts`
+- no intentar “arreglar” este sintoma agregando un fetch local dentro de la pagina
+
+Hallazgo adicional del mismo dia:
+
+- una escuela puede tener acta correcta en `snapshot.actas` y existir en `establecimientos`, pero igual seguir figurando como faltante si el navegador conserva un snapshot persistido anterior a la mutacion
+- tambien puede pasar que `/admin/` no la encuentre si `get_slep_directorio()` no la retorna aunque `establecimientos` si la tenga
+
+Patron correcto vigente para consistencia:
+
+- las mutaciones de `actas` y `programacion` deben invalidar la version global del snapshot para forzar revalidacion en la siguiente lectura
+- `PortalSnapshotProvider` debe considerar stale los snapshots heredados o version antigua aunque ya exista cache persistido
+- si una inconsistencia afecta metricas y admin al mismo tiempo, revisar primero el cruce entre `actas`, `establecimientos` y `get_slep_directorio()`
 
 ## Que muestra la pagina
 
@@ -133,6 +159,7 @@ Donde `numero` corresponde a `1`, `2`, `3` o `4`.
 - El faltante se expresa como `establecimientos_en_scope - actas_ordinarias_del_numero`.
 - Al hacer click en una tarjeta de sesion, la pagina lista las escuelas pendientes comparando `snapshot.establishments` contra los RBD que ya tienen acta ordinaria para ese numero de sesion.
 - Si no quedan escuelas pendientes, la UI informa explicitamente que la sesion ya fue cumplida por todos los establecimientos en alcance.
+- Si el usuario acaba de guardar una acta y la pagina sigue mostrando un faltante, primero sospechar snapshot stale antes que error de formula.
 
 ## Deep link con /actas
 
@@ -152,6 +179,10 @@ Esto permite navegar desde metricas al registro exacto sin duplicar UI ni estado
 - No recalcular metricas desde otra fuente que no sea el snapshot.
 - Mantener la llave de consolidacion `rbd + tipo + numero`.
 - Cualquier nueva accion sobre actas debe seguir reutilizando `/actas` como destino canonico.
+- No romper la navegacion canonica con rutas mezcladas entre `/metricas` y `/metricas/`.
+- No agregar estados de carga globales dentro de la pagina si el snapshot ya esta disponible.
+- No limpiar ni invalidar el snapshot compartido por cambios de filtro, tabs o navegacion secundaria.
+- No asumir que un faltante en metricas implica ausencia real de acta; confirmar siempre contra `actas` y version del snapshot.
 
 ## Archivos involucrados
 

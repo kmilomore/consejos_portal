@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { PortalAuthProvider } from "@/lib/supabase/auth-context";
 import { AppFrame } from "@/components/portal/app-frame";
 import { Toaster } from "@/components/ui/toast";
+import "./colors_and_type.css";
 import "./globals.css";
 
 const museoSans = localFont({
@@ -44,8 +45,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
-      <body className={museoSans.variable}>
+    <html lang="es" className={museoSans.variable}>
+      <body className={museoSans.className}>
         <PortalAuthProvider>
           <AppFrame>{children}</AppFrame>
           <Toaster />

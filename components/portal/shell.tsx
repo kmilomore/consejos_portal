@@ -26,18 +26,18 @@ import { cn } from "@/lib/utils";
 import type { Establishment, Profile } from "@/types/domain";
 
 const directorNavigation = [
-  { href: "/resumen", label: "Resumen", icon: LayoutDashboard },
-  { href: "/programacion", label: "Programación", icon: CalendarRange },
-  { href: "/actas", label: "Actas", icon: FileText },
-  { href: "/metricas", label: "Métricas", icon: LockKeyhole },
+  { href: "/resumen/", label: "Resumen", icon: LayoutDashboard },
+  { href: "/programacion/", label: "Programación", icon: CalendarRange },
+  { href: "/actas/", label: "Actas", icon: FileText },
+  { href: "/metricas/", label: "Métricas", icon: LockKeyhole },
 ];
 
 const adminNavigation = [
-  { href: "/admin", label: "Panel General", icon: LayoutGrid },
-  { href: "/resumen", label: "Resumen EE", icon: LayoutDashboard },
-  { href: "/programacion", label: "Programación", icon: CalendarRange },
-  { href: "/actas", label: "Actas", icon: FileText },
-  { href: "/metricas", label: "Métricas", icon: LockKeyhole },
+  { href: "/admin/", label: "Panel General", icon: LayoutGrid },
+  { href: "/resumen/", label: "Resumen EE", icon: LayoutDashboard },
+  { href: "/programacion/", label: "Programación", icon: CalendarRange },
+  { href: "/actas/", label: "Actas", icon: FileText },
+  { href: "/metricas/", label: "Métricas", icon: LockKeyhole },
 ];
 
 // ── School selector (admin only) ───────────────────────────────────────────
@@ -97,11 +97,11 @@ function SchoolSelector({
     setOpen(false);
 
     if (rbd) {
-      router.push("/resumen");
+      router.push("/resumen/");
       return;
     }
 
-    router.push("/admin");
+    router.push("/admin/");
   }
 
   return (
@@ -271,7 +271,7 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
   const isAdmin = profile.rol === "ADMIN";
   const assignedSchoolCount = accessibleRbds.length;
   const navigation = isAdmin
-    ? adminNavigation.map((item) => item.href === "/admin"
+    ? adminNavigation.map((item) => item.href === "/admin/"
       ? { ...item, label: isGlobalAdmin ? "Panel General" : "Mi Territorio" }
       : item)
     : directorNavigation;
@@ -304,7 +304,7 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
       <aside className="flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-white/70 bg-white/82 shadow-panel backdrop-blur lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:w-[320px] xl:w-[336px]">
         {/* Brand */}
         <div className="px-5 pt-5 lg:px-6 lg:pt-6">
-          <Link href={isAdmin ? "/admin" : "/resumen"} className="block rounded-[22px] border border-slate-200/70 bg-white px-4 py-4 transition hover:border-slate-300 hover:shadow-sm">
+          <Link href={isAdmin ? "/admin/" : "/resumen/"} className="block rounded-[22px] border border-slate-200/70 bg-white px-4 py-4 transition hover:border-slate-300 hover:shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/80">
                 <Image
@@ -384,7 +384,8 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
               <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Navegación</p>
               <nav className="space-y-1">
           {navigation.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+            const normalizedHref = href !== "/" && href.endsWith("/") ? href.slice(0, -1) : href;
+            const isActive = pathname === normalizedHref || (normalizedHref !== "/" && pathname.startsWith(normalizedHref));
             return (
               <Link
                 key={href}

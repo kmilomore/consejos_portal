@@ -25,6 +25,7 @@ No codebase, Figma file, deck template, or live product was provided. The compon
 | -------------------------- | ---------------------------------------------------------------------------- |
 | `README.md`                | This file. Brand context, content fundamentals, visual foundations, iconography. |
 | `colors_and_type.css`      | Single source of truth — CSS custom properties for color, type, spacing, shadow, radius, motion. |
+| `globals.css`              | App-level layer for Tailwind directives and portal-specific global rules such as print and motion helpers. |
 | `SKILL.md`                 | Agent-Skills metadata, so this system can be downloaded and used by Claude Code. |
 | `fonts/`                   | `MuseoSans-100/500/700/900.woff` web fonts.                                  |
 | `assets/`                  | Brand assets — logo (master + monochrome), favicon, badge marks, illustrative imagery placeholders. |
@@ -248,11 +249,13 @@ Not used in institutional UI, official documents, or formal communications. Allo
 
 ## How to use this system
 
-1. Link `colors_and_type.css` from any project (or copy the `:root` block into your own tokens file).
-2. Reference `fonts/` for the four Museo Sans cuts.
-3. Pull components from `ui_kits/<surface>/`.
-4. When generating slides or one-off artifacts, copy assets out of `assets/` rather than re-drawing them.
-5. Treat the tokens (CSS custom properties) as the contract — never hard-code hex values inside a component.
+1. Link `colors_and_type.css` from any project that needs the shared token and typography contract.
+2. In this Next.js portal, keep `colors_and_type.css` as the shared base and reserve `globals.css` for Tailwind plus portal-only global rules.
+3. Load Museo Sans through `next/font/local` and expose the variable on `html` so root-level tokens like `--font-sans` can resolve correctly.
+4. Reference `fonts/` for the four Museo Sans cuts when working outside the portal runtime.
+5. Pull components from `ui_kits/<surface>/`.
+6. When generating slides or one-off artifacts, copy assets out of `assets/` rather than re-drawing them.
+7. Treat the tokens (CSS custom properties) as the contract — never hard-code hex values inside a component.
 
 ---
 

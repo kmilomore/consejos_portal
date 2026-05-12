@@ -1,6 +1,6 @@
 # Contexto Operativo: Programacion
 
-> Ultima actualizacion: 2026-04-27  
+> Ultima actualizacion: 2026-05-12  
 > Objetivo: este documento es la fuente de verdad operativa de la seccion `programacion/` y esta pensado para iterar con IA sin tener que redescubrir el modulo en cada sesion.
 > Contexto general del portal: ver `../../context.md` para arquitectura global, decisiones transversales y estado general del producto.
 
@@ -51,6 +51,13 @@ La experiencia esta pensada para trabajar sobre una escuela activa, no como un b
 
 - `lib/supabase/auth-context.tsx`
   Fuente de verdad de escuela activa, perfil y `selectedRbd`.
+
+Hallazgo operativo validado el 2026-05-12:
+
+- la sensacion de que `programacion/` “sale y vuelve a entrar” al navegar no provenia del calendario ni de sus filtros
+- la causa real fue perdida de estado efectivo en providers compartidos durante navegacion en export estatico
+- por eso este modulo depende de snapshot persistido, auth cacheado y cliente Supabase singleton para no volver a mostrar skeleton ni repetir consultas base
+- adicionalmente, las mutaciones de `programacion` ahora deben invalidar una version global del snapshot para que metricas y otras vistas agregadas no queden leyendo una foto vieja
 
 ### Tipos
 
@@ -114,6 +121,13 @@ Todo lo visual debe colgar de `rows` para que calendario, agenda diaria y tabla 
 Despues de una mutacion no se vuelve a consultar manualmente una tabla puntual. Se llama `refresh()` del snapshot.
 
 Esto mantiene el modelo de datos compartido y evita estados parciales entre modulos.
+
+Regla reforzada tras el hallazgo 2026-05-12:
+
+- `refresh()` se usa solo despues de mutaciones reales
+- navegar entre `/programacion/`, `/actas/`, `/resumen/` o `/metricas/` no debe disparar fetch local desde esta pagina
+- si reaparece loading global al volver al modulo, revisar providers compartidos antes de tocar la UI de programacion
+- si una alta, edicion o cancelacion no se refleja fuera del modulo, revisar primero la invalidacion del snapshot antes de tocar los derivados locales de calendario o tabla
 
 ---
 
@@ -318,6 +332,17 @@ Responsable de:
 - ver el historico filtrado
 - operar sobre volumen grande
 - mantener las mismas reglas de acciones que la agenda diaria
+
+---
+
+## 8. Invariantes de no-regresion
+
+- no agregar fetch directo a Supabase dentro de `app/programacion/page.tsx` para recomponer calendario, tabla o agenda
+- no usar conteos locales como fuente de verdad del correlativo final
+- no mezclar rutas internas con y sin slash final al navegar hacia `/programacion/`
+- no disparar `refresh()` por cambios de filtro, cambio de fecha visible o simple navegacion entre modulos
+- no reintroducir estados de carga globales que oculten toda la pagina si `snapshot.programaciones` ya esta cacheado
+- no dejar mutaciones de programacion sin invalidar el snapshot compartido; si no, `/metricas/` y otras vistas pueden seguir mostrando estado anterior
 
 ---
 

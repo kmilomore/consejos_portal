@@ -70,7 +70,7 @@ export default function SummaryPage() {
           )}
           <div className="flex flex-wrap gap-3 pt-2">
             <Link
-              href="/programacion"
+              href="/programacion/"
               className={cn(
                 "inline-flex items-center justify-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition duration-200 hover:bg-slate-800",
               )}
@@ -79,7 +79,7 @@ export default function SummaryPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/actas"
+              href="/actas/"
               className={cn(
                 "inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink ring-1 ring-slate-200 transition duration-200 hover:bg-slate-50",
               )}

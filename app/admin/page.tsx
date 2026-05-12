@@ -115,7 +115,7 @@ export default function AdminPage() {
   // Guard: non-admins get redirected
   useEffect(() => {
     if (profile && profile.rol !== "ADMIN") {
-      router.replace("/resumen");
+      router.replace("/resumen/");
     }
   }, [profile, router]);
 

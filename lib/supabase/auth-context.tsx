@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
 
@@ -10,6 +10,7 @@ interface AuthResult {
 }
 
 const SELECTED_RBD_STORAGE_KEY = "consejos.portal.selected-rbd";
+const AUTH_STATE_STORAGE_KEY = "consejos.portal.auth-state.v1";
 
 interface AuthStateCache {
   session: Session | null;
@@ -18,7 +19,7 @@ interface AuthStateCache {
   isGlobalAdmin: boolean;
   accessibleRbds: string[];
   canSelectSchool: boolean;
-  landingRoute: "/admin" | "/resumen";
+  landingRoute: "/admin/" | "/resumen/";
   accessError: string | null;
   profileLoaded: boolean;
 }
@@ -30,7 +31,7 @@ const authStateCache: AuthStateCache = {
   isGlobalAdmin: false,
   accessibleRbds: [],
   canSelectSchool: false,
-  landingRoute: "/resumen",
+  landingRoute: "/resumen/",
   accessError: null,
   profileLoaded: false,
 };
@@ -42,9 +43,38 @@ function resetAuthStateCache() {
   authStateCache.isGlobalAdmin = false;
   authStateCache.accessibleRbds = [];
   authStateCache.canSelectSchool = false;
-  authStateCache.landingRoute = "/resumen";
+  authStateCache.landingRoute = "/resumen/";
   authStateCache.accessError = null;
   authStateCache.profileLoaded = false;
+}
+
+function readStoredAuthState(): (AuthStateCache & { selectedRbd: string | null; allEstablishments: Establishment[] }) | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(AUTH_STATE_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw) as AuthStateCache & { selectedRbd: string | null; allEstablishments: Establishment[] };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredAuthState(state: AuthStateCache & { selectedRbd: string | null; allEstablishments: Establishment[] }) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(AUTH_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage write failures and keep the in-memory cache only.
+  }
 }
 
 function resolveAuthRedirectUrl() {
@@ -69,7 +99,7 @@ interface PortalAuthContextValue {
   isGlobalAdmin: boolean;
   accessibleRbds: string[];
   canSelectSchool: boolean;
-  landingRoute: "/admin" | "/resumen";
+  landingRoute: "/admin/" | "/resumen/";
   isLoading: boolean;
   accessError: string | null;
   selectedRbd: string | null;
@@ -82,19 +112,20 @@ interface PortalAuthContextValue {
 const PortalAuthContext = createContext<PortalAuthContextValue | null>(null);
 
 export function PortalAuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+  const storedAuthState = readStoredAuthState();
   const [supabase] = useState(() => createClient());
-  const [session, setSession] = useState<Session | null>(() => authStateCache.session);
-  const [profile, setProfile] = useState<Profile | null>(() => authStateCache.profile);
-  const [establishment, setEstablishment] = useState<Establishment | null>(() => authStateCache.establishment);
-  const [isGlobalAdmin, setIsGlobalAdmin] = useState(() => authStateCache.isGlobalAdmin);
-  const [accessibleRbds, setAccessibleRbds] = useState<string[]>(() => authStateCache.accessibleRbds);
-  const [canSelectSchool, setCanSelectSchool] = useState(() => authStateCache.canSelectSchool);
-  const [landingRoute, setLandingRoute] = useState<"/admin" | "/resumen">(() => authStateCache.landingRoute);
-  const [isLoading, setIsLoading] = useState(() => !authStateCache.profileLoaded);
-  const [accessError, setAccessError] = useState<string | null>(() => authStateCache.accessError);
-  const [selectedRbd, setSelectedRbd] = useState<string | null>(null);
-  const [allEstablishments, setAllEstablishments] = useState<Establishment[]>([]);
-  const profileLoaded = useRef(authStateCache.profileLoaded);
+  const [session, setSession] = useState<Session | null>(() => authStateCache.session ?? storedAuthState?.session ?? null);
+  const [profile, setProfile] = useState<Profile | null>(() => authStateCache.profile ?? storedAuthState?.profile ?? null);
+  const [establishment, setEstablishment] = useState<Establishment | null>(() => authStateCache.establishment ?? storedAuthState?.establishment ?? null);
+  const [isGlobalAdmin, setIsGlobalAdmin] = useState(() => authStateCache.isGlobalAdmin || storedAuthState?.isGlobalAdmin || false);
+  const [accessibleRbds, setAccessibleRbds] = useState<string[]>(() => authStateCache.accessibleRbds.length > 0 ? authStateCache.accessibleRbds : (storedAuthState?.accessibleRbds ?? []));
+  const [canSelectSchool, setCanSelectSchool] = useState(() => authStateCache.canSelectSchool || storedAuthState?.canSelectSchool || false);
+  const [landingRoute, setLandingRoute] = useState<"/admin/" | "/resumen/">(() => authStateCache.landingRoute ?? storedAuthState?.landingRoute ?? "/resumen/");
+  const [isLoading, setIsLoading] = useState(() => !(authStateCache.profileLoaded || storedAuthState?.profileLoaded));
+  const [accessError, setAccessError] = useState<string | null>(() => authStateCache.accessError ?? storedAuthState?.accessError ?? null);
+  const [selectedRbd, setSelectedRbd] = useState<string | null>(() => storedAuthState?.selectedRbd ?? null);
+  const [allEstablishments, setAllEstablishments] = useState<Establishment[]>(() => storedAuthState?.allEstablishments ?? []);
+  const profileLoaded = useRef(authStateCache.profileLoaded || storedAuthState?.profileLoaded || false);
 
   useEffect(() => {
     authStateCache.session = session;
@@ -106,7 +137,21 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     authStateCache.landingRoute = landingRoute;
     authStateCache.accessError = accessError;
     authStateCache.profileLoaded = profileLoaded.current;
-  }, [accessError, accessibleRbds, canSelectSchool, establishment, isGlobalAdmin, landingRoute, profile, session]);
+
+    writeStoredAuthState({
+      session,
+      profile,
+      establishment,
+      isGlobalAdmin,
+      accessibleRbds,
+      canSelectSchool,
+      landingRoute,
+      accessError,
+      profileLoaded: profileLoaded.current,
+      selectedRbd,
+      allEstablishments,
+    });
+  }, [accessError, accessibleRbds, allEstablishments, canSelectSchool, establishment, isGlobalAdmin, landingRoute, profile, selectedRbd, session]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -154,7 +199,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
     void bootstrapSession();
 
-    const { data: subscription } = client.auth.onAuthStateChange((event, nextSession) => {
+    const { data: subscription } = client.auth.onAuthStateChange((event: AuthChangeEvent, nextSession: Session | null) => {
       if (!mounted) {
         return;
       }
@@ -172,7 +217,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         setIsGlobalAdmin(false);
         setAccessibleRbds([]);
         setCanSelectSchool(false);
-        setLandingRoute("/resumen");
+        setLandingRoute("/resumen/");
         setAccessError(null);
         setIsLoading(false);
       }
@@ -192,6 +237,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     }
 
     if (!userId) {
+      return;
+    }
+
+    if (profileLoaded.current && profile?.id === userId && (!profile.rbd || establishment)) {
+      setIsLoading(false);
       return;
     }
 
@@ -241,7 +291,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         accessible_rbds: nextProfile.rbd ? [nextProfile.rbd] : [],
         default_rbd: nextProfile.rbd,
         can_select_school: false,
-        landing_route: nextProfile.rol === "ADMIN" ? "/admin" : "/resumen",
+        landing_route: nextProfile.rol === "ADMIN" ? "/admin/" : "/resumen/",
       };
 
       const scopeResult = await client.rpc("get_current_portal_scope");
@@ -260,7 +310,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
               : [],
             default_rbd: typeof scopeRow.default_rbd === "string" ? scopeRow.default_rbd : null,
             can_select_school: Boolean(scopeRow.can_select_school),
-            landing_route: scopeRow.landing_route === "/admin" ? "/admin" : "/resumen",
+            landing_route: scopeRow.landing_route === "/admin" || scopeRow.landing_route === "/admin/" ? "/admin/" : "/resumen/",
           };
         }
       }
@@ -306,7 +356,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     return () => {
       cancelled = true;
     };
-  }, [userId, supabase]);
+  }, [establishment, profile, supabase, userId]);
 
   useEffect(() => {
     if (!session || isLoading) {
@@ -345,7 +395,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       .from("establecimientos")
       .select("rbd, nombre, direccion, comuna")
       .order("nombre", { ascending: true })
-      .then(({ data }) => {
+      .then(({ data }: { data: Establishment[] | null }) => {
         setAllEstablishments((data as Establishment[]) ?? []);
       });
   }, [isGlobalAdmin, profile, supabase]);

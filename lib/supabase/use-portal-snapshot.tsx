@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, type PropsWithChildren } from "react";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { fetchPortalSnapshot, type PortalSnapshot } from "@/lib/supabase/queries";
+import { fetchPortalSnapshot, readPortalSnapshotVersion, type PortalSnapshot } from "@/lib/supabase/queries";
 
 // ─── Shared context ────────────────────────────────────────────────────────────
 
@@ -23,7 +23,54 @@ const EMPTY_SNAPSHOT: PortalSnapshot = {
   diagnostics: [],
 };
 
-const snapshotCache = new Map<string, PortalSnapshot>();
+type SnapshotCacheEntry = {
+  snapshot: PortalSnapshot;
+  version: number;
+};
+
+const snapshotCache = new Map<string, SnapshotCacheEntry>();
+const snapshotRequests = new Map<string, Promise<PortalSnapshot>>();
+
+function getSnapshotStorageKey(cacheKey: string) {
+  return `consejos.portal.snapshot.${cacheKey}`;
+}
+
+function readStoredSnapshot(cacheKey: string): SnapshotCacheEntry | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(getSnapshotStorageKey(cacheKey));
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as { snapshot?: PortalSnapshot; version?: number };
+    if (!parsed.snapshot) {
+      return null;
+    }
+
+    return {
+      snapshot: parsed.snapshot,
+      version: typeof parsed.version === "number" ? parsed.version : -1,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSnapshot(cacheKey: string, entry: SnapshotCacheEntry) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(getSnapshotStorageKey(cacheKey), JSON.stringify(entry));
+  } catch {
+    // Ignore storage failures and keep the in-memory cache.
+  }
+}
 
 const PortalSnapshotContext = createContext<PortalSnapshotState>({
   snapshot: EMPTY_SNAPSHOT,
@@ -38,15 +85,26 @@ export function PortalSnapshotProvider({ children }: PropsWithChildren): React.R
   const userId = session?.user?.id ?? null;
   const snapshotCacheKey = `${userId ?? "anon"}:${selectedRbd ?? "all"}`;
   const [refreshKey, setRefreshKey] = useState(0);
-  const [snapshot, setSnapshot] = useState<PortalSnapshot>(() => snapshotCache.get(snapshotCacheKey) ?? EMPTY_SNAPSHOT);
+  const [snapshot, setSnapshot] = useState<PortalSnapshot>(() => {
+    const cachedEntry = snapshotCache.get(snapshotCacheKey) ?? readStoredSnapshot(snapshotCacheKey);
+    if (cachedEntry) {
+      snapshotCache.set(snapshotCacheKey, cachedEntry);
+      return cachedEntry.snapshot;
+    }
+
+    return EMPTY_SNAPSHOT;
+  });
   const [status, setStatus] = useState<"loading" | "ready">(() =>
-    userId && !snapshotCache.has(snapshotCacheKey) ? "loading" : "ready",
+    userId && !snapshotCache.has(snapshotCacheKey) && !readStoredSnapshot(snapshotCacheKey) ? "loading" : "ready",
   );
 
   useEffect(() => {
     let ignore = false;
 
-    const cachedSnapshot = snapshotCache.get(snapshotCacheKey);
+    const currentVersion = readPortalSnapshotVersion();
+    const cachedEntry = snapshotCache.get(snapshotCacheKey) ?? readStoredSnapshot(snapshotCacheKey);
+    const cachedSnapshot = cachedEntry?.snapshot ?? null;
+    const isStale = cachedEntry ? cachedEntry.version < currentVersion : false;
 
     if (!userId) {
       setSnapshot({ ...EMPTY_SNAPSHOT, source: "supabase" });
@@ -57,16 +115,36 @@ export function PortalSnapshotProvider({ children }: PropsWithChildren): React.R
     }
 
     if (cachedSnapshot) {
+      snapshotCache.set(snapshotCacheKey, cachedEntry ?? { snapshot: cachedSnapshot, version: currentVersion });
       setSnapshot(cachedSnapshot);
       setStatus("ready");
-    } else {
+      if (refreshKey === 0 && !isStale) {
+        return () => {
+          ignore = true;
+        };
+      }
+    }
+
+    if (!cachedSnapshot) {
       setStatus("loading");
     }
 
     async function loadSnapshot() {
-      const nextSnapshot = await fetchPortalSnapshot(selectedRbd ?? undefined);
+      const request = snapshotRequests.get(snapshotCacheKey)
+        ?? fetchPortalSnapshot(selectedRbd ?? undefined).finally(() => {
+          snapshotRequests.delete(snapshotCacheKey);
+        });
+
+      snapshotRequests.set(snapshotCacheKey, request);
+
+      const nextSnapshot = await request;
       if (!ignore) {
-        snapshotCache.set(snapshotCacheKey, nextSnapshot);
+        const nextEntry = {
+          snapshot: nextSnapshot,
+          version: readPortalSnapshotVersion(),
+        };
+        snapshotCache.set(snapshotCacheKey, nextEntry);
+        writeStoredSnapshot(snapshotCacheKey, nextEntry);
         setSnapshot(nextSnapshot);
         setStatus("ready");
       }

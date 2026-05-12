@@ -1,6 +1,6 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-05-11 (v3)
+> **Última actualización:** 2026-05-12 (v5)
 > **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
 > **Estado actual:** flujo híbrido operativo con 13 mejoras UI/UX implementadas; compilación limpia.
 
@@ -66,6 +66,8 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - **F7** — vista previa del archivo seleccionado: card con nombre, tamaño formateado (`formatBytes`) y sub-tipo MIME; aparece debajo del dropzone cuando hay `pendingFile`
 - **F8** — autocompletado de datos del asistente desde actas previas: el campo "Nombre completo" de cada `EstamentoCard` usa `<datalist>` con nombres históricos del mismo RBD y rol; al seleccionar una sugerencia se auto-rellenan RUT y correo
 - **F11** — `QuorumBadge` sticky al hacer scroll en el formulario: la cabecera de la sección de asistencia tiene `sticky top-0 z-10 bg-white/95 backdrop-blur-sm`; incluye además los botones Expandir/Colapsar
+- caché compartido del portal endurecido para evitar que el listado, el detalle y el formulario vuelvan a mostrar skeleton o reconsulten `actas` al cambiar de módulo
+- mutaciones de actas ahora invalidan una versión global del snapshot para que `/metricas/` y vistas agregadas no queden mostrando cumplimiento stale tras guardar o editar
 
 ### Pendiente o parcial
 
@@ -107,6 +109,22 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 | `supabase/migrations/20260418_save_acta_atomic.sql` | RPC atómica alineada al modo híbrido, aún no activada en cliente |
 | `supabase/migrations/20260424_consejos_actas_registro_documental.sql` | migración que habilita `modo_registro`, `observacion_documental` y horarios nullable |
 | `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql` | sube el límite del bucket `evidencias_actas` a 50 MB para alinearlo con la UI |
+
+### Hallazgo operativo 2026-05-12
+
+El problema de “volver a cargar actas al cambiar de página” no estaba en este módulo de forma aislada. La causa real fue transversal:
+
+- en export estático, el árbol autenticado puede sufrir remounts efectivos o rehidrataciones parciales al navegar
+- si el snapshot compartido o el auth bootstrap pierden estado efectivo, `app/actas/page.tsx` vuelve a entrar por la ruta de loading y reaparece el skeleton
+- por eso el módulo depende de que `PortalSnapshotProvider`, `PortalAuthProvider` y el cliente Supabase mantengan caché persistido y request dedupe
+
+Patrón correcto para Actas:
+
+- `app/actas/page.tsx` debe seguir derivando todo desde `usePortalSnapshot()`
+- deep links como `/actas/?acta=<id>` no deben disparar fetch propio ni rebootstrapear el módulo
+- la apertura de detalle, edición y eliminación deben operar sobre `snapshot.actas` ya hidratado y solo llamar `refresh()` en mutaciones reales
+- cualquier necesidad de “recargar datos” debe resolverse en el provider compartido, no creando fetch local dentro de la página
+- guardar, editar o eliminar un acta debe dejar invalidado el snapshot compartido para que `/metricas/` no siga leyendo una foto vieja del cumplimiento
 
 ### Orden recomendado para investigar un problema
 
@@ -201,6 +219,8 @@ Comportamiento actual:
 - muestra ícono de documento cuando `acta.link_acta` existe
 - el horario renderiza tolerando `null`
 - todos los filtros y el ordenamiento corren en el mismo `useMemo`; `sortField`, `sortDir` y `establishmentMap` están en las dependencias
+- si el snapshot ya está cacheado, la navegación de vuelta a `/actas/` no debe mostrar skeleton global ni volver a consultar Supabase por fuera de `refresh()`
+- si el usuario acaba de guardar una acta y el módulo local la muestra correctamente, pero `/metricas/` no refleja el cambio, el primer sospechoso ya no es el formulario sino un snapshot stale fuera de esta página
 
 Hallazgo importante:
 
@@ -258,6 +278,15 @@ Validaciones obligatorias:
 - `link_acta` o archivo pendiente
 
 Comportamiento diferencial:
+
+## 6. Invariantes de no-regresión
+
+- no agregar fetch directo a Supabase en `app/actas/page.tsx`, `ActaDetail` ni `ActaForm` para reconstruir listado o detalle
+- no invalidar o limpiar snapshot compartido al abrir modales, cambiar query params o cerrar el drawer
+- no usar rutas internas mezcladas con y sin slash final al navegar hacia `/actas/`
+- no reintroducir estados de loading que tapen toda la página si ya existe `snapshot.actas` cacheado
+- no duplicar la lógica de lectura de actas fuera de `lib/supabase/use-portal-snapshot.tsx` y `lib/supabase/queries.ts`
+- no asumir que el problema está en el guardado del acta si la fila aparece en `/actas/`; confirmar primero si el desacople está en snapshot o en las otras fuentes agregadas
 - no exige horario completo
 - no exige tabla de temas ni acuerdos
 - no guarda asistentes

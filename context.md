@@ -1,6 +1,6 @@
 # Contexto del Proyecto: Consejos
 
-> **Última actualización:** 2026-04-27  
+> **Última actualización:** 2026-05-12  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
 > **Contexto específico de programación:** ver `context_programacion.md` para el detalle operativo completo del módulo `programacion/`, sus invariantes, flujos y criterios para iterar con IA.
 
@@ -42,6 +42,11 @@ Experiencia principal:
 - Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
 - `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar, nunca se desmonta mientras exista sesión
 - Navegación entre secciones sin flash visual ni pérdida de contenido (`app/loading.tsx` eliminado, `AppFrame` reestructurado)
+- Cliente Supabase browser compartido como singleton para no re-crear sesión ni listeners en cada remount
+- Caché de auth, snapshot y directorio reforzado con `sessionStorage` + deduplicación de requests en vuelo
+- Snapshot portal versionado para invalidar caché stale después de mutaciones de actas/programación
+- Directorio SLEP visible reforzado con fallback desde `establecimientos` cuando la RPC `get_slep_directorio()` omite escuelas válidas
+- Rutas internas normalizadas con `trailingSlash: true` para evitar transiciones inconsistentes en export estático
 - Módulo de programación operativo:
   - calendario mensual por establecimiento activo
   - creación real de sesiones ordinarias y extraordinarias
@@ -172,7 +177,38 @@ Detalle operativo vigente:
 
 **Invariante:** las páginas no deben tener `useEffect` para cargar datos del portal — siempre usar `usePortalSnapshot()`.
 
-### 4.4.1 Programación y correlativos
+### 4.4.1 Resiliencia ante remounts y export estático
+
+Hallazgo validado el 2026-05-12:
+- en este portal, navegar entre rutas puede seguir disparando remounts efectivos de providers o rehidrataciones parciales aunque la transición visual siga siendo client-side
+- por eso un caché solo en memoria no es suficiente para auth, snapshot compartido ni directorio SLEP
+- el síntoma observable fue skeleton al cambiar de módulo y repetición de consultas base a Supabase (`usuarios_perfiles`, `establecimientos`, `programacion`, `actas`, `actas_invitados`, `get_current_portal_scope`, `get_slep_directorio`)
+
+Patrón correcto vigente:
+- `lib/supabase/client.ts` debe exponer un singleton browser client
+- `lib/supabase/auth-context.tsx` debe hidratar y persistir estado suficiente para no re-bootstrapear acceso en cada remount
+- `lib/supabase/use-portal-snapshot.tsx` debe reutilizar caché persistido, deduplicar requests en vuelo por `userId + selectedRbd` y revalidar cuando la versión global del snapshot cambie tras una mutación
+- `lib/supabase/use-slep-directorio.ts` debe compartir caché por usuario, deduplicar requests en vuelo y complementar la RPC con `establecimientos` cuando el directorio base no traiga una escuela válida
+- las rutas internas del shell deben mantenerse con slash final consistente (`/resumen/`, `/programacion/`, `/actas/`, `/metricas/`, `/admin/`)
+
+Hallazgo adicional validado el 2026-05-12:
+- puede existir un acta válida en `actas` y una escuela válida en `establecimientos`, pero aun así no verla en `/admin/` si `get_slep_directorio()` no la retorna
+- ese desacople también puede distorsionar `/metricas/` si el navegador sigue sirviendo un snapshot persistido anterior a la mutación reciente
+- caso observado: una escuela podía figurar con acta registrada en `/actas/`, seguir apareciendo como faltante en `/metricas/` y no ser encontrable en `/admin/`
+
+Regla operativa vigente:
+- para diagnosticar inconsistencias de escuelas o cumplimiento, contrastar siempre `actas`, `establecimientos`, `get_slep_directorio()` y el estado del snapshot cacheado; no asumir que una sola fuente representa toda la verdad operativa
+
+**No volver a repetir:**
+- no crear clientes Supabase nuevos dentro de hooks, providers o helpers de lectura frecuente
+- no confiar solo en `useState` o variables de módulo en memoria cuando el dato debe sobrevivir a remounts del árbol autenticado
+- no introducir fetch directo por página para datos base del portal si ya existen `PortalAuthProvider`, `PortalSnapshotProvider` o `useSlepDirectorio`
+- no asumir que `get_slep_directorio()` contiene por sí sola todo el catálogo visible; si una escuela existe en `establecimientos`, el frontend no debe ocultarla del admin o del selector
+- no dejar mutaciones de actas o programación sin invalidar el snapshot compartido; de lo contrario, `/metricas/` puede seguir mostrando cumplimiento viejo aunque el acta ya exista
+- no romper la canonicalización con `trailingSlash: true` usando enlaces internos mezclados entre rutas con y sin slash final
+- no reintroducir loading global que desmonte el shell completo mientras auth o snapshot ya tienen datos válidos en caché
+
+### 4.4.2 Programación y correlativos
 
 La numeración de `programacion` no debe resolverse como fuente de verdad en cliente. El correlativo oficial sale de `get_next_session_number(session_type, establishment_rbd, target_year)`, considerando tanto filas en `programacion` como actas ya realizadas del mismo `rbd`, `tipo_sesion` y año.
 
@@ -190,6 +226,10 @@ Detalle vigente:
 Además, `AppFrame` fue reestructurado para que `PortalSnapshotProvider` envuelva **todas** las ramas autenticadas. Con el esquema anterior, si `isLoading` era `true` aunque fuera un frame, todo el shell (incluyendo el sidebar) se desmontaba.
 
 **Invariante:** no volver a agregar `app/loading.tsx` a nivel del directorio `app/`. Si se necesita un indicador de carga específico para una ruta, debe hacerse dentro del `page.tsx` correspondiente con el patrón de skeleton ya establecido.
+
+Complemento importante tras el hallazgo 2026-05-12:
+- aunque no exista `app/loading.tsx`, el portal puede volver a mostrar estados de carga si auth o snapshot pierden su estado efectivo
+- por eso la estabilidad visual depende tanto del layout como de la persistencia y deduplicación de los providers de datos
 
 ---
 
@@ -245,9 +285,9 @@ Invariantes operativas:
 | `components/ui/button.tsx` | Botón base con variantes `primary`, `secondary`, `ghost` |
 | `components/ui/badge.tsx` | Badge con tones |
 | `lib/supabase/auth-context.tsx` | Sesión, perfil, establecimiento, auth flow |
-| `lib/supabase/queries.ts` | `fetchPortalSnapshot`, mutaciones de `programacion`, `upsertActa`, `replaceActaInvitados`, uploads y delete |
-| `lib/supabase/use-portal-snapshot.tsx` | Context Provider + `usePortalSnapshot()` hook |
-| `lib/supabase/use-slep-directorio.ts` | Hook → RPC `get_slep_directorio()` |
+| `lib/supabase/queries.ts` | `fetchPortalSnapshot`, mutaciones de `programacion`, `upsertActa`, `replaceActaInvitados`, uploads, delete e invalidación de versión del snapshot |
+| `lib/supabase/use-portal-snapshot.tsx` | Context Provider + `usePortalSnapshot()` hook con caché versionado |
+| `lib/supabase/use-slep-directorio.ts` | Hook → RPC `get_slep_directorio()` con fallback a `establecimientos` |
 | `types/domain.ts` | Tipos de dominio: `Acta`, `Profile`, `Establishment`, etc. |
 | `tailwind.config.ts` | Tokens visuales del portal |
 | `supabase/migrations/` | Historial de migraciones SQL |
@@ -266,7 +306,7 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 | Resumen del establecimiento | `app/resumen/page.tsx` | `components/portal/section-card.tsx`, `components/portal/attendance-chart.tsx` |
 | Programación, calendario y acciones operativas | `app/programacion/page.tsx` | `components/portal/acta-form.tsx`, `lib/supabase/queries.ts` |
 | Métricas y visualizaciones | `app/metricas/page.tsx` | `components/portal/attendance-chart.tsx`, `components/portal/section-card.tsx` |
-| Panel admin y directorio SLEP | `app/admin/page.tsx` | `lib/supabase/use-slep-directorio.ts`, `types/domain.ts` |
+| Panel admin y directorio SLEP | `app/admin/page.tsx` | `lib/supabase/use-slep-directorio.ts`, `lib/supabase/queries.ts`, `types/domain.ts` |
 | Listado, filtro y flujo de actas | `app/actas/page.tsx` | `components/portal/acta-form.tsx`, `components/portal/acta-detail.tsx`, `lib/supabase/queries.ts` |
 | Formularios y persistencia de borradores | `components/portal/acta-form.tsx` | `components/ui/button.tsx`, `components/ui/toast.tsx` |
 | Modal de confirmación | `components/portal/confirm-dialog.tsx` | `components/ui/button.tsx` |
@@ -275,7 +315,7 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 | Botones, badges, toasts | `components/ui/button.tsx` | `components/ui/badge.tsx`, `components/ui/toast.tsx` |
 | Fetch de snapshot portal | `lib/supabase/use-portal-snapshot.tsx` | `lib/supabase/queries.ts` |
 | Consultas, mutaciones y uploads Supabase | `lib/supabase/queries.ts` | `lib/supabase/client.ts` |
-| Directorio filtrado de escuelas | `lib/supabase/use-slep-directorio.ts` | `supabase/migrations/20260424_consejos_representante_scope.sql` |
+| Directorio filtrado de escuelas | `lib/supabase/use-slep-directorio.ts` | `supabase/migrations/20260424_consejos_representante_scope.sql`, `establecimientos` |
 | Roles, RLS, bootstrap y permisos | `supabase/migrations/20260424_consejos_representante_scope.sql` | `supabase/migrations/20260416_consejos_fix_rls_recursion.sql` |
 
 ### Mapa por carpetas
