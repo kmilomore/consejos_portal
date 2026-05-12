@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 0; }
+  .card { padding: 0; gap: 0; min-height: 100vh; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+  .light { background: #fff; padding: 28px; display: flex; align-items: center; justify-content: center; }
+  .dark  { background: var(--navy-500); padding: 28px; display: flex; align-items: center; justify-content: center; position: relative; }
+  .dark::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #25306B 0%, #25306B 65%, #FF1D3D 65%, #FF1D3D 100%);
+  }
+  .badge { width: 200px; height: 200px; }
+  .badge img { width: 100%; height: 100%; object-fit: contain; }
+  .corner-label { position: absolute; top: 16px; left: 16px; font-family: var(--font-mono); font-size: 10.5px; color: var(--neutral-500); }
+  .corner-label.on-dark { color: rgba(255,255,255,0.65); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="light" style="position:relative;">
+      <span class="corner-label">on Soft White · #EDF0F5 / #FFFFFF</span>
+      <div class="badge"><img src="../assets/logo-slep-colchagua.webp" alt="SLEP Colchagua"></div>
+    </div>
+    <div class="dark">
+      <span class="corner-label on-dark">on Navy · #25306B</span>
+      <div class="badge"><img src="../assets/logo-slep-colchagua.webp" alt="SLEP Colchagua"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

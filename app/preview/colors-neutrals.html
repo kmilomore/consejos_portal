@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+  .step { height: 88px; border-radius: 8px; display: flex; flex-direction: column; justify-content: flex-end; padding: 8px; font-family: var(--font-mono); font-size: 10px; color: rgba(255,255,255,0.9); }
+  .step.light { color: var(--navy-700); }
+  .label-row { display: flex; gap: 12px; align-items: baseline; }
+  .label-row .name { font-weight: 900; font-size: 14px; }
+  .label-row .desc { font-size: 12px; color: var(--neutral-500); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="label-row"><div class="name">Neutral scale</div><div class="desc">cool grays anchored to Soft White</div></div>
+  <div class="scale">
+    <div class="step light" style="background:#FFFFFF; border:1px solid var(--border-1);">0</div>
+    <div class="step light" style="background:#F7F9FC;">50</div>
+    <div class="step light" style="background:#EDF0F5;">100</div>
+    <div class="step light" style="background:#DDE3EC;">200</div>
+    <div class="step light" style="background:#C2CAD7;">300</div>
+    <div class="step light" style="background:#97A0B2;">400</div>
+    <div class="step" style="background:#6A7388;">500</div>
+    <div class="step" style="background:#4A5266;">600</div>
+    <div class="step" style="background:#323A4D;">700</div>
+    <div class="step" style="background:#1F2638;">800</div>
+  </div>
+</div>
+</body>
+</html>

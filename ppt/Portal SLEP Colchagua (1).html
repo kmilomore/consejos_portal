@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Portal de Planificación · SLEP Colchagua</title>
+<link rel="stylesheet" href="colors_and_type.css" />
+<script src="deck-stage.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;padding:0;
+    background:
+      radial-gradient(circle at top right, rgba(0,107,185,0.10) 0, transparent 28%),
+      radial-gradient(circle at left bottom, rgba(255,29,61,0.07) 0, transparent 24%),
+      linear-gradient(180deg, #FFFFFF 0%, var(--neutral-50) 100%);
+    font-family:var(--font-sans);
+    color:var(--fg-1)
+  }
+  body{min-height:100vh;overflow:auto}
+  deck-stage{
+    --slide-scale:1;
+    --stage-pad-x:32px;
+    --stage-pad-y:40px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:clamp(28px, 4vh, 56px);
+    min-height:100vh;
+    padding:var(--stage-pad-y) var(--stage-pad-x);
+    background:transparent;
+  }
+  deck-stage.presentation-mode{justify-content:center;overflow:hidden}
+  section{
+    --safe-x:120px;
+    --safe-top:96px;
+    --safe-bottom:116px;
+    width:1920px;height:1080px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(237,240,245,0.98) 100%),
+      radial-gradient(circle at top right, rgba(0,107,185,0.08) 0, transparent 24%),
+      var(--bg-page);
+    position:relative;overflow:hidden;padding:var(--safe-top) var(--safe-x) var(--safe-bottom);
+    display:flex;flex-direction:column;
+    font-family:var(--font-sans);
+    transform:scale(var(--slide-scale));
+    transform-origin:top center;
+    margin-bottom:calc((var(--slide-scale) - 1) * 1080px);
+    border-radius:18px;
+    border:1px solid rgba(37,48,107,0.12);
+    box-shadow:0 28px 72px rgba(37,48,107,0.18);
+  }
+  deck-stage.presentation-mode section{display:none;margin-bottom:0}
+  deck-stage.presentation-mode section.is-active{display:flex}
+  body.presentation-mode{overflow:hidden}
+  section::before{
+    content:"";position:absolute;left:0;right:0;top:0;height:6px;
+    background:linear-gradient(90deg, rgba(37,48,107,0.95) 0%, rgba(37,48,107,0.95) 68%, rgba(255,29,61,0.9) 68%, rgba(255,29,61,0.9) 100%);
+  }
+  .deck-status{
+    position:fixed;right:24px;bottom:20px;z-index:20;
+    display:flex;align-items:center;gap:12px;
+    padding:12px 16px;border-radius:999px;
+    background:rgba(37,48,107,0.9);color:#fff;
+    box-shadow:var(--shadow-lg);
+    font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    backdrop-filter:blur(10px);
+  }
+  .deck-status strong{color:var(--coral-100);font-weight:900}
+  .deck-status span{color:rgba(255,255,255,0.78)}
+  .deck-agenda{
+    position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:20;
+    display:flex;flex-direction:column;gap:10px;
+    padding:16px 14px;border-radius:20px;
+    background:rgba(255,255,255,0.84);border:1px solid rgba(37,48,107,0.10);
+    box-shadow:var(--shadow-lg);backdrop-filter:blur(12px);
+  }
+  .deck-agenda .label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--fg-3);font-weight:700;padding:0 6px 4px}
+  .deck-agenda .item{
+    display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:999px;
+    color:var(--fg-3);font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+    cursor:pointer;transition:background var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard), transform var(--dur-base) var(--ease-standard);
+  }
+  .deck-agenda .item:hover{background:var(--navy-50);color:var(--navy-700);transform:translateX(2px)}
+  .deck-agenda .dot{width:10px;height:10px;border-radius:50%;background:var(--neutral-300);transition:background var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard)}
+  .deck-agenda .item.is-done{color:var(--navy-500)}
+  .deck-agenda .item.is-done .dot{background:var(--royal-500)}
+  .deck-agenda .item.is-active{background:var(--navy-500);color:#fff}
+  .deck-agenda .item.is-active .dot{background:var(--coral-500);box-shadow:0 0 0 5px rgba(255,29,61,0.16)}
+
+  .section-cover{
+    padding:110px 120px;justify-content:flex-end;
+    background:var(--grad-hero);color:#fff;
+  }
+  .section-cover::before{display:none}
+  .section-cover::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size:88px 88px;
+  }
+  .section-cover > *{position:relative;z-index:1}
+  .section-cover .chapter-mark{font-size:200px;line-height:0.85;font-weight:900;color:rgba(255,255,255,0.16);letter-spacing:-0.05em}
+  .section-cover .chapter-kicker{font-size:16px;letter-spacing:0.18em;text-transform:uppercase;color:var(--navy-100);font-weight:700}
+  .section-cover .chapter-title{font-size:88px;line-height:1.02;font-weight:900;letter-spacing:-0.03em;color:#fff;max-width:1200px;margin-top:18px}
+  .section-cover .chapter-title em{font-style:normal;color:var(--coral-500)}
+  .section-cover .chapter-body{font-size:28px;line-height:1.45;color:var(--navy-100);max-width:980px;margin-top:20px;font-weight:500}
+  .section-cover .chapter-stripe{width:88px;height:6px;border-radius:999px;background:var(--coral-500);margin-top:28px}
+
+  .value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:42px}
+  .value-card{
+    background:rgba(255,255,255,0.96);border:1px solid var(--border-1);border-radius:16px;
+    padding:32px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-md);
+    min-height:300px;
+  }
+  .value-card .num{font-size:14px;letter-spacing:0.14em;text-transform:uppercase;color:var(--royal-500);font-weight:700}
+  .value-card h4{font-size:30px;line-height:1.15;margin:0;color:var(--navy-500);font-weight:900;letter-spacing:-0.02em}
+  .value-card p{font-size:19px;line-height:1.5;color:var(--fg-2);margin:0;font-weight:500}
+  .value-card .tail{margin-top:auto;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-3);font-weight:700}
+
+  .chapter-banner{
+    margin-top:34px;padding:28px 34px;border-radius:16px;
+    background:var(--grad-deep-blue);color:#fff;box-shadow:var(--shadow-lg);
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+  }
+  .chapter-banner .copy{font-size:28px;line-height:1.35;font-weight:700;max-width:1120px}
+  .chapter-banner .tag{background:rgba(255,255,255,0.12);color:#fff;border-color:rgba(255,255,255,0.16)}
+
+  /* Chrome */
+  .topbar{
+    position:absolute;top:40px;left:var(--safe-x);right:var(--safe-x);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:14px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-3);
+    font-weight:700;
+  }
+  .topbar .brand{display:flex;align-items:center;gap:14px}
+  .topbar .brand img{width:44px;height:44px;border-radius:50%}
+  .topbar .brand .name{font-weight:900;color:var(--navy-500);letter-spacing:0.08em}
+  .footer{
+    position:absolute;bottom:34px;left:var(--safe-x);right:var(--safe-x);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:14px;color:var(--fg-3);
+    border-top:1px solid var(--border-1);padding-top:18px;
+    font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  }
+  .footer .accent{display:flex;align-items:center;gap:10px}
+  .footer .accent::before{content:"";width:18px;height:4px;background:var(--coral-500)}
+
+  /* Typography */
+  .eyebrow-lg{font-size:18px;letter-spacing:0.18em;text-transform:uppercase;color:var(--royal-500);font-weight:700}
+  h1.display{font-size:124px;line-height:1.0;font-weight:900;letter-spacing:-0.02em;margin:0;color:var(--navy-500)}
+  h2.title{font-size:84px;line-height:1.05;font-weight:900;letter-spacing:-0.02em;margin:0;color:var(--navy-500)}
+  h2.title em{font-style:normal;color:var(--coral-500)}
+  h2.title b{font-weight:900;color:var(--royal-500)}
+  h3.sub{font-size:30px;font-weight:500;color:var(--fg-2);margin:0;line-height:1.35;max-width:1400px}
+  p.lede{font-size:26px;line-height:1.5;color:var(--fg-2);max-width:1500px;margin:0;font-weight:500}
+  p.body{font-size:20px;line-height:1.55;color:var(--fg-2);margin:0;font-weight:500}
+  .h-label{font-size:14px;letter-spacing:0.14em;text-transform:uppercase;color:var(--royal-500);font-weight:700}
+  .h-label.alt{color:var(--fg-3)}
+
+  /* Cards */
+  .card{
+    background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;
+    padding:32px;display:flex;flex-direction:column;gap:14px;
+    box-shadow:var(--shadow-sm);
+    backdrop-filter:blur(2px);
+  }
+  .card.accent{border-top:4px solid var(--royal-500)}
+  .card.coral{border-top:4px solid var(--coral-500)}
+  .card.navy{border-top:4px solid var(--navy-500)}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+
+  .tag{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--navy-500);background:var(--royal-50);border:1px solid var(--royal-100);padding:8px 14px;border-radius:999px;letter-spacing:0.04em}
+  .tag.coral{background:var(--coral-50);color:var(--coral-700);border-color:var(--coral-100)}
+  .tag.navy{background:var(--navy-50);color:var(--navy-700);border-color:var(--navy-100)}
+
+  .pill{display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;font-size:16px;font-weight:700;border:1px solid var(--border-1);background:var(--bg-surface);color:var(--fg-2)}
+  .pill .d{width:10px;height:10px;border-radius:50%}
+
+  /* Split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1;align-items:stretch}
+  .panel{
+    background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;padding:36px;
+    display:flex;flex-direction:column;gap:18px;height:100%;
+    box-shadow:var(--shadow-md);
+  }
+  .panel.dark{background:var(--grad-deep-blue);color:#fff;border-color:transparent}
+  .panel.dark .h-label{color:var(--navy-100)}
+  .panel.dark .quote{color:#fff;border-color:var(--coral-500)}
+
+  /* COVER */
+  .cover{padding:0;display:grid;grid-template-columns:0.95fr 1.05fr;background:var(--bg-page)}
+  .cover::before{display:none}
+  .cover .left{padding:110px 100px;background:var(--bg-page);display:flex;flex-direction:column;justify-content:center;gap:56px;position:relative}
+  .cover .left::after{content:"";position:absolute;bottom:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--navy-500) 0%,var(--navy-500) 65%,var(--coral-500) 65%,var(--coral-500) 100%)}
+  .cover .left .top{display:flex;align-items:center;gap:18px}
+  .cover .left .top img{width:64px;height:64px}
+  .cover .left .top .org{font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:var(--navy-500);font-weight:900;line-height:1.25}
+  .cover .left .top .org small{display:block;font-size:11px;font-weight:700;color:var(--fg-3);letter-spacing:0.16em}
+  .cover .right{background:var(--grad-hero);color:#fff;padding:100px 96px;display:flex;flex-direction:column;justify-content:center;gap:32px;position:relative;overflow:hidden}
+  .cover .right::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size:80px 80px;
+  }
+  .cover .right::after{
+    content:"";position:absolute;width:560px;height:560px;border-radius:50%;
+    bottom:-200px;right:-200px;background:var(--coral-500);opacity:0.18;filter:blur(20px);
+  }
+  .cover .left h1{font-size:128px;line-height:0.94;font-weight:900;letter-spacing:-0.025em;margin:0;color:var(--navy-500)}
+  .cover .left h1 b{color:var(--coral-500);font-weight:900}
+  .cover .meta{font-size:14px;color:var(--fg-3);letter-spacing:0.18em;text-transform:uppercase;font-weight:700}
+  .cover .ribbon{display:flex;align-items:center;gap:14px;font-size:14px;letter-spacing:0.18em;text-transform:uppercase;color:#fff;font-weight:700;position:relative;z-index:1}
+  .cover .ribbon .bar{width:36px;height:4px;background:var(--coral-500)}
+  .cover .right .big{
+    position:relative;z-index:1;font-weight:900;font-size:64px;line-height:1;letter-spacing:-0.022em;color:#fff;max-width:720px;
+  }
+  .cover .right .badge{position:relative;z-index:1;font-size:18px;color:#fff;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);padding:14px 22px;border-radius:8px;display:inline-block;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
+  .cover .hero-copy{display:flex;flex-direction:column;gap:24px;position:relative;z-index:1;max-width:780px}
+  .cover .right .cover-tail{margin-top:0;font-size:12px;line-height:1.3;color:var(--navy-100);letter-spacing:0.16em;text-transform:uppercase;font-weight:700;position:relative;z-index:1}
+
+  /* INDEX */
+  .toc{display:flex;flex-direction:column;gap:6px;margin-top:36px}
+  .toc-row{display:grid;grid-template-columns:90px 1fr 280px;align-items:center;gap:30px;padding:18px 0;border-bottom:1px solid var(--border-1)}
+  .toc-row .n{font-weight:900;font-size:32px;color:var(--coral-500);letter-spacing:-0.02em}
+  .toc-row .t{font-size:30px;color:var(--navy-500);font-weight:700;letter-spacing:-0.01em}
+  .toc-row .d{font-size:14px;color:var(--fg-3);text-align:right;text-transform:uppercase;letter-spacing:0.14em;font-weight:700}
+
+  /* Stack/layers */
+  .stack{display:flex;flex-direction:column;gap:14px}
+  .layer{
+    display:flex;align-items:center;gap:24px;padding:24px 28px;border-radius:12px;border:1px solid var(--border-1);background:var(--bg-surface);
+    box-shadow:var(--shadow-md);
+  }
+  .layer .pip{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px;letter-spacing:0.05em}
+  .layer .ttl{font-size:24px;font-weight:900;color:var(--navy-500)}
+  .layer .sub{font-size:18px;color:var(--fg-2);font-weight:500;margin-top:4px}
+  .layer .meta{margin-left:auto;font-size:13px;color:var(--fg-3);font-weight:700;letter-spacing:0.1em;text-transform:uppercase}
+  .stack .down{text-align:center;color:var(--coral-500);font-size:24px;font-weight:900}
+
+  /* System map */
+  .system-map{display:flex;flex-direction:column;gap:18px;flex:1;min-height:0}
+  .system-map-grid{display:grid;grid-template-columns:1fr 92px 1fr 92px 1fr;gap:0;align-items:stretch;margin-top:6px;flex:1;min-height:0}
+  .system-node{
+    min-height:0;border-radius:20px;padding:24px 22px 20px;position:relative;
+    display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-lg);
+  }
+  .system-node.front{background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(237,240,245,0.96) 100%);border:1px solid var(--border-1)}
+  .system-node.core{background:var(--grad-deep-blue);color:#fff;border:1px solid rgba(255,255,255,0.08)}
+  .system-node.data{background:linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(229,242,251,0.88) 100%);border:1px solid var(--border-1)}
+  .system-node::before{content:"";position:absolute;left:0;top:0;right:0;height:6px;border-radius:20px 20px 0 0}
+  .system-node.front::before{background:var(--grad-navy)}
+  .system-node.core::before{background:linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 18%, #FF1D3D 18%, #FF1D3D 36%, #FFFFFF 36%, #FFFFFF 100%);opacity:0.9}
+  .system-node.data::before{background:var(--grad-red-fade)}
+  .system-node .node-kicker{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--royal-500)}
+  .system-node.core .node-kicker{color:var(--navy-100)}
+  .system-node .node-title{font-size:28px;line-height:1.02;font-weight:900;letter-spacing:-0.025em;color:var(--navy-500)}
+  .system-node.core .node-title{color:#fff}
+  .system-node .node-body{font-size:16px;line-height:1.38;color:var(--fg-2);margin:0;font-weight:500}
+  .system-node.core .node-body{color:var(--navy-100)}
+  .system-badges{display:flex;flex-wrap:wrap;gap:8px}
+  .stack-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.03em;border:1px solid var(--border-1);background:rgba(255,255,255,0.9);color:var(--navy-500)}
+  .system-node.core .stack-chip{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.18);color:#fff}
+  .stack-chip .mini{width:8px;height:8px;border-radius:50%;background:var(--royal-500)}
+  .system-node.core .stack-chip .mini{background:var(--coral-500)}
+  .system-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .system-list li{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35;color:var(--fg-2);font-weight:500}
+  .system-node.core .system-list li{color:#fff}
+  .system-list li::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--royal-500);margin-top:6px;flex:none}
+  .system-node.core .system-list li::before{background:var(--coral-500)}
+  .flow-connector{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 8px}
+  .flow-arrow{width:100%;height:10px;border-radius:999px;position:relative;background:linear-gradient(90deg, rgba(37,48,107,0.10) 0%, rgba(0,107,185,0.45) 50%, rgba(255,29,61,0.65) 100%);box-shadow:inset 0 0 0 1px rgba(37,48,107,0.08)}
+  .flow-arrow::after{content:"";position:absolute;right:-2px;top:50%;transform:translateY(-50%);border-left:14px solid var(--coral-500);border-top:8px solid transparent;border-bottom:8px solid transparent}
+  .flow-arrow.reverse{background:linear-gradient(90deg, rgba(255,29,61,0.65) 0%, rgba(0,107,185,0.45) 50%, rgba(37,48,107,0.10) 100%)}
+  .flow-arrow.reverse::after{left:-2px;right:auto;border-left:none;border-right:14px solid var(--royal-500)}
+  .flow-text{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-3);font-weight:700;text-align:center;line-height:1.3}
+  .storage-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
+  .storage-card{background:rgba(255,255,255,0.84);border:1px solid rgba(37,48,107,0.10);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:0}
+  .storage-card .ttl{font-size:15px;font-weight:900;color:var(--navy-500);letter-spacing:-0.02em}
+  .storage-card .sub{font-size:12px;line-height:1.35;color:var(--fg-2);font-weight:500}
+  .system-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:0}
+  .summary-card{background:rgba(255,255,255,0.92);border:1px solid var(--border-1);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .summary-card .k{font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--fg-3);font-weight:700}
+  .summary-card .v{font-size:16px;line-height:1.28;color:var(--navy-500);font-weight:900;margin-top:6px}
+
+  /* Numbers / stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border-1);border-bottom:1px solid var(--border-1);margin-top:36px;background:rgba(255,255,255,0.92);border-radius:12px;box-shadow:var(--shadow-md)}
+  .stat{padding:32px 28px;border-right:1px solid var(--border-1)}
+  .stat:last-child{border-right:none}
+  .stat .v{font-size:64px;line-height:1;color:var(--royal-500);font-weight:900;letter-spacing:-0.02em}
+  .stat .l{font-size:14px;color:var(--fg-3);letter-spacing:0.12em;text-transform:uppercase;margin-top:10px;font-weight:700}
+
+  /* Modules */
+  .modules{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:32px}
+  .module{background:rgba(255,255,255,0.96);border:1px solid var(--border-1);border-radius:12px;padding:28px;display:flex;flex-direction:column;gap:10px;min-height:240px;box-shadow:var(--shadow-md);border-top:3px solid var(--royal-500)}
+  .module.coral{border-top-color:var(--coral-500)}
+  .module .ico{
+    width:52px;height:52px;border-radius:12px;background:var(--royal-50);
+    display:grid;place-items:center;font-size:22px;color:var(--royal-500);font-weight:900;
+  }
+  .module.coral .ico{background:var(--coral-50);color:var(--coral-500)}
+  .module h4{font-size:24px;margin:6px 0 0;color:var(--navy-500);font-weight:900;letter-spacing:-0.01em}
+  .module p{font-size:16px;color:var(--fg-2);margin:0;line-height:1.5;font-weight:500}
+
+  /* Comparison table */
+  .compare{width:100%;border-collapse:collapse;margin-top:24px;background:rgba(255,255,255,0.96);border:1px solid var(--border-1);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md)}
+  .compare th, .compare td{padding:18px 22px;text-align:left;font-size:18px;border-bottom:1px solid var(--border-1);vertical-align:top}
+  .compare th{background:var(--navy-500);color:#fff;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;font-weight:700}
+  .compare tr:last-child td{border-bottom:none}
+  .compare td.feat{font-weight:700;color:var(--navy-500);width:280px}
+  .compare .yes{color:#1F8A5B;font-weight:700}
+  .compare .no{color:var(--coral-600);font-weight:700}
+  .compare .neutral{color:var(--fg-2);font-weight:500}
+  .compare-slide .compare{margin-top:18px;table-layout:fixed}
+  .compare-slide .compare th,
+  .compare-slide .compare td{padding:14px 16px;font-size:16px;line-height:1.35}
+  .compare-slide .compare th{font-size:12px}
+  .compare-slide .compare td.feat{width:220px}
+  .compare-slide .compare th:nth-child(2),
+  .compare-slide .compare td:nth-child(2){width:31%}
+  .compare-slide .compare th:nth-child(3),
+  .compare-slide .compare td:nth-child(3){width:31%}
+  .compare-slide .sub{max-width:1320px}
+
+  /* Tools */
+  .tool-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:18px}
+  .tool{
+    background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;padding:24px;
+    display:flex;flex-direction:column;gap:8px;min-height:210px;box-shadow:var(--shadow-md);
+  }
+  .tool .glyph{
+    width:54px;height:54px;border-radius:12px;display:grid;place-items:center;
+    color:#fff;font-size:22px;font-weight:900;
+  }
+  .tool .role{font-size:13px;color:var(--fg-3);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-top:4px}
+  .tool .name{font-size:22px;font-weight:900;color:var(--navy-500);margin-top:auto;letter-spacing:-0.01em}
+  .tool p{font-size:15px;color:var(--fg-2);margin:0;line-height:1.45;font-weight:500}
+
+  /* Timeline */
+  .timeline{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:60px;position:relative}
+  .timeline::before{content:"";position:absolute;top:30px;left:30px;right:30px;height:2px;background:var(--border-1)}
+  .t-node{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding-right:24px;position:relative}
+  .t-dot{width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--royal-500);z-index:1;margin-top:20px}
+  .t-dot.done{background:var(--royal-500)}
+  .t-dot.now{background:var(--coral-500);border-color:var(--coral-500);box-shadow:0 0 0 6px var(--coral-50)}
+  .t-label{font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:var(--fg-3);font-weight:700;margin-top:8px}
+  .t-title{font-size:20px;color:var(--navy-500);font-weight:900;line-height:1.25;letter-spacing:-0.01em}
+  .t-body{font-size:15px;color:var(--fg-2);line-height:1.45;font-weight:500}
+
+  /* Lists */
+  ul.dots{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+  ul.dots li{font-size:19px;color:var(--fg-2);line-height:1.45;display:flex;gap:14px;align-items:flex-start;font-weight:500}
+  ul.dots li::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--royal-500);margin-top:11px;flex:none}
+
+  ul.checks{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+  ul.checks li{font-size:19px;color:var(--fg-2);line-height:1.45;display:flex;gap:14px;align-items:flex-start;font-weight:500}
+  ul.checks li::before{content:"✓";color:#1F8A5B;font-weight:900;font-size:22px;flex:none;width:22px;line-height:1.2}
+
+  /* Why grid */
+  .why-grid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:24px;flex:1}
+  .why{background:rgba(255,255,255,0.96);border:1px solid var(--border-1);border-radius:12px;padding:36px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--shadow-md);border-left:4px solid var(--royal-500)}
+  .why:nth-child(2){border-left-color:var(--coral-500)}
+  .why:nth-child(3){border-left-color:var(--navy-500)}
+  .why:nth-child(4){border-left-color:var(--royal-500)}
+  .why .top{display:flex;align-items:center;gap:16px}
+  .why .ico{width:48px;height:48px;border-radius:10px;background:var(--royal-50);display:grid;place-items:center;color:var(--royal-500);font-weight:900;font-size:20px}
+  .why h4{font-size:28px;margin:0;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em}
+  .why p{font-size:18px;line-height:1.5;color:var(--fg-2);margin:0;font-weight:500}
+
+  /* Quote */
+  .quote{
+    border-left:4px solid var(--coral-500);padding:6px 0 6px 28px;
+    font-size:34px;line-height:1.3;color:var(--navy-500);font-weight:700;max-width:1200px;letter-spacing:-0.01em;
+  }
+
+  /* Closing */
+  .closing{background:var(--grad-hero);color:#fff;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;padding:0}
+  .closing::before{content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size:80px 80px;
+  }
+  .closing::after{
+    content:"";position:absolute;width:480px;height:480px;border-radius:50%;
+    top:-160px;right:-160px;background:var(--coral-500);opacity:0.22;filter:blur(20px);
+  }
+  .closing > *{position:relative;z-index:1}
+  .closing-shell{display:grid;grid-template-columns:0.98fr 1.02fr;min-height:100%}
+  .closing-left{padding:110px 96px;display:flex;flex-direction:column;justify-content:space-between}
+  .closing-right{padding:96px;background:rgba(255,255,255,0.08);border-left:1px solid rgba(255,255,255,0.10);display:flex;flex-direction:column;justify-content:space-between}
+  .closing-top{display:flex;align-items:center;gap:18px}
+  .closing-top img{width:64px;height:64px;border-radius:50%}
+  .closing-org{font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#fff;font-weight:900;line-height:1.25}
+  .closing-org small{display:block;font-size:11px;font-weight:700;color:var(--navy-100);letter-spacing:0.16em}
+  .closing-kicker{font-size:14px;letter-spacing:0.18em;text-transform:uppercase;color:var(--navy-100);font-weight:700;margin-top:40px}
+  .closing h2{font-size:120px;line-height:0.95;font-weight:900;letter-spacing:-0.025em;color:#fff;margin:0}
+  .closing h2 b{font-weight:900;color:var(--coral-500)}
+  .closing p{color:var(--navy-100);font-size:26px;max-width:1300px;margin-top:30px;font-weight:500;line-height:1.5}
+  .closing .badge{font-size:18px;color:#fff;border:1px solid rgba(255,255,255,0.20);background:rgba(255,255,255,0.08);padding:14px 22px;border-radius:8px;display:inline-block;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;align-self:flex-start}
+  .closing-big{font-size:58px;line-height:1.04;font-weight:900;letter-spacing:-0.025em;color:#fff;max-width:720px}
+  .closing .row{display:flex;gap:40px;margin-top:50px;flex-wrap:wrap}
+  .closing .row .item{font-size:18px;color:#fff;display:flex;align-items:center;gap:14px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700}
+  .closing .row .item .b{width:8px;height:28px;background:var(--coral-500)}
+
+  @keyframes revealUp{
+    from{opacity:0;transform:translateY(24px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes revealScale{
+    from{opacity:0;transform:translateY(18px) scale(0.985)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+  .presentation-mode section.is-active .topbar,
+  .presentation-mode section.is-active .footer,
+  .presentation-mode section.is-active .section-cover .chapter-kicker,
+  .presentation-mode section.is-active .section-cover .chapter-title,
+  .presentation-mode section.is-active .section-cover .chapter-body,
+  .presentation-mode section.is-active .section-cover .chapter-stripe,
+  .presentation-mode section.is-active .cover .left,
+  .presentation-mode section.is-active .cover .right,
+  .presentation-mode section.is-active .closing-shell{
+    animation:revealUp 520ms var(--ease-emphasis) both;
+  }
+  .presentation-mode section.is-active .card,
+  .presentation-mode section.is-active .panel,
+  .presentation-mode section.is-active .module,
+  .presentation-mode section.is-active .tool,
+  .presentation-mode section.is-active .value-card,
+  .presentation-mode section.is-active .why,
+  .presentation-mode section.is-active .layer,
+  .presentation-mode section.is-active .stat,
+  .presentation-mode section.is-active .toc-row,
+  .presentation-mode section.is-active .t-node,
+  .presentation-mode section.is-active .chapter-banner{
+    animation:revealScale 480ms var(--ease-standard) both;
+  }
+  .presentation-mode section.is-active .grid-4 > *:nth-child(1),
+  .presentation-mode section.is-active .grid-3 > *:nth-child(1),
+  .presentation-mode section.is-active .grid-2 > *:nth-child(1),
+  .presentation-mode section.is-active .modules > *:nth-child(1),
+  .presentation-mode section.is-active .tool-row > *:nth-child(1),
+  .presentation-mode section.is-active .value-grid > *:nth-child(1),
+  .presentation-mode section.is-active .timeline > *:nth-child(1),
+  .presentation-mode section.is-active .stats > *:nth-child(1){animation-delay:80ms}
+  .presentation-mode section.is-active .grid-4 > *:nth-child(2),
+  .presentation-mode section.is-active .grid-3 > *:nth-child(2),
+  .presentation-mode section.is-active .grid-2 > *:nth-child(2),
+  .presentation-mode section.is-active .modules > *:nth-child(2),
+  .presentation-mode section.is-active .tool-row > *:nth-child(2),
+  .presentation-mode section.is-active .value-grid > *:nth-child(2),
+  .presentation-mode section.is-active .timeline > *:nth-child(2),
+  .presentation-mode section.is-active .stats > *:nth-child(2){animation-delay:140ms}
+  .presentation-mode section.is-active .grid-4 > *:nth-child(3),
+  .presentation-mode section.is-active .grid-3 > *:nth-child(3),
+  .presentation-mode section.is-active .modules > *:nth-child(3),
+  .presentation-mode section.is-active .tool-row > *:nth-child(3),
+  .presentation-mode section.is-active .value-grid > *:nth-child(3),
+  .presentation-mode section.is-active .timeline > *:nth-child(3),
+  .presentation-mode section.is-active .stats > *:nth-child(3){animation-delay:200ms}
+  .presentation-mode section.is-active .grid-4 > *:nth-child(4),
+  .presentation-mode section.is-active .tool-row > *:nth-child(4),
+  .presentation-mode section.is-active .timeline > *:nth-child(4),
+  .presentation-mode section.is-active .stats > *:nth-child(4){animation-delay:260ms}
+  .presentation-mode section.is-active .grid-4 > *:nth-child(5),
+  .presentation-mode section.is-active .timeline > *:nth-child(5){animation-delay:320ms}
+  .presentation-mode section.is-active .grid-4 > *:nth-child(6),
+  .presentation-mode section.is-active .timeline > *:nth-child(6){animation-delay:380ms}
+
+  @media (max-width: 1200px){
+    deck-stage{--stage-pad-x:20px;--stage-pad-y:24px}
+  }
+  @media (max-width: 1440px){
+    .deck-agenda{display:none}
+  }
+
+  /* Sec heads with rule */
+  .section-head{display:flex;align-items:flex-end;gap:36px;justify-content:space-between}
+  .section-head .num-mark{font-size:160px;font-weight:900;color:var(--royal-50);line-height:0.9;letter-spacing:-0.04em}
+
+  .mt-l{margin-top:48px}
+  .mt-m{margin-top:28px}
+
+</style>
+</head>
+<body>
+<deck-stage>
+
+<!-- SLIDE 1 — Cover -->
+<section data-screen-label="01 Portada" class="cover">
+  <div class="left">
+    <div class="top">
+      <img src="../public/SLEPCOLCHAGUA.webp" alt="SLEP Colchagua" />
+      <div class="org">SERVICIO LOCAL DE<br/>EDUCACIÓN PÚBLICA<br/><small>Colchagua</small></div>
+    </div>
+    <h1>Portal de<br/><b>Planificación.</b></h1>
+    <div>
+      <div class="meta">Sistema de Control de Gestión Institucional</div>
+      <div class="meta" style="margin-top:8px;color:var(--royal-500)">Documento ejecutivo · Mayo 2026</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="ribbon"><span class="bar"></span> SLEP · Colchagua</div>
+    <div class="hero-copy">
+      <div class="badge">Una sola plataforma institucional</div>
+      <div class="big">
+        Ordenar instrumentos,<br/>seguir avances<br/>y decidir <br/>con evidencia.
+      </div>
+    </div>
+    <div class="cover-tail">
+      Gestión · Trazabilidad · Coordinación
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 2 — Índice -->
+<section data-screen-label="02 Índice">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>Índice</div></div>
+  <div style="margin-top:80px">
+    <div class="eyebrow-lg">Contenido</div>
+    <h2 class="title" style="margin-top:18px">¿De qué <b>vamos a hablar</b>?</h2>
+  </div>
+  <div class="toc">
+    <div class="toc-row"><div class="n">01</div><div class="t">Qué problema vinimos a resolver</div><div class="d">Contexto</div></div>
+    <div class="toc-row"><div class="n">02</div><div class="t">Objetivos del portal</div><div class="d">Para qué</div></div>
+    <div class="toc-row"><div class="n">03</div><div class="t">Cómo se estructura y se conecta</div><div class="d">Arquitectura</div></div>
+    <div class="toc-row"><div class="n">04</div><div class="t">Decisiones técnicas y por qué</div><div class="d">Decisiones</div></div>
+    <div class="toc-row"><div class="n">05</div><div class="t">Herramientas de desarrollo</div><div class="d">Cómo lo construimos</div></div>
+    <div class="toc-row"><div class="n">06</div><div class="t">Despliegue y operación</div><div class="d">Cómo se publica</div></div>
+    <div class="toc-row"><div class="n">07</div><div class="t">Estado actual y próximos pasos</div><div class="d">Hoy / mañana</div></div>
+  </div>
+  <div class="footer"><div class="accent">SLEP Colchagua</div><div>02 / 18</div></div>
+</section>
+
+<!-- SLIDE 3 — Capítulo 1 -->
+<section data-screen-label="03 Capítulo · Contexto" class="section-cover">
+  <div class="chapter-kicker">Capítulo 1 · Contexto y urgencia</div>
+  <div class="chapter-mark">01</div>
+  <div class="chapter-title">El problema ya existía. <em>Faltaba una sola plataforma</em> para gobernarlo.</div>
+  <div class="chapter-body">Pasar de planillas dispersas a una visión institucional compartida no es un lujo visual: es una condición para decidir, coordinar y rendir cuentas a tiempo.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>03 / 23</div></div>
+</section>
+
+<!-- SLIDE 3 — Problema -->
+<section data-screen-label="04 Problema">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>01 · Contexto</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">01 · Punto de partida</div>
+    <h2 class="title" style="margin-top:18px">El seguimiento institucional vivía<br/><b>repartido en planillas</b> sueltas.</h2>
+  </div>
+  <div class="split mt-l">
+    <div class="panel">
+      <div class="h-label">Antes del portal</div>
+      <ul class="dots" style="margin-top:8px">
+        <li>Instrumentos institucionales dispersos en varios Excel y carpetas.</li>
+        <li>Avances cargados a mano, sin trazabilidad por corte.</li>
+        <li>Difícil saber, en un día cualquiera, el cumplimiento real.</li>
+        <li>Aprobaciones, observaciones y evidencias por correo.</li>
+        <li>El reporte ejecutivo se rearmaba cada vez desde cero.</li>
+      </ul>
+    </div>
+    <div class="panel dark">
+      <div class="h-label">Lo que necesitábamos</div>
+      <div class="quote">
+        Un solo lugar donde cargar, revisar y comunicar el avance de los instrumentos del servicio.
+      </div>
+      <div style="margin-top:auto;display:flex;gap:12px;flex-wrap:wrap">
+        <span class="pill" style="background:transparent;color:#fff;border-color:rgba(255,255,255,0.25)"><span class="d" style="background:var(--coral-500)"></span> Centralizado</span>
+        <span class="pill" style="background:transparent;color:#fff;border-color:rgba(255,255,255,0.25)"><span class="d" style="background:#fff"></span> Trazable</span>
+        <span class="pill" style="background:transparent;color:#fff;border-color:rgba(255,255,255,0.25)"><span class="d" style="background:var(--royal-300)"></span> Visual</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Diagnóstico previo</div><div>03 / 18</div></div>
+</section>
+
+<!-- SLIDE 4 — Objetivos -->
+<section data-screen-label="05 Objetivos">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>02 · Objetivos</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">02 · Objetivos del portal</div>
+    <h2 class="title" style="margin-top:18px">Para qué <b>existe</b> esta plataforma.</h2>
+    <h3 class="sub" style="margin-top:24px">Cuatro propósitos guían cada módulo del portal.</h3>
+  </div>
+  <div class="why-grid mt-l">
+    <div class="why">
+      <div class="top"><div class="ico">1</div><h4>Centralizar instrumentos</h4></div>
+      <p>Concentrar en un solo lugar los instrumentos institucionales del SLEP y todos sus indicadores.</p>
+    </div>
+    <div class="why">
+      <div class="top"><div class="ico">2</div><h4>Registrar avances por corte</h4></div>
+      <p>Que cada responsable pueda cargar su avance de manera ordenada, con fecha de corte y evidencia.</p>
+    </div>
+    <div class="why">
+      <div class="top"><div class="ico">3</div><h4>Visualizar cumplimiento</h4></div>
+      <p>Mostrar el estado del servicio con semáforos, porcentajes y un dashboard ejecutivo, sin armar reportes a mano.</p>
+    </div>
+    <div class="why">
+      <div class="top"><div class="ico">4</div><h4>Aprobar u observar</h4></div>
+      <p>Permitir que la dirección revise y devuelva con observaciones, dejando la traza dentro del mismo sistema.</p>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Propósito del portal</div><div>04 / 18</div></div>
+</section>
+
+<!-- SLIDE 5 — Usuarios -->
+<section data-screen-label="06 Usuarios">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>02 · Roles</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">02 · A quién sirve</div>
+    <h2 class="title" style="margin-top:18px">Tres perfiles, <b>una sola fuente</b> de verdad.</h2>
+  </div>
+  <div class="modules" style="margin-top:50px">
+    <div class="module">
+      <div class="ico">A</div>
+      <h4>Administrador</h4>
+      <p>Configura instrumentos, indicadores, cortes y usuarios. Aprueba u observa avances. Vista total.</p>
+      <div class="tag" style="margin-top:auto">CRUD completo</div>
+    </div>
+    <div class="module">
+      <div class="ico">D</div>
+      <h4>Director ejecutivo</h4>
+      <p>Revisa avances, aprueba u observa, mira indicadores ejecutivos y el cumplimiento global del servicio.</p>
+      <div class="tag" style="margin-top:auto">Revisión y aprobación</div>
+    </div>
+    <div class="module">
+      <div class="ico">S</div>
+      <h4>Subdirector</h4>
+      <p>Carga avances de los indicadores de los que es responsable. Crea acciones operativas de su área.</p>
+      <div class="tag" style="margin-top:auto">Operación diaria</div>
+    </div>
+  </div>
+  <div class="mt-l" style="background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;padding:24px 30px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow-sm);border-left:4px solid var(--coral-500)">
+    <div style="font-size:20px;color:var(--fg-2);font-weight:500">Solo entra quien tenga correo institucional válido y esté autorizado en la hoja de usuarios.</div>
+    <div class="tag coral">Acceso controlado por correo</div>
+  </div>
+  <div class="footer"><div class="accent">Roles del sistema</div><div>05 / 18</div></div>
+</section>
+
+<!-- SLIDE 7 — Capítulo 2 -->
+<section data-screen-label="07 Capítulo · Solución" class="section-cover">
+  <div class="chapter-kicker">Capítulo 2 · Solución y decisión</div>
+  <div class="chapter-mark">02</div>
+  <div class="chapter-title">La solución no solo debía funcionar. <em>Debía calzar con la realidad del SLEP.</em></div>
+  <div class="chapter-body">Por eso la arquitectura, el dato y la operación se diseñaron dentro del ecosistema que el servicio ya conoce, administra y audita.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>07 / 23</div></div>
+</section>
+
+<!-- SLIDE 6 — Arquitectura -->
+<section data-screen-label="08 Arquitectura">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>03 · Estructura</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">03 · Cómo se estructura</div>
+    <h2 class="title" style="margin-top:18px">Tres capas que <b>conversan entre sí</b>.</h2>
+    <h3 class="sub" style="margin-top:18px">El usuario interactúa con una capa moderna, mientras el dato vive ordenado en el ecosistema Google del servicio.</h3>
+  </div>
+
+  <div class="stack mt-l">
+    <div class="layer">
+      <div class="pip" style="background:var(--navy-500)">UI</div>
+      <div>
+        <div class="ttl">Frontend · lo que ve el usuario</div>
+        <div class="sub">Pantallas, formularios, tablas y gráficos. Construido con React.</div>
+      </div>
+      <div class="meta">React · Tailwind · Recharts</div>
+    </div>
+    <div class="down">↓</div>
+    <div class="layer">
+      <div class="pip" style="background:var(--royal-500)">API</div>
+      <div>
+        <div class="ttl">Backend · reglas de negocio</div>
+        <div class="sub">Define quién puede ver, editar, aprobar y observar cada dato.</div>
+      </div>
+      <div class="meta">Google Apps Script (Web App)</div>
+    </div>
+    <div class="down">↓</div>
+    <div class="layer">
+      <div class="pip" style="background:var(--coral-500)">DB</div>
+      <div>
+        <div class="ttl">Datos · dónde queda guardado</div>
+        <div class="sub">Toda la información vive en hojas Google estructuradas. Evidencias en Drive.</div>
+      </div>
+      <div class="meta">Google Sheets · Drive</div>
+    </div>
+  </div>
+
+  <div class="footer"><div class="accent">Arquitectura de tres capas</div><div>06 / 18</div></div>
+</section>
+
+<!-- SLIDE 7 — Módulos -->
+<section data-screen-label="09 Mapa del sistema">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>03 · Mapa del sistema</div></div>
+  <div style="margin-top:48px">
+    <div class="eyebrow-lg">03 · Cómo se conecta todo</div>
+  </div>
+
+  <div class="system-map">
+    <div class="system-map-grid">
+      <div class="system-node front">
+        <div class="node-kicker">Capa 1 · Frontend</div>
+        <div class="node-title">Lo que ve y usa el equipo</div>
+        <p class="node-body">Pantallas y formularios donde el equipo inicia sesión, consulta y carga avances.</p>
+        <div class="system-badges">
+          <span class="stack-chip"><span class="mini"></span>React</span>
+          <span class="stack-chip"><span class="mini"></span>Tailwind CSS</span>
+          <span class="stack-chip"><span class="mini"></span>React Query</span>
+          <span class="stack-chip"><span class="mini"></span>Recharts</span>
+        </div>
+        <ul class="system-list">
+          <li>Login con cuenta institucional Google.</li>
+          <li>Validación en pantalla antes de enviar.</li>
+          <li>Dashboard, cortes y seguimiento por rol.</li>
+        </ul>
+      </div>
+
+      <div class="flow-connector">
+        <div class="flow-text">Solicitud<br/>autenticada</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-text">Respuesta<br/>lista para mostrar</div>
+        <div class="flow-arrow reverse"></div>
+      </div>
+
+      <div class="system-node core">
+        <div class="node-kicker">Capa 2 · Backend</div>
+        <div class="node-title">La capa que piensa antes de guardar</div>
+        <p class="node-body">Recibe cada solicitud, identifica al usuario y aplica reglas antes de leer o guardar.</p>
+        <div class="system-badges">
+          <span class="stack-chip"><span class="mini"></span>Google Apps Script</span>
+          <span class="stack-chip"><span class="mini"></span>OAuth Google</span>
+          <span class="stack-chip"><span class="mini"></span>Router Web App</span>
+          <span class="stack-chip"><span class="mini"></span>Caché</span>
+        </div>
+        <ul class="system-list">
+          <li>Valida token, correo institucional y rol del usuario.</li>
+          <li>Controla permisos según perfil.</li>
+          <li>Calcula estados, porcentajes y aprobaciones.</li>
+        </ul>
+      </div>
+
+      <div class="flow-connector">
+        <div class="flow-text">Lectura y<br/>escritura</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-text">Datos y<br/>evidencias</div>
+        <div class="flow-arrow reverse"></div>
+      </div>
+
+      <div class="system-node data">
+        <div class="node-kicker">Capa 3 · Datos</div>
+        <div class="node-title">Dónde vive la información institucional</div>
+        <p class="node-body">El dato no sale del ecosistema del servicio: se ordena en Sheets y se respalda en Drive.</p>
+        <div class="system-badges">
+          <span class="stack-chip"><span class="mini"></span>Google Sheets</span>
+          <span class="stack-chip"><span class="mini"></span>Google Drive</span>
+        </div>
+        <div class="storage-grid">
+          <div class="storage-card">
+            <div class="ttl">Sheets</div>
+            <div class="sub">Base visible del sistema: usuarios, instrumentos, indicadores, cortes y avances.</div>
+          </div>
+          <div class="storage-card">
+            <div class="ttl">Drive</div>
+            <div class="sub">Guarda evidencias y archivos de respaldo del seguimiento institucional.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="system-summary">
+      <div class="summary-card">
+        <div class="k">Entrada</div>
+        <div class="v">El usuario interactúa desde el portal y envía una solicitud autenticada.</div>
+      </div>
+      <div class="summary-card">
+        <div class="k">Decisión</div>
+        <div class="v">Apps Script interpreta la acción y aplica permisos, reglas y validaciones.</div>
+      </div>
+      <div class="summary-card">
+        <div class="k">Salida</div>
+        <div class="v">La información queda guardada en Sheets o Drive y vuelve al portal lista para mostrarse.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer"><div class="accent">Diagrama general del sistema</div><div>07 / 18</div></div>
+</section>
+
+<section data-screen-label="10 Módulos">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>03 · Módulos</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">03 · Lo que hace el portal</div>
+    <h2 class="title" style="margin-top:18px">Seis módulos <b>conectados</b> entre sí.</h2>
+  </div>
+  <div class="modules" style="margin-top:42px">
+    <div class="module">
+      <div class="ico">◐</div>
+      <h4>Dashboard</h4>
+      <p>Tarjetas por instrumento, KPIs ejecutivos, semáforos, comparativa y próximos cortes.</p>
+    </div>
+    <div class="module">
+      <div class="ico">≡</div>
+      <h4>Indicadores</h4>
+      <p>Vista global de indicadores con filtros por tipo, responsable e instrumento.</p>
+    </div>
+    <div class="module">
+      <div class="ico">▦</div>
+      <h4>Instrumento detalle</h4>
+      <p>Tabla por corte con avances, aprobación y observaciones del director ejecutivo.</p>
+    </div>
+    <div class="module">
+      <div class="ico">↑</div>
+      <h4>Ingreso de avance</h4>
+      <p>Formulario que calcula porcentaje y semáforo en vivo, con validaciones de negocio.</p>
+    </div>
+    <div class="module">
+      <div class="ico">▤</div>
+      <h4>Gantt anual</h4>
+      <p>Calendario de cortes por instrumento, con métricas por corte y plazos resaltados.</p>
+    </div>
+    <div class="module coral">
+      <div class="ico">●</div>
+      <h4>Acciones</h4>
+      <p>Capa operativa por indicador: tareas, evidencias y bitácora del equipo responsable.</p>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Módulos activos</div><div>07 / 18</div></div>
+</section>
+
+<!-- SLIDE 8 — Por qué Apps Script -->
+<section data-screen-label="11 Decisión Apps Script">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>04 · Decisiones</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">04 · La decisión clave</div>
+    <h2 class="title" style="margin-top:18px">Por qué Google Apps Script<br/>y <b>no una base de datos</b> tradicional.</h2>
+  </div>
+  <div class="split mt-l">
+    <div class="panel">
+      <div class="h-label">La pregunta</div>
+      <div style="font-size:24px;color:var(--fg-2);line-height:1.45;font-weight:500">
+        ¿Construimos un backend propio con una base de datos y servidor pagado, o aprovechamos el ecosistema Google que ya usa el SLEP a diario?
+      </div>
+      <div class="mt-m" style="display:flex;flex-direction:column;gap:12px">
+        <div class="pill"><span class="d" style="background:var(--coral-500)"></span> Costo cero en backend y base de datos</div>
+        <div class="pill"><span class="d" style="background:var(--royal-500)"></span> Vive dentro del Workspace institucional</div>
+        <div class="pill"><span class="d" style="background:var(--navy-500)"></span> Autenticación con la cuenta del servicio</div>
+        <div class="pill"><span class="d" style="background:var(--royal-300)"></span> Datos auditables y exportables</div>
+      </div>
+    </div>
+    <div class="panel dark">
+      <div class="h-label">La respuesta</div>
+      <div style="font-size:46px;line-height:1.1;color:#fff;font-weight:900;letter-spacing:-0.02em">
+        Quedarnos dentro del ecosistema <em style="color:var(--coral-500);font-style:normal">Google</em> del SLEP, sin sumar costos ni dependencias externas.
+      </div>
+      <div class="mt-m" style="font-size:19px;color:var(--navy-100);line-height:1.5;font-weight:500">
+        Apps Script publica una <em>Web App</em> que actúa como API. Google Sheets cumple el rol de base de datos: cada hoja es una tabla con su propio esquema.
+      </div>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Decisión técnica fundacional</div><div>08 / 18</div></div>
+</section>
+
+<!-- SLIDE 9 — Comparación -->
+<section data-screen-label="12 Comparación" class="compare-slide">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>04 · Stack</div></div>
+  <div style="margin-top:58px">
+    <div class="eyebrow-lg">04 · Qué ganamos, qué resignamos</div>
+    <h2 class="title" style="margin-top:14px;font-size:74px;line-height:1.02">Apps Script + Sheets<br/><b>vs. base de datos</b> tradicional.</h2>
+    <h3 class="sub" style="margin-top:14px;font-size:24px">Comparación ejecutiva de costo, operación, trazabilidad y escalabilidad para el contexto real del SLEP.</h3>
+  </div>
+  <table class="compare">
+    <thead>
+      <tr>
+        <th>Criterio</th>
+        <th>Apps Script + Sheets <span style="color:var(--coral-500)">(elegido)</span></th>
+        <th>Base de datos tradicional</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="feat">Costo mensual</td><td class="yes">Gratuito dentro del Workspace</td><td class="no">Servidor + base de datos pagados</td></tr>
+      <tr><td class="feat">Ecosistema</td><td class="yes">Dentro del entorno institucional Google</td><td class="neutral">Servicio externo separado</td></tr>
+      <tr><td class="feat">Autenticación</td><td class="yes">Cuenta institucional ya existente</td><td class="neutral">Usuarios y contraseñas a gestionar aparte</td></tr>
+      <tr><td class="feat">Datos visibles</td><td class="yes">Sheets se leen y exportan como planilla</td><td class="no">Requiere herramientas adicionales</td></tr>
+      <tr><td class="feat">Mantenimiento</td><td class="yes">Sin servidores que administrar</td><td class="no">Requiere monitoreo y respaldos propios</td></tr>
+      <tr><td class="feat">Velocidad de cambios</td><td class="yes">Despliegue rápido desde el mismo proyecto</td><td class="neutral">Pipeline adicional de despliegue</td></tr>
+      <tr><td class="feat">Volumen muy alto</td><td class="neutral">Bueno hasta cierto volumen</td><td class="yes">Mejor a escala masiva</td></tr>
+    </tbody>
+  </table>
+  <div class="footer"><div class="accent">Análisis de alternativas</div><div>09 / 18</div></div>
+</section>
+
+<!-- SLIDE 13 — Calce institucional -->
+<section data-screen-label="13 Calce institucional">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>04 · Calce institucional</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">04 · Por qué esta solución sí calza con el SLEP</div>
+    <h2 class="title" style="margin-top:18px">No es solo una herramienta técnica. <b>Es una decisión institucional.</b></h2>
+    <h3 class="sub" style="margin-top:18px">La plataforma se diseñó para convivir con la operación real del servicio, no para exigir un cambio cultural imposible.</h3>
+  </div>
+  <div class="value-grid">
+    <div class="value-card">
+      <div class="num">01 · Ecosistema conocido</div>
+      <h4>Vive dentro del Workspace que el servicio ya usa.</h4>
+      <p>No obliga a introducir un proveedor nuevo, ni una operación paralela de usuarios, respaldos o permisos fuera del entorno institucional.</p>
+      <div class="tail">Google Workspace · Continuidad operativa</div>
+    </div>
+    <div class="value-card">
+      <div class="num">02 · Costo responsable</div>
+      <h4>Resuelve una necesidad pública sin sumar infraestructura pagada.</h4>
+      <p>La decisión técnica cuida recursos, evita dependencia externa y mantiene el foco en gestión, seguimiento y mejora del servicio.</p>
+      <div class="tail">Costo marginal cero · Sostenibilidad</div>
+    </div>
+    <div class="value-card">
+      <div class="num">03 · Trazabilidad útil</div>
+      <h4>El dato sigue siendo visible, exportable y auditable.</h4>
+      <p>La información no se encierra en una caja negra: queda disponible para control interno, revisión directiva y trabajo cotidiano de las áreas.</p>
+      <div class="tail">Gobernanza del dato · Transparencia</div>
+    </div>
+  </div>
+  <div class="chapter-banner">
+    <div class="copy">La solución calza con el SLEP porque respeta su operación, su entorno tecnológico y la forma en que necesita rendir cuentas.</div>
+    <div class="tag">Calce institucional</div>
+  </div>
+  <div class="footer"><div class="accent">Criterio de diseño</div><div>13 / 24</div></div>
+</section>
+
+<!-- SLIDE 10 — Flujo de datos -->
+<section data-screen-label="14 Flujo de datos">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>04 · Flujo</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">04 · Cómo viaja un dato</div>
+    <h2 class="title" style="margin-top:18px">De un clic del usuario,<br/>a una <b>fila en la planilla</b>.</h2>
+  </div>
+
+  <div class="grid-4" style="margin-top:50px;align-items:stretch">
+    <div class="card accent">
+      <div class="tag">1 · Usuario</div>
+      <div style="font-size:24px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Inicia sesión</div>
+      <p class="body">Ingresa con su cuenta institucional y carga un avance desde el formulario.</p>
+      <div style="color:var(--fg-3);font-size:13px;margin-top:auto;text-transform:uppercase;letter-spacing:0.1em;font-weight:700">Browser · React</div>
+    </div>
+    <div class="card accent">
+      <div class="tag">2 · Frontend</div>
+      <div style="font-size:24px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Llama al backend</div>
+      <p class="body">Valida en pantalla y llama al backend mediante una función central llamada callApi().</p>
+      <div style="color:var(--fg-3);font-size:13px;margin-top:auto;text-transform:uppercase;letter-spacing:0.1em;font-weight:700">React Query · hooks</div>
+    </div>
+    <div class="card accent">
+      <div class="tag">3 · Apps Script</div>
+      <div style="font-size:24px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Aplica las reglas</div>
+      <p class="body">Verifica el token, revisa el rol, aplica reglas de negocio y decide qué hacer.</p>
+      <div style="color:var(--fg-3);font-size:13px;margin-top:auto;text-transform:uppercase;letter-spacing:0.1em;font-weight:700">Web App · enrutador</div>
+    </div>
+    <div class="card coral">
+      <div class="tag coral">4 · Sheets / Drive</div>
+      <div style="font-size:24px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Guarda el dato</div>
+      <p class="body">Escribe la fila en la hoja correspondiente y guarda evidencias en Drive.</p>
+      <div style="color:var(--fg-3);font-size:13px;margin-top:auto;text-transform:uppercase;letter-spacing:0.1em;font-weight:700">Planillas · carpetas</div>
+    </div>
+  </div>
+
+  <div class="grid-2 mt-l">
+    <div class="card">
+      <div class="h-label">Seguridad de acceso</div>
+      <p class="body" style="font-size:19px">Cada llamada incluye el token Google del usuario. El backend rechaza correos no autorizados o roles que no corresponden a la acción.</p>
+    </div>
+    <div class="card">
+      <div class="h-label">Velocidad</div>
+      <p class="body" style="font-size:19px">El backend guarda en caché las lecturas frecuentes (dashboard, gantt, indicadores) para responder rápido sin recalcular todo.</p>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Flujo de una solicitud</div><div>10 / 18</div></div>
+</section>
+
+<!-- SLIDE 11 — Stack -->
+<section data-screen-label="15 Stack">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>04 · Tecnologías</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">04 · Tecnologías que componen el portal</div>
+    <h2 class="title" style="margin-top:18px">El stack, <b>en lenguaje claro</b>.</h2>
+  </div>
+
+  <div style="margin-top:42px">
+    <div class="h-label">Frontend · lo que se ve</div>
+    <div class="tool-row">
+      <div class="tool"><div class="glyph" style="background:var(--royal-500)">R</div><div class="role">Librería de interfaz</div><p>Construye las pantallas y reacciona a lo que el usuario hace.</p><div class="name">React</div></div>
+      <div class="tool"><div class="glyph" style="background:var(--royal-700)">≋</div><div class="role">Estilos visuales</div><p>Define apariencia, espaciado y colores de forma consistente.</p><div class="name">Tailwind CSS</div></div>
+      <div class="tool"><div class="glyph" style="background:var(--navy-500)">Q</div><div class="role">Manejo de datos</div><p>Coordina las llamadas al backend y mantiene la UI fresca.</p><div class="name">React Query</div></div>
+      <div class="tool"><div class="glyph" style="background:var(--coral-500)">▮</div><div class="role">Gráficos del dashboard</div><p>Dibuja los gráficos comparativos y de cumplimiento.</p><div class="name">Recharts</div></div>
+    </div>
+  </div>
+
+  <div style="margin-top:34px">
+    <div class="h-label">Backend, datos y autenticación · el ecosistema Google</div>
+    <div class="tool-row">
+      <div class="tool"><div class="glyph" style="background:var(--navy-500)">{ }</div><div class="role">Backend (Web App)</div><p>Aplica reglas y conecta el frontend con los datos.</p><div class="name">Google Apps Script</div></div>
+      <div class="tool"><div class="glyph" style="background:#1F8A5B">▤</div><div class="role">Base de datos</div><p>Cada hoja funciona como tabla del sistema.</p><div class="name">Google Sheets</div></div>
+      <div class="tool"><div class="glyph" style="background:#C77A00">◐</div><div class="role">Evidencias / archivos</div><p>Guarda los respaldos cargados por los responsables.</p><div class="name">Google Drive</div></div>
+      <div class="tool"><div class="glyph" style="background:var(--royal-500)">G</div><div class="role">Inicio de sesión</div><p>Login con cuenta institucional del servicio.</p><div class="name">Google OAuth</div></div>
+    </div>
+  </div>
+
+  <div class="footer"><div class="accent">Stack tecnológico</div><div>11 / 18</div></div>
+</section>
+
+<!-- SLIDE 12 — Herramientas -->
+<section data-screen-label="16 Herramientas">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>05 · Herramientas</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">05 · Cómo se construye día a día</div>
+    <h2 class="title" style="margin-top:18px">El <b>taller</b> del portal.</h2>
+    <h3 class="sub" style="margin-top:18px">Herramientas que el equipo usa para escribir, revisar y guardar el código del sistema.</h3>
+  </div>
+
+  <div class="grid-4" style="margin-top:42px">
+    <div class="card">
+      <div class="glyph" style="background:var(--royal-500);width:54px;height:54px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px">VS</div>
+      <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:10px;letter-spacing:-0.01em">Visual Studio Code</div>
+      <div class="h-label alt">Editor de código</div>
+      <p class="body" style="font-size:17px">Donde se escribe, navega y prueba el código del portal. Liviano, gratuito y estándar de la industria.</p>
+    </div>
+    <div class="card">
+      <div class="glyph" style="background:var(--navy-500);width:54px;height:54px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:22px">✦</div>
+      <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:10px;letter-spacing:-0.01em">GitHub Copilot</div>
+      <div class="h-label alt">Asistente de IA en el editor</div>
+      <p class="body" style="font-size:17px">Sugiere y completa código dentro de VS Code. Acelera tareas repetitivas y mantiene consistencia.</p>
+    </div>
+    <div class="card">
+      <div class="glyph" style="background:var(--coral-500);width:54px;height:54px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:22px">⟡</div>
+      <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:10px;letter-spacing:-0.01em">Claude Code</div>
+      <div class="h-label alt">Asistente de IA conversacional</div>
+      <p class="body" style="font-size:17px">Apoyo para razonar, refactorizar y revisar piezas más complejas del backend y la UI.</p>
+    </div>
+    <div class="card">
+      <div class="glyph" style="background:var(--navy-700);width:54px;height:54px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:22px">◉</div>
+      <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:10px;letter-spacing:-0.01em">GitHub</div>
+      <div class="h-label alt">Repositorio del proyecto</div>
+      <p class="body" style="font-size:17px">Almacena el historial de cambios. Permite trabajar ordenadamente, revertir errores y conectar con el despliegue.</p>
+    </div>
+  </div>
+
+  <div class="mt-l" style="background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;padding:24px 30px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow-sm);border-left:4px solid var(--coral-500)">
+    <div style="font-size:20px;color:var(--fg-2);font-weight:500">Todas las herramientas anteriores son <b style="color:var(--navy-500);font-weight:900">gratuitas o ya licenciadas</b> para el equipo, sin sumar nuevos costos al servicio.</div>
+    <div class="tag coral">Costo marginal: $0</div>
+  </div>
+
+  <div class="footer"><div class="accent">Herramientas de trabajo</div><div>12 / 18</div></div>
+</section>
+
+<!-- SLIDE 16 — Capítulo 3 -->
+<section data-screen-label="17 Capítulo · Operación" class="section-cover">
+  <div class="chapter-kicker">Capítulo 3 · Operación y próximos pasos</div>
+  <div class="chapter-mark">03</div>
+  <div class="chapter-title">La pregunta final ya no es si se puede construir. <em>Es cómo instalar su uso.</em></div>
+  <div class="chapter-body">Publicar el portal es el inicio. El siguiente valor viene de incorporarlo a la rutina institucional, a los cortes y a la conversación ejecutiva.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>16 / 23</div></div>
+</section>
+
+<!-- SLIDE 13 — Despliegue -->
+<section data-screen-label="18 Flujo de despliegue">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>06 · Operación</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">06 · Del editor al usuario</div>
+    <h2 class="title" style="margin-top:18px">Cómo viaja un cambio<br/>desde el equipo <b>hasta producción</b>.</h2>
+  </div>
+
+  <div class="timeline" style="margin-top:70px">
+    <div class="t-node">
+      <div class="t-dot done"></div>
+      <div class="t-label">Paso 1</div>
+      <div class="t-title">Escribir el cambio</div>
+      <div class="t-body">El equipo trabaja en VS Code con apoyo de Copilot y Claude Code.</div>
+    </div>
+    <div class="t-node">
+      <div class="t-dot done"></div>
+      <div class="t-label">Paso 2</div>
+      <div class="t-title">Subir a GitHub</div>
+      <div class="t-body">Cada cambio relevante queda registrado en el repositorio con su historial.</div>
+    </div>
+    <div class="t-node">
+      <div class="t-dot done"></div>
+      <div class="t-label">Paso 3</div>
+      <div class="t-title">Vercel publica</div>
+      <div class="t-body">Vercel toma el código de GitHub y publica automáticamente la nueva versión del frontend.</div>
+    </div>
+    <div class="t-node">
+      <div class="t-dot now"></div>
+      <div class="t-label">Paso 4</div>
+      <div class="t-title">Backend en Apps Script</div>
+      <div class="t-body">Los cambios del backend se copian al proyecto Apps Script y se vuelve a publicar la Web App.</div>
+    </div>
+    <div class="t-node">
+      <div class="t-dot"></div>
+      <div class="t-label">Paso 5</div>
+      <div class="t-title">Validar en ambiente real</div>
+      <div class="t-body">Se revisa con usuarios clave que el cambio funciona como se esperaba.</div>
+    </div>
+    <div class="t-node">
+      <div class="t-dot"></div>
+      <div class="t-label">Paso 6</div>
+      <div class="t-title">Comunicar</div>
+      <div class="t-body">Se informa al equipo qué cambió y cómo afecta su operación diaria.</div>
+    </div>
+  </div>
+
+  <div class="footer"><div class="accent">Pipeline de despliegue</div><div>13 / 18</div></div>
+</section>
+
+<!-- SLIDE 14 — Vercel -->
+<section data-screen-label="19 Vercel">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>06 · Vercel</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">06 · Por qué Vercel</div>
+    <h2 class="title" style="margin-top:18px">El portal se publica<br/>en <b>Vercel</b>, conectado a GitHub.</h2>
+  </div>
+
+  <div class="split mt-l">
+    <div class="panel">
+      <div class="h-label">Cómo funciona</div>
+      <ul class="dots" style="margin-top:8px">
+        <li>Vercel está conectado directamente al repositorio del portal en GitHub.</li>
+        <li>Cada vez que se sube un cambio, Vercel compila el sitio y lo deja disponible para el usuario final.</li>
+        <li>Si una versión presenta problemas, se puede volver a una anterior con un clic.</li>
+        <li>Permite previsualizar cambios antes de publicarlos al equipo completo.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="h-label">Qué ganamos</div>
+      <ul class="checks" style="margin-top:8px">
+        <li>Despliegue automático, sin pasos manuales propensos a error.</li>
+        <li>HTTPS y rendimiento global incluidos por defecto.</li>
+        <li>Plan gratuito alcanza para el uso institucional actual.</li>
+        <li>Conexión directa con el flujo de GitHub que ya usamos.</li>
+      </ul>
+      <div style="margin-top:auto;display:flex;gap:12px;flex-wrap:wrap">
+        <span class="pill"><span class="d" style="background:#1F8A5B"></span> Cero costo</span>
+        <span class="pill"><span class="d" style="background:var(--royal-500)"></span> Cero servidores</span>
+        <span class="pill"><span class="d" style="background:var(--coral-500)"></span> Rollback inmediato</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Plataforma de despliegue</div><div>14 / 18</div></div>
+</section>
+
+<!-- SLIDE 15 — Seguridad -->
+<section data-screen-label="20 Seguridad">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>06 · Seguridad</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">06 · Seguridad y datos</div>
+    <h2 class="title" style="margin-top:18px">El dato vive donde <b>ya estaba protegido</b>.</h2>
+  </div>
+
+  <div class="grid-3 mt-l">
+    <div class="card accent">
+      <div class="h-label">Identidad</div>
+      <div style="font-size:26px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Cuenta institucional</div>
+      <p class="body" style="font-size:18px">Solo entran correos del dominio del SLEP autorizados explícitamente en la hoja de usuarios.</p>
+    </div>
+    <div class="card accent">
+      <div class="h-label">Permisos</div>
+      <div style="font-size:26px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Roles diferenciados</div>
+      <p class="body" style="font-size:18px">Cada acción del backend verifica el rol del usuario antes de permitir crear, editar o aprobar.</p>
+    </div>
+    <div class="card coral">
+      <div class="h-label">Resguardo</div>
+      <div style="font-size:26px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em">Workspace Google</div>
+      <p class="body" style="font-size:18px">Los datos y archivos quedan en el entorno Google del servicio, con su respaldo, control y trazabilidad.</p>
+    </div>
+  </div>
+
+  <div class="mt-l" style="background:var(--grad-deep-blue);color:#fff;border-radius:12px;padding:36px 44px;display:flex;gap:40px;align-items:center;box-shadow:var(--shadow-md)">
+    <div style="font-size:40px;font-weight:900;line-height:1.15;flex:1;letter-spacing:-0.015em">
+      No movimos los datos del SLEP a un proveedor externo. Los <em style="color:var(--coral-500);font-style:normal">ordenamos</em> donde ya vivían.
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Modelo de seguridad</div><div>15 / 18</div></div>
+</section>
+
+<!-- SLIDE 16 — Estado actual -->
+<section data-screen-label="21 Estado actual">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>07 · Estado</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">07 · Estado actual</div>
+    <h2 class="title" style="margin-top:18px">Dónde estamos <b>hoy</b>.</h2>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v">4.5</div><div class="l">Fases completadas</div></div>
+    <div class="stat"><div class="v">6</div><div class="l">Módulos funcionales</div></div>
+    <div class="stat"><div class="v">3</div><div class="l">Roles institucionales</div></div>
+    <div class="stat"><div class="v" style="color:var(--coral-500)">$0</div><div class="l">Costo de infraestructura</div></div>
+  </div>
+
+  <div class="grid-2 mt-l">
+    <div class="panel">
+      <div class="h-label">Listo y operativo</div>
+      <ul class="checks" style="margin-top:8px">
+        <li>Login con cuenta Google institucional.</li>
+        <li>Dashboard ejecutivo con KPIs, semáforos y exportación.</li>
+        <li>Vista global de indicadores con filtros.</li>
+        <li>Carga, aprobación y observación de avances por corte.</li>
+        <li>Gantt anual con plazos resaltados.</li>
+        <li>Módulo Acciones con bitácora y evidencias en Drive.</li>
+        <li>Panel de administración para mantener instrumentos, indicadores y usuarios.</li>
+      </ul>
+    </div>
+    <div class="panel" style="background:var(--neutral-100)">
+      <div class="h-label">En camino</div>
+      <ul class="dots" style="margin-top:8px">
+        <li><b style="color:var(--navy-500)">Fase 5</b> — Correos automáticos de recordatorio antes de cada corte.</li>
+        <li><b style="color:var(--navy-500)">Fase 6</b> — Pruebas finales por rol y estabilización del despliegue.</li>
+        <li>Edición visual completa de acciones desde la interfaz.</li>
+        <li>Dominio personalizado del SLEP para el portal en producción.</li>
+        <li>Capacitación operativa al equipo del servicio.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer"><div class="accent">Foto de hoy</div><div>16 / 18</div></div>
+</section>
+
+<!-- SLIDE 21 — Qué cambia mañana -->
+<section data-screen-label="22 Qué cambia mañana">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>07 · Cambio operativo</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">07 · Qué cambia para el usuario desde mañana</div>
+    <h2 class="title" style="margin-top:18px">Menos búsqueda. Menos reconstrucción. <b>Más decisión con evidencia.</b></h2>
+    <h3 class="sub" style="margin-top:18px">El valor del portal no está solo en la pantalla: está en cómo cambia la rutina de trabajo del servicio.</h3>
+  </div>
+  <div class="value-grid">
+    <div class="value-card">
+      <div class="num">Responsables</div>
+      <h4>Cargan avances en un flujo único y trazable.</h4>
+      <p>Ya no dependen de correos, carpetas sueltas o planillas paralelas para dejar registro del avance de cada indicador.</p>
+      <div class="tail">Una carga · Un corte · Una traza</div>
+    </div>
+    <div class="value-card">
+      <div class="num">Dirección ejecutiva</div>
+      <h4>Revisa, observa y aprueba desde una vista consolidada.</h4>
+      <p>La conversación ya no parte preguntando dónde está el dato, sino usando el dato para priorizar, corregir y decidir.</p>
+      <div class="tail">Seguimiento ejecutivo · Aprobación</div>
+    </div>
+    <div class="value-card">
+      <div class="num">Servicio</div>
+      <h4>Llega a cada corte con información lista para comunicar.</h4>
+      <p>El reporte deja de reconstruirse desde cero y pasa a salir del mismo sistema que sostiene la operación diaria.</p>
+      <div class="tail">Cierre de corte · Comunicación</div>
+    </div>
+  </div>
+  <div class="chapter-banner">
+    <div class="copy">La mejora inmediata no es “tener otra plataforma”; es convertir el seguimiento en una práctica común, visible y repetible.</div>
+    <div class="tag">Impacto en uso</div>
+  </div>
+  <div class="footer"><div class="accent">Cambio operacional</div><div>21 / 23</div></div>
+</section>
+
+<!-- SLIDE 17 — En una línea -->
+<section data-screen-label="23 En una línea">
+  <div class="topbar"><div class="brand"><img src="public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div><div>Síntesis</div></div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">En una línea</div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;margin-top:-40px">
+    <div style="font-size:84px;line-height:1.05;font-weight:900;color:var(--navy-500);max-width:1620px;letter-spacing:-0.025em">
+      Una plataforma propia del SLEP Colchagua,<br/>
+      construida sobre su <em style="color:var(--royal-500);font-style:normal">propio ecosistema Google</em>,<br/>
+      sin sumar costos ni proveedores externos.
+    </div>
+    <div class="mt-l" style="display:flex;gap:12px;flex-wrap:wrap">
+      <span class="tag">React + Tailwind</span>
+      <span class="tag">Google Apps Script</span>
+      <span class="tag">Google Sheets · Drive</span>
+      <span class="tag">Google OAuth</span>
+      <span class="tag coral">VS Code · Copilot · Claude Code</span>
+      <span class="tag coral">GitHub → Vercel</span>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Síntesis ejecutiva</div><div>17 / 18</div></div>
+</section>
+
+<!-- SLIDE 18 — Cierre -->
+<section data-screen-label="24 Cierre" class="closing">
+  <div class="closing-shell">
+    <div class="closing-left">
+      <div>
+        <div class="closing-top">
+          <img src="../public/SLEPCOLCHAGUA.webp" alt="SLEP Colchagua" />
+          <div class="closing-org">SERVICIO LOCAL DE<br/>EDUCACIÓN PÚBLICA<br/><small>Colchagua</small></div>
+        </div>
+        <div class="closing-kicker">SLEP · Colchagua</div>
+        <h2 style="margin-top:24px">Decidir con<br/><b>evidencia.</b></h2>
+        <p>El portal convierte el seguimiento institucional en una rutina visible, compartida y sostenible dentro del propio ecosistema del servicio.</p>
+      </div>
+      <div class="row">
+        <div class="item"><div class="b"></div> Gestión</div>
+        <div class="item"><div class="b"></div> Trazabilidad</div>
+        <div class="item"><div class="b"></div> Coordinación</div>
+      </div>
+    </div>
+    <div class="closing-right">
+      <div class="badge">Próxima etapa</div>
+      <div class="closing-big">Instalar uso, consolidar hábitos y llegar a cada corte con información lista para actuar.</div>
+      <div class="row">
+        <div class="item"><div class="b"></div> Gracias</div>
+        <div class="item"><div class="b"></div> Preguntas</div>
+        <div class="item"><div class="b"></div> Próximos pasos</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</deck-stage>
+<div class="deck-agenda" aria-hidden="true">
+  <div class="label">Ruta</div>
+  <div class="item" data-target-slide="2"><span class="dot"></span><span>Contexto</span></div>
+  <div class="item" data-target-slide="6"><span class="dot"></span><span>Solución</span></div>
+  <div class="item" data-target-slide="16"><span class="dot"></span><span>Operación</span></div>
+  <div class="item" data-target-slide="22"><span class="dot"></span><span>Cierre</span></div>
+</div>
+<div class="deck-status" aria-live="polite">
+  <strong>01 / 18</strong>
+  <span>Flechas para navegar · Esc vista general</span>
+</div>
+<script>
+  (function(){
+    const deck = document.querySelector('deck-stage');
+    if (!deck) return;
+    const slides = Array.from(deck.querySelectorAll('section'));
+    const status = document.querySelector('.deck-status');
+    const agendaItems = Array.from(document.querySelectorAll('.deck-agenda .item'));
+    const logoPath = '../public/SLEPCOLCHAGUA.webp';
+
+    const SLIDE_WIDTH = 1920;
+    const SLIDE_HEIGHT = 1080;
+    let activeIndex = 0;
+    let presentationMode = true;
+    let isFullscreen = document.fullscreenElement === document.documentElement;
+
+    deck.querySelectorAll('img[src="public/SLEPCOLCHAGUA.webp"], img[src="../public/SLEPCOLCHAGUA.webp"]').forEach((image) => {
+      image.src = logoPath;
+    });
+
+    function syncFooters() {
+      const total = String(slides.length).padStart(2, '0');
+      slides.forEach((slide, index) => {
+        const footerCounter = slide.querySelector('.footer > :last-child');
+        if (footerCounter) {
+          footerCounter.textContent = String(index + 1).padStart(2, '0') + ' / ' + total;
+        }
+      });
+    }
+
+    function getAgendaIndex(index) {
+      if (index >= 2 && index <= 5) return 0;
+      if (index >= 6 && index <= 15) return 1;
+      if (index >= 16 && index <= 21) return 2;
+      if (index >= 22) return 3;
+      return -1;
+    }
+
+    function syncAgenda() {
+      const agendaIndex = getAgendaIndex(activeIndex);
+      agendaItems.forEach((item, index) => {
+        item.classList.toggle('is-active', agendaIndex === index);
+        item.classList.toggle('is-done', agendaIndex > index);
+      });
+    }
+
+    function syncStatus() {
+      if (!status || !slides.length) return;
+
+      const current = String(activeIndex + 1).padStart(2, '0');
+      const total = String(slides.length).padStart(2, '0');
+      const modeText = presentationMode
+        ? (isFullscreen ? 'Flechas para navegar · F salir fullscreen · Esc vista general' : 'Flechas para navegar · F fullscreen · Esc vista general')
+        : 'Vista general · P para presentar · F fullscreen';
+      status.innerHTML = '<strong>' + current + ' / ' + total + '</strong><span>' + modeText + '</span>';
+    }
+
+    function renderSlides() {
+      slides.forEach((slide, index) => {
+        slide.classList.toggle('is-active', index === activeIndex);
+        slide.setAttribute('aria-hidden', presentationMode && index !== activeIndex ? 'true' : 'false');
+      });
+
+      deck.classList.toggle('presentation-mode', presentationMode);
+      document.body.classList.toggle('presentation-mode', presentationMode);
+      syncStatus();
+      syncAgenda();
+      updateDeckScale();
+    }
+
+    function goToSlide(index) {
+      if (!slides.length) return;
+      activeIndex = Math.max(0, Math.min(index, slides.length - 1));
+      renderSlides();
+    }
+
+    function setPresentationMode(nextMode) {
+      presentationMode = nextMode;
+      renderSlides();
+    }
+
+    async function toggleFullscreen() {
+      if (!document.fullscreenEnabled) return;
+
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await document.documentElement.requestFullscreen();
+    }
+
+    function updateDeckScale() {
+      const styles = getComputedStyle(deck);
+      const padX = parseFloat(styles.getPropertyValue('--stage-pad-x')) || 32;
+      const padY = parseFloat(styles.getPropertyValue('--stage-pad-y')) || 40;
+      const availableWidth = Math.max(window.innerWidth - padX * 2, 320);
+      const availableHeight = Math.max(window.innerHeight - padY * 2, 240);
+      const scale = Math.min(availableWidth / SLIDE_WIDTH, availableHeight / SLIDE_HEIGHT);
+
+      deck.style.setProperty('--slide-scale', Math.min(scale, 1));
+    }
+
+    document.addEventListener('keydown', function(event) {
+      const target = event.target;
+      const isTypingTarget = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (isTypingTarget) return;
+
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown' || event.key === ' ') {
+        event.preventDefault();
+        if (!presentationMode) setPresentationMode(true);
+        goToSlide(activeIndex + 1);
+        return;
+      }
+
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'PageUp') {
+        event.preventDefault();
+        if (!presentationMode) setPresentationMode(true);
+        goToSlide(activeIndex - 1);
+        return;
+      }
+
+      if (event.key === 'Home') {
+        event.preventDefault();
+        goToSlide(0);
+        return;
+      }
+
+      if (event.key === 'End') {
+        event.preventDefault();
+        goToSlide(slides.length - 1);
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+        setPresentationMode(false);
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        setPresentationMode(!presentationMode);
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        toggleFullscreen().catch(() => {});
+      }
+    });
+
+    document.addEventListener('fullscreenchange', function() {
+      isFullscreen = document.fullscreenElement === document.documentElement;
+      syncStatus();
+      updateDeckScale();
+    });
+
+    agendaItems.forEach((item) => {
+      item.addEventListener('click', function() {
+        const targetIndex = Number(item.getAttribute('data-target-slide'));
+        if (Number.isNaN(targetIndex)) return;
+        setPresentationMode(true);
+        goToSlide(targetIndex);
+      });
+    });
+
+    syncFooters();
+    renderSlides();
+    window.addEventListener('resize', updateDeckScale, { passive: true });
+  })();
+</script>
+</body>
+</html>

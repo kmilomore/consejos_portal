@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .row { display:grid; grid-template-columns: 90px 1fr 110px; column-gap: 18px; row-gap: 14px; align-items: baseline; }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--neutral-500); }
+  .demo { font-family: var(--font-sans); font-size: 26px; color: var(--navy-500); }
+  .w100 { font-weight: 100; }
+  .w500 { font-weight: 500; }
+  .w700 { font-weight: 700; }
+  .w900 { font-weight: 900; }
+  .usage { font-size: 12px; color: var(--neutral-500); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row">
+    <div class="meta">100 · Thin</div><div class="demo w100">Educación pública</div><div class="usage">Display ≥ 40 px</div>
+    <div class="meta">500 · Regular</div><div class="demo w500">Educación pública</div><div class="usage">Body · UI labels</div>
+    <div class="meta">700 · Bold</div><div class="demo w700">Educación pública</div><div class="usage">Subheads · buttons</div>
+    <div class="meta">900 · Black</div><div class="demo w900">Educación pública</div><div class="usage">Display · wordmark</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .g {
+    border-radius: 14px;
+    height: 150px;
+    padding: 16px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: var(--shadow-sm);
+  }
+  .g .name { font-weight: 900; font-size: 14px; }
+  .g .stops { font-family: var(--font-mono); font-size: 10.5px; opacity: 0.92; }
+  .navy   { background: linear-gradient(135deg, #25306B 0%, #2C3D9E 100%); }
+  .deep   { background: linear-gradient(135deg, #25306B 0%, #006BB9 100%); }
+  .red    { background: linear-gradient(135deg, #FF1D3D 0%, #EDF0F5 100%); color:#25306B; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="g navy">
+      <div class="name">Navy gradient</div>
+      <div class="stops">#25306B → #2C3D9E</div>
+    </div>
+    <div class="g deep">
+      <div class="name">Deep blue gradient</div>
+      <div class="stops">#25306B → #006BB9</div>
+    </div>
+    <div class="g red">
+      <div class="name">Red fade</div>
+      <div class="stops">#FF1D3D → #EDF0F5</div>
+    </div>
+  </div>
+  <div class="mono" style="margin-top:4px;">Prefer gradients on hero sections and covers · flat fills on cards & nav chrome</div>
+</div>
+</body>
+</html>

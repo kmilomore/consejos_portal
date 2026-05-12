@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .rule { display: flex; flex-direction: column; gap: 6px; }
+  .demo {
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 100px;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    position: relative;
+  }
+  .demo .b { width: 56px; height: 56px; }
+  .demo .b img { width: 100%; height: 100%; object-fit: contain; }
+  .demo.do { background: #fff; border: 1px solid var(--border-1); }
+  .demo.dont { background: #fff; border: 1px solid var(--coral-200); }
+  .demo .x { position: absolute; top: 8px; right: 10px; font-weight: 900; font-size: 14px; color: var(--coral-600); }
+  .demo .ok { position: absolute; top: 8px; right: 10px; font-weight: 900; font-size: 14px; color: #1F8A5B; }
+  .demo .photo { background: linear-gradient(45deg, #aa3, #c63); width: 100%; height: 100%; position: absolute; inset: 0; border-radius: 10px; opacity: 0.85;}
+  .demo .stretched img { width: 90px; height: 56px !important; object-fit: fill; }
+  .demo .recolored { filter: hue-rotate(160deg) saturate(0.5); }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--neutral-500); }
+  .name { font-size: 13px; font-weight: 700; color: var(--navy-500); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="rule">
+      <div class="demo do">
+        <span class="ok">DO</span>
+        <div class="b"><img src="../assets/logo-slep-colchagua.webp"></div>
+      </div>
+      <div class="name">Mantenga aire libre</div>
+      <div class="meta">Clear space ≥ ½ del diámetro del badge</div>
+    </div>
+    <div class="rule">
+      <div class="demo dont">
+        <span class="x">NO</span>
+        <div class="b stretched"><img src="../assets/logo-slep-colchagua.webp" style="width:90px;height:56px;"></div>
+      </div>
+      <div class="name">No deforme</div>
+      <div class="meta">Nunca estirar ni cambiar la proporción</div>
+    </div>
+    <div class="rule">
+      <div class="demo dont">
+        <span class="x">NO</span>
+        <div class="b recolored"><img src="../assets/logo-slep-colchagua.webp"></div>
+      </div>
+      <div class="name">No recolore</div>
+      <div class="meta">Solo paleta oficial Pantone 2756 / 2175 / 1788</div>
+    </div>
+    <div class="rule">
+      <div class="demo dont" style="background:#000; overflow:hidden;">
+        <div class="photo"></div>
+        <span class="x" style="z-index:2;">NO</span>
+        <div class="b" style="z-index:2;"><img src="../assets/logo-slep-colchagua.webp"></div>
+      </div>
+      <div class="name">No sobre fotos sin overlay</div>
+      <div class="meta">Aplicar overlay navy 40–60 % para legibilidad</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

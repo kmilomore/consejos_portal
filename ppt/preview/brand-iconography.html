@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px; }
+  .ic {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .sq {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    background: var(--royal-50);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--royal-500);
+  }
+  .sq svg { width: 28px; height: 28px; stroke-width: 2; }
+  .lbl { font-family: var(--font-mono); font-size: 10.5px; color: var(--neutral-500); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="ic"><div class="sq"><i data-lucide="graduation-cap"></i></div><div class="lbl">graduation-cap</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="school"></i></div><div class="lbl">school</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="book-open"></i></div><div class="lbl">book-open</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="users"></i></div><div class="lbl">users</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="file-text"></i></div><div class="lbl">file-text</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="map-pin"></i></div><div class="lbl">map-pin</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="calendar"></i></div><div class="lbl">calendar</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="megaphone"></i></div><div class="lbl">megaphone</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="building-2"></i></div><div class="lbl">building-2</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="shield-check"></i></div><div class="lbl">shield-check</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="phone"></i></div><div class="lbl">phone</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="mail"></i></div><div class="lbl">mail</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="download"></i></div><div class="lbl">download</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="search"></i></div><div class="lbl">search</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="arrow-right"></i></div><div class="lbl">arrow-right</div></div>
+    <div class="ic"><div class="sq"><i data-lucide="check-circle-2"></i></div><div class="lbl">check-circle-2</div></div>
+  </div>
+  <div class="mono" style="margin-top: 8px;">Lucide · 24 × 24 grid · 2 px stroke · rounded joints · color via currentColor</div>
+  <script>lucide.createIcons();</script>
+</div>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .row { display:grid; grid-template-columns: 140px 1fr 1fr; column-gap: 18px; row-gap: 16px; align-items:center; }
+  .name { font-size: 12px; color: var(--navy-500); font-weight: 700; }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--neutral-500); }
+  .track { position: relative; height: 4px; background: var(--neutral-100); border-radius: 2px; overflow:hidden; }
+  .dot { position:absolute; top: -6px; left: -8px; width: 16px; height:16px; border-radius: 50%; background: var(--royal-500); box-shadow: var(--shadow-sm); }
+  .anim .dot { animation-iteration-count: infinite; animation-direction: alternate; }
+  .standard .dot { animation: slide 1.4s cubic-bezier(0.2,0.6,0.2,1) infinite alternate; }
+  .emphasis .dot { animation: slide 1.4s cubic-bezier(0.16,1,0.3,1) infinite alternate; }
+  .in .dot { animation: slide 1.4s cubic-bezier(0.4,0,1,1) infinite alternate; }
+  .out .dot { animation: slide 1.4s cubic-bezier(0,0,0.2,1) infinite alternate; }
+  @keyframes slide {
+    from { left: -8px; }
+    to   { left: calc(100% - 8px); }
+  }
+  .label { font-size: 11px; font-family: var(--font-mono); color: var(--neutral-500); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="name">Standard</div>
+      <div class="meta">var(--ease-standard)</div>
+    </div>
+    <div class="track anim standard"><div class="dot"></div></div>
+    <div class="label">cubic-bezier(0.2, 0.6, 0.2, 1)</div>
+
+    <div>
+      <div class="name">Emphasis</div>
+      <div class="meta">var(--ease-emphasis)</div>
+    </div>
+    <div class="track anim emphasis"><div class="dot"></div></div>
+    <div class="label">cubic-bezier(0.16, 1, 0.3, 1)</div>
+
+    <div>
+      <div class="name">Ease-in</div>
+      <div class="meta">var(--ease-in)</div>
+    </div>
+    <div class="track anim in"><div class="dot"></div></div>
+    <div class="label">cubic-bezier(0.4, 0, 1, 1)</div>
+
+    <div>
+      <div class="name">Ease-out</div>
+      <div class="meta">var(--ease-out)</div>
+    </div>
+    <div class="track anim out"><div class="dot"></div></div>
+    <div class="label">cubic-bezier(0, 0, 0.2, 1)</div>
+  </div>
+  <div class="mono" style="margin-top:6px;">Durations · fast 120 ms · base 200 ms · slow 360 ms · no bounce, no overshoots</div>
+</div>
+</body>
+</html>

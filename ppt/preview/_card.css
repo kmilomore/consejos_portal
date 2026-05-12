@@ -1,0 +1,36 @@
+/* Shared base for preview cards. Each card is sized to its viewport via the manifest. */
+@import url("../colors_and_type.css");
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+}
+
+.card {
+  box-sizing: border-box;
+  padding: 24px 28px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.card.dark {
+  background: var(--navy-500);
+  color: var(--fg-on-dark-1);
+}
+
+.row { display: flex; gap: 12px; align-items: stretch; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.label-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--neutral-500);
+}
+.mono { font-family: var(--font-mono); font-size: 12px; color: var(--neutral-500); }

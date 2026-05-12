@@ -1,6 +1,7 @@
 "use client";
 
-import { X, ExternalLink, Printer } from "lucide-react";
+import { useState } from "react";
+import { X, ExternalLink, Printer, Check, Copy, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatDate } from "@/lib/utils";
 import type { Acta, Establishment } from "@/types/domain";
@@ -9,9 +10,13 @@ interface ActaDetailProps {
   acta: Acta | null;
   onClose: () => void;
   establishments?: Establishment[];
+  siblingActas?: Acta[];
+  onNavigate?: (acta: Acta) => void;
 }
 
-export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailProps) {
+export function ActaDetail({ acta, onClose, establishments = [], siblingActas, onNavigate }: ActaDetailProps) {
+  const [copied, setCopied] = useState(false);
+
   if (!acta) return null;
   const escuela = establishments.find((e) => e.rbd === acta.rbd);
   const isDocumentalMode = acta.modo_registro === "REGISTRO_DOCUMENTAL";
@@ -19,8 +24,23 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
     ? `${acta.hora_inicio} – ${acta.hora_termino}`
     : acta.hora_inicio ?? "—";
 
+  const presentCount = !isDocumentalMode ? acta.asistentes.filter((a) => a.asistio).length : 0;
+  const quorumValid = presentCount >= 4;
+
+  const currentIndex = siblingActas?.findIndex((a) => a.id === acta.id) ?? -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = siblingActas != null && currentIndex >= 0 && currentIndex < siblingActas.length - 1;
+
+  async function copyLink() {
+    if (!acta) return;
+    const url = `${window.location.origin}${window.location.pathname}?acta=${acta.id}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:block print:p-0">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-6 sm:pt-10 print:block print:p-0">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-ink/30 backdrop-blur-sm print:hidden"
@@ -28,24 +48,63 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
       />
 
       {/* Modal */}
-      <aside className="relative flex w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl max-h-[90vh] print:fixed print:inset-0 print:max-w-full print:rounded-none print:shadow-none print:max-h-none">
+      <aside className="relative my-0 flex w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh] print:fixed print:inset-0 print:max-w-full print:rounded-none print:shadow-none print:max-h-none">
 
         {/* Header — hidden on print */}
         <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 px-6 py-4 print:hidden">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ocean">
-              {acta.rbd}
+              {escuela?.nombre ?? acta.rbd} · {acta.rbd}
             </p>
             <h2 className="mt-1 text-lg font-semibold text-ink">
               Consejo Escolar {acta.tipo_sesion} N° {String(acta.sesion).padStart(2, "0")}
             </h2>
-            <div className="mt-2">
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
               <Badge tone={isDocumentalMode ? "warn" : "success"}>
                 {isDocumentalMode ? "Registro documental" : "Acta completa"}
               </Badge>
+              {!isDocumentalMode && (
+                <span className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                  quorumValid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800",
+                )}>
+                  {presentCount}/{acta.asistentes.length} · {quorumValid ? "Quórum válido" : "Sin quórum"}
+                </span>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {siblingActas && onNavigate && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Acta anterior"
+                  disabled={!hasPrev}
+                  onClick={() => hasPrev && onNavigate(siblingActas[currentIndex - 1])}
+                  className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Acta siguiente"
+                  disabled={!hasNext}
+                  onClick={() => hasNext && onNavigate(siblingActas[currentIndex + 1])}
+                  className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={copyLink}
+              title="Copiar enlace directo"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copiado" : "Copiar enlace"}
+            </button>
             <button
               type="button"
               onClick={() => window.print()}
@@ -80,6 +139,16 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
 
         {/* Body */}
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 print:overflow-visible print:px-8">
+
+          {/* D2 — Próxima sesión banner */}
+          {acta.proxima_sesion && (
+            <div className="flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
+              <div className="flex-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-500">Próxima sesión agendada</p>
+                <p className="mt-0.5 text-sm font-semibold text-sky-700">{formatDate(acta.proxima_sesion)}</p>
+              </div>
+            </div>
+          )}
 
           {/* Información de sesión */}
           <section>
@@ -215,9 +284,6 @@ export function ActaDetail({ acta, onClose, establishments = [] }: ActaDetailPro
                   )}
                   <Field label="Acuerdos y compromisos" value={acta.acuerdos} />
                   {acta.varios && <Field label="Varios" value={acta.varios} />}
-                  {acta.proxima_sesion && (
-                    <Row label="Próxima sesión" value={formatDate(acta.proxima_sesion)} />
-                  )}
                 </div>
               </section>
             </>

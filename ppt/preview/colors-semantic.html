@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tok {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-1);
+    background: #fff;
+  }
+  .tok .chip { height: 56px; }
+  .tok .meta { padding: 8px 10px; }
+  .tok .name { font-size: 12px; font-weight: 700; color: var(--fg-1); }
+  .tok .var  { font-family: var(--font-mono); font-size: 10.5px; color: var(--neutral-500); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="tok"><div class="chip" style="background:#006BB9;"></div><div class="meta"><div class="name">Info</div><div class="var">--status-info</div></div></div>
+    <div class="tok"><div class="chip" style="background:#1F8A5B;"></div><div class="meta"><div class="name">Success</div><div class="var">--status-success</div></div></div>
+    <div class="tok"><div class="chip" style="background:#C77A00;"></div><div class="meta"><div class="name">Warning</div><div class="var">--status-warning</div></div></div>
+    <div class="tok"><div class="chip" style="background:#E5142F;"></div><div class="meta"><div class="name">Danger</div><div class="var">--status-danger</div></div></div>
+    <div class="tok"><div class="chip" style="background:#E5F2FB;"></div><div class="meta"><div class="name">Info bg</div><div class="var">--status-info-bg</div></div></div>
+    <div class="tok"><div class="chip" style="background:#E3F5EB;"></div><div class="meta"><div class="name">Success bg</div><div class="var">--status-success-bg</div></div></div>
+    <div class="tok"><div class="chip" style="background:#FFF1D6;"></div><div class="meta"><div class="name">Warning bg</div><div class="var">--status-warning-bg</div></div></div>
+    <div class="tok"><div class="chip" style="background:#FFE5E9;"></div><div class="meta"><div class="name">Danger bg</div><div class="var">--status-danger-bg</div></div></div>
+  </div>
+</div>
+</body>
+</html>

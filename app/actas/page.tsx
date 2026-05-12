@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { ArrowDown, ArrowUp, FileText, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataBanner } from "@/components/portal/data-banner";
@@ -11,6 +11,7 @@ import { ActaForm } from "@/components/portal/acta-form";
 import { ActaDetail } from "@/components/portal/acta-detail";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
 import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
+import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { formatDate } from "@/lib/utils";
 import type { Acta, ActaRecordMode, SessionType } from "@/types/domain";
 
@@ -28,6 +29,7 @@ function formatSchedule(acta: Acta) {
 
 export default function ActasPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
+  const { isGlobalAdmin } = usePortalAuth();
   const searchParams = useSearchParams();
   const rows = snapshot.actas;
 
@@ -44,8 +46,11 @@ export default function ActasPage() {
 
   // ── Search & filters — #27 ───────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterRbd, setFilterRbd] = useState<string>("");
   const [filterTipo, setFilterTipo] = useState<SessionType | "">("");
   const [filterModo, setFilterModo] = useState<ActaRecordMode | "">("");
+  const [sortField, setSortField] = useState<"fecha" | "sesion">("fecha");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     const actaId = searchParams.get("acta");
@@ -59,29 +64,52 @@ export default function ActasPage() {
     }
   }, [rows, searchParams]);
 
+  const establishmentMap = useMemo(
+    () => new Map(snapshot.establishments.map((e) => [e.rbd, e.nombre])),
+    [snapshot.establishments],
+  );
+
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return rows.filter((acta) => {
+    const filtered = rows.filter((acta) => {
       const matchesTipo = filterTipo ? acta.tipo_sesion === filterTipo : true;
       const matchesModo = filterModo ? acta.modo_registro === filterModo : true;
-      if (!matchesTipo || !matchesModo) return false;
+      const matchesRbd = filterRbd ? acta.rbd === filterRbd : true;
+      if (!matchesTipo || !matchesModo || !matchesRbd) return false;
       if (!q) return true;
+      const name = establishmentMap.get(acta.rbd)?.toLowerCase() ?? "";
       return (
         acta.tabla_temas.toLowerCase().includes(q) ||
         acta.acuerdos.toLowerCase().includes(q) ||
         acta.observacion_documental.toLowerCase().includes(q) ||
         acta.lugar.toLowerCase().includes(q) ||
         acta.rbd.toLowerCase().includes(q) ||
-        acta.comuna.toLowerCase().includes(q)
+        acta.comuna.toLowerCase().includes(q) ||
+        name.includes(q)
       );
     });
-  }, [rows, searchQuery, filterModo, filterTipo]);
+    return [...filtered].sort((a, b) => {
+      const cmp = sortField === "fecha"
+        ? a.fecha.localeCompare(b.fecha)
+        : a.sesion - b.sesion;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [rows, searchQuery, filterModo, filterTipo, filterRbd, sortField, sortDir, establishmentMap]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   function openNew() {
     setEditActa(null);
     setFormOpen(true);
+  }
+
+  function toggleSort(field: "fecha" | "sesion") {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
   }
 
   function openEdit(acta: Acta) {
@@ -110,9 +138,8 @@ export default function ActasPage() {
       >
         {/* Action bar */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Search & filter — #27 */}
-          <div className="flex flex-1 gap-2">
-            <div className="relative flex-1 max-w-xs">
+          <div className="flex flex-1 flex-wrap gap-2">
+            <div className="relative w-full max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
@@ -122,6 +149,20 @@ export default function ActasPage() {
                 className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-slate-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
               />
             </div>
+            {isGlobalAdmin && snapshot.establishments.length > 0 && (
+              <select
+                value={filterRbd}
+                onChange={(e) => setFilterRbd(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+              >
+                <option value="">Todos los establecimientos</option>
+                {snapshot.establishments.map((e) => (
+                  <option key={e.rbd} value={e.rbd}>
+                    {e.nombre} ({e.rbd})
+                  </option>
+                ))}
+              </select>
+            )}
             <select
               value={filterModo}
               onChange={(e) => setFilterModo(e.target.value as ActaRecordMode | "")}
@@ -145,7 +186,7 @@ export default function ActasPage() {
         </div>
 
         {/* Results count when filtering */}
-        {(searchQuery || filterTipo || filterModo) && (
+        {(searchQuery || filterTipo || filterModo || filterRbd) && (
           <p className="mb-4 text-xs text-slate-500">
             {filteredRows.length} resultado{filteredRows.length !== 1 ? "s" : ""} encontrado{filteredRows.length !== 1 ? "s" : ""}
           </p>
@@ -156,9 +197,25 @@ export default function ActasPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Sesión</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">RBD</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Fecha</th>
+                  <th
+                    className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+                    onClick={() => toggleSort("sesion")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Sesión
+                      {sortField === "sesion" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Establecimiento</th>
+                  <th
+                    className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+                    onClick={() => toggleSort("fecha")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Fecha
+                      {sortField === "fecha" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
                   <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">Horario</th>
                   <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Formato</th>
                   <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Lugar</th>
@@ -179,9 +236,24 @@ export default function ActasPage() {
                         <Badge tone={acta.modo_registro === "REGISTRO_DOCUMENTAL" ? "warn" : "success"}>
                           {acta.modo_registro === "REGISTRO_DOCUMENTAL" ? "Documental" : "Completa"}
                         </Badge>
+                        {acta.link_acta && (
+                          <a
+                            href={acta.link_acta}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Ver documento adjunto"
+                            className="text-ocean hover:text-ocean/70"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                          </a>
+                        )}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-xs font-semibold text-ocean">{acta.rbd}</td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm font-medium text-ink">{establishmentMap.get(acta.rbd) ?? acta.rbd}</p>
+                      <p className="font-mono text-xs text-ocean">{acta.rbd}</p>
+                    </td>
                     <td className="px-4 py-3.5 text-slate-600">{formatDate(acta.fecha)}</td>
                     <td className="hidden px-4 py-3.5 text-slate-500 md:table-cell">{formatSchedule(acta)}</td>
                     <td className="hidden px-4 py-3.5 lg:table-cell">
@@ -236,7 +308,13 @@ export default function ActasPage() {
       />
 
       {/* Detail view — #29 #34 */}
-      <ActaDetail acta={viewActa} onClose={() => setViewActa(null)} establishments={snapshot.establishments} />
+      <ActaDetail
+        acta={viewActa}
+        onClose={() => setViewActa(null)}
+        establishments={snapshot.establishments}
+        siblingActas={filteredRows}
+        onNavigate={setViewActa}
+      />
 
       {/* Delete confirmation — #38 */}
       <ConfirmDialog

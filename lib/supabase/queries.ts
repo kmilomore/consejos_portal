@@ -542,12 +542,27 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
       .select("id, rbd, sesion, modo_registro, tipo_sesion, formato, fecha, hora_inicio, hora_termino, lugar, comuna, direccion, tabla_temas, desarrollo, acuerdos, varios, observacion_documental, proxima_sesion, link_acta, asistentes")
       .order("fecha", { ascending: false });
 
-    const [establishmentsResult, programacionesResult, actasResult, invitadosResult] = await Promise.all([
+    const [establishmentsResult, programacionesResult, actasResult] = await Promise.all([
       supabase.from("establecimientos").select("rbd, nombre, direccion, comuna").order("nombre", { ascending: true }),
       rbdFilter ? programacionQuery.eq("rbd", rbdFilter) : programacionQuery,
       rbdFilter ? actasQuery.eq("rbd", rbdFilter) : actasQuery,
-      supabase.from("actas_invitados").select("id, acta_id, nombre, cargo").order("created_at", { ascending: true }),
     ]);
+
+    const actaIds = (actasResult.data ?? []).map((a: { id: string }) => a.id);
+    let invitadosResult: { data: InvitadoRow[] | null; error: { message: string } | null };
+    if (rbdFilter && actaIds.length === 0) {
+      invitadosResult = { data: [], error: null };
+    } else {
+      const invitadosQuery = supabase
+        .from("actas_invitados")
+        .select("id, acta_id, nombre, cargo")
+        .order("created_at", { ascending: true });
+      const raw = await (rbdFilter ? invitadosQuery.in("acta_id", actaIds) : invitadosQuery);
+      invitadosResult = {
+        data: (raw.data ?? []) as InvitadoRow[],
+        error: raw.error ? { message: raw.error.message } : null,
+      };
+    }
 
     const firstError = [
       establishmentsResult.error,

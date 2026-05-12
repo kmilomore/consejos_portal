@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .c {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--border-1);
+    box-shadow: 0 2px 6px rgba(37,48,107,.08);
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 8px;
+    position: relative; overflow: hidden;
+  }
+  .c.accent::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--royal-500); }
+  .c.coral::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--coral-500); }
+  .c .eb { font-weight: 700; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--royal-500); }
+  .c.coral .eb { color: var(--coral-600); }
+  .c h4 { font-family: var(--font-sans); font-weight: 900; font-size: 17px; color: var(--navy-500); margin: 0; line-height: 1.25; }
+  .c p  { font-size: 13px; color: var(--neutral-600); line-height: 1.5; margin: 0; font-weight: 500;}
+  .meta-row { font-family: var(--font-mono); font-size: 10.5px; color: var(--neutral-500); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="grid">
+    <div class="c">
+      <div class="eb">Plain card</div>
+      <h4>Comunicado a comunidades educativas</h4>
+      <p>El SLEP convoca a directivos para la jornada territorial 2026.</p>
+      <div class="meta-row">shadow-sm · radius 12 · border-1</div>
+    </div>
+    <div class="c accent">
+      <div class="eb">Royal accent</div>
+      <h4>Plan estratégico territorial</h4>
+      <p>Lineamientos pedagógicos y de gestión para los 31 establecimientos.</p>
+      <div class="meta-row">top accent · 4 px royal-500</div>
+    </div>
+    <div class="c coral">
+      <div class="eb">Coral accent</div>
+      <h4>Información urgente</h4>
+      <p>Cambios en los horarios de atención durante la primera semana de marzo.</p>
+      <div class="meta-row">top accent · 4 px coral-500</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .sw {
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 140px;
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+  }
+  .sw .name { font-weight: 900; font-size: 15px; letter-spacing: -0.01em; }
+  .sw .hex { font-family: var(--font-mono); font-size: 11px; opacity: 0.9; }
+  .sw .pantone { font-size: 11px; opacity: 0.85; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;}
+  .sw.navy   { background: #25306B; }
+  .sw.royal  { background: #006BB9; }
+  .sw.coral  { background: #FF1D3D; }
+  .sw.soft   { background: #EDF0F5; color: #25306B; border: 1px solid var(--border-1); }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="swatches">
+    <div class="sw navy">
+      <div class="name">Navy Blue</div>
+      <div>
+        <div class="pantone">Pantone 2756 C</div>
+        <div class="hex">#25306B</div>
+      </div>
+    </div>
+    <div class="sw royal">
+      <div class="name">Royal Blue</div>
+      <div>
+        <div class="pantone">Pantone 2175 C</div>
+        <div class="hex">#006BB9</div>
+      </div>
+    </div>
+    <div class="sw coral">
+      <div class="name">Coral Red</div>
+      <div>
+        <div class="pantone">Pantone 1788 C</div>
+        <div class="hex">#FF1D3D</div>
+      </div>
+    </div>
+    <div class="sw soft">
+      <div class="name">Soft White</div>
+      <div>
+        <div class="pantone">Pantone 663 C</div>
+        <div class="hex">#EDF0F5</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

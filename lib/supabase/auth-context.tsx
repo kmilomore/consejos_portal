@@ -47,7 +47,7 @@ function resetAuthStateCache() {
   authStateCache.profileLoaded = false;
 }
 
-function resolveOtpRedirectUrl() {
+function resolveAuthRedirectUrl() {
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
   if (configuredSiteUrl) {
@@ -75,8 +75,6 @@ interface PortalAuthContextValue {
   selectedRbd: string | null;
   setSelectedRbd: (rbd: string | null) => void;
   allEstablishments: Establishment[];
-  sendOtp: (email: string) => Promise<AuthResult>;
-  verifyOtp: (email: string, token: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
@@ -380,52 +378,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     }
   }, [profile, selectedRbd, session]);
 
-  async function sendOtp(email: string): Promise<AuthResult> {
-    if (!supabase) {
-      return { error: "Supabase no está disponible en este navegador." };
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const redirectTo = resolveOtpRedirectUrl();
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: redirectTo,
-      },
-    });
-
-    if (error) {
-      return { error: error.message };
-    }
-
-    return {};
-  }
-
-  async function verifyOtp(email: string, token: string): Promise<AuthResult> {
-    if (!supabase) {
-      return { error: "Supabase no está disponible en este navegador." };
-    }
-
-    setIsLoading(true);
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedToken = token.trim();
-
-    const { error } = await supabase.auth.verifyOtp({
-      email: normalizedEmail,
-      token: normalizedToken,
-      type: "email",
-    });
-
-    if (error) {
-      setIsLoading(false);
-      return { error: error.message };
-    }
-
-    return {};
-  }
-
   async function signInWithGoogle(): Promise<AuthResult> {
     if (!supabase) {
       return { error: "Supabase no está disponible en este navegador." };
@@ -435,7 +387,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       .replace(/^@/, "")
       .toLowerCase();
 
-    const redirectTo = resolveOtpRedirectUrl();
+    const redirectTo = resolveAuthRedirectUrl();
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -488,8 +440,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         selectedRbd,
         setSelectedRbd,
         allEstablishments,
-        sendOtp,
-        verifyOtp,
         signInWithGoogle,
         signOut,
       }}

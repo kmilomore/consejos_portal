@@ -42,7 +42,8 @@ const QUORUM_MIN = 4;
 const DRAFT_KEY_PREFIX = "acta-draft";
 // Minimum ms between consecutive saves (client-side rate limit) — #4
 const SAVE_COOLDOWN_MS = 3000;
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB — matches Supabase bucket limit
+const MAX_FILE_SIZE_MB = 50;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024; // Matches Supabase bucket limit
 
 // ─── RUT helpers ──────────────────────────────────────────────────────────────
 
@@ -297,6 +298,43 @@ function isFormDirty(a: FormState, b: FormState): boolean {
   return false;
 }
 
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
+function parseSavedDraft(raw: string): FormState | null {
+  try {
+    const parsed = JSON.parse(raw) as { form?: FormState; savedAt?: number };
+    if (!parsed || typeof parsed.savedAt !== "number") return null;
+    if (Date.now() - parsed.savedAt > DRAFT_TTL_MS) return null;
+    return parsed.form ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function timeAgo(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "hace un momento";
+  if (mins === 1) return "hace 1 min";
+  return `hace ${mins} min`;
+}
+
+function humanizeDbError(msg: string): string {
+  if (msg.includes("duplicate key") || msg.includes("unique constraint"))
+    return "Ya existe un acta con ese número de sesión para este establecimiento.";
+  if (msg.includes("check constraint"))
+    return "El acta no cumple los requisitos mínimos (por ejemplo, falta el documento adjunto).";
+  if (msg.includes("foreign key"))
+    return "El establecimiento o la programación referenciada no existe.";
+  return "Ocurrió un error inesperado. Intenta de nuevo.";
+}
+
 // ─── Primitive form field components ─────────────────────────────────────────
 
 function FormLabel({
@@ -369,12 +407,19 @@ function FormTextarea({
 
 // ─── EstamentoCard ────────────────────────────────────────────────────────────
 
+interface AttendeeSuggestion {
+  nombre: string;
+  rut: string;
+  correo: string;
+}
+
 interface EstamentoCardProps {
   state: EstamentoState;
   onChange: (updated: EstamentoState) => void;
+  suggestions?: AttendeeSuggestion[];
 }
 
-function EstamentoCard({ state, onChange }: EstamentoCardProps) {
+function EstamentoCard({ state, onChange, suggestions = [] }: EstamentoCardProps) {
   const radioName = `asistio-${state.key}`;
   const modalidadName = `modalidad-${state.key}`;
   const fieldErrors = getEstamentoValidationErrors(state);
@@ -498,9 +543,25 @@ function EstamentoCard({ state, onChange }: EstamentoCardProps) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <FormLabel required>Nombre completo</FormLabel>
+                  {suggestions.length > 0 && (
+                    <datalist id={`nombres-${state.key}`}>
+                      {suggestions.map((s, i) => (
+                        <option key={i} value={s.nombre} />
+                      ))}
+                    </datalist>
+                  )}
                   <FormInput
                     value={state.nombre}
-                    onChange={(e) => set("nombre", e.target.value)}
+                    list={suggestions.length > 0 ? `nombres-${state.key}` : undefined}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const match = suggestions.find((s) => s.nombre === val);
+                      if (match) {
+                        onChange({ ...state, nombre: val, rut: match.rut || state.rut, correo: match.correo || state.correo });
+                      } else {
+                        set("nombre", val);
+                      }
+                    }}
                     placeholder="Nombre y apellido"
                     className={cn(fieldErrors.nombre && "border-ember focus:ring-ember/20")}
                   />
@@ -589,7 +650,7 @@ export function ActaForm({
   onSaved,
 }: ActaFormProps) {
   const { data: slepData, isLoading: slepLoading } = useSlepDirectorio();
-  const { establishment, profile, selectedRbd } = usePortalAuth(); // used for RBD validation — #8
+  const { establishment, profile, selectedRbd, isGlobalAdmin, accessibleRbds } = usePortalAuth();
   const [form, setForm] = useState<FormState>(makeEmptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [fileReadyProgress, setFileReadyProgress] = useState(0);
@@ -601,6 +662,8 @@ export function ActaForm({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [establishmentQuery, setEstablishmentQuery] = useState("");
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false); // #25
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFile = useRef<File | null>(null);
   const initialFormRef = useRef<FormState | null>(null); // #25 dirty tracking
@@ -652,15 +715,17 @@ export function ActaForm({
     if (!isOpen) return;
 
     let initial: FormState;
+    let foundDraft = false;
 
     if (editActa) {
       initial = actaToForm(editActa);
       try {
         const saved = localStorage.getItem(draftStorageKey);
         if (saved) {
-          const parsed = JSON.parse(saved) as FormState;
-          if (parsed.id === editActa.id) {
+          const parsed = parseSavedDraft(saved);
+          if (parsed && parsed.id === editActa.id) {
             initial = parsed;
+            foundDraft = true;
           }
         }
       } catch {
@@ -672,12 +737,19 @@ export function ActaForm({
         buildActiveSchoolFormPatch(initialProgramacion.rbd),
       );
     } else {
-      // #12 — Try to restore a saved draft for new actas
       try {
         const saved = localStorage.getItem(draftStorageKey);
-        initial = saved ? (JSON.parse(saved) as FormState) : makeEmptyForm();
-        // Don't restore a draft that belongs to a different id (shouldn't happen but guard it)
-        if (initial.id !== null) initial = makeEmptyForm();
+        if (saved) {
+          const parsed = parseSavedDraft(saved);
+          if (parsed && parsed.id === null) {
+            initial = parsed;
+            foundDraft = true;
+          } else {
+            initial = makeEmptyForm();
+          }
+        } else {
+          initial = makeEmptyForm();
+        }
       } catch {
         initial = makeEmptyForm();
       }
@@ -692,7 +764,8 @@ export function ActaForm({
     }
 
     setForm(initial);
-    initialFormRef.current = initial; // snapshot for dirty check — #25
+    initialFormRef.current = initial;
+    setDraftRestored(foundDraft);
     setSubmitting(false);
     clearFileReadyFeedback();
     setFileReadyProgress(0);
@@ -717,13 +790,14 @@ export function ActaForm({
     }));
   }, [actas, activeRbd, buildActiveSchoolFormPatch, editActa, form.rbd, initialProgramacion, isOpen]);
 
-  // #12 — Persist acta drafts to localStorage (debounced 800 ms)
   useEffect(() => {
     if (!isOpen) return;
     if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
     draftSaveTimerRef.current = setTimeout(() => {
       try {
-        localStorage.setItem(draftStorageKey, JSON.stringify(form));
+        const now = Date.now();
+        localStorage.setItem(draftStorageKey, JSON.stringify({ form, savedAt: now }));
+        setLastDraftSavedAt(now);
       } catch {
         // localStorage may be full or blocked — ignore silently
       }
@@ -770,6 +844,17 @@ export function ActaForm({
   function forceClose() {
     setConfirmCloseOpen(false);
     onClose();
+  }
+
+  function discardDraft() {
+    try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
+    const fresh = editActa ? actaToForm(editActa) : makeEmptyForm();
+    const patched = !editActa && activeRbd
+      ? { ...fresh, ...buildActiveSchoolFormPatch(activeRbd), sesion: String(nextSessionNumber(actas, activeRbd, fresh.tipo_sesion)) }
+      : fresh;
+    setForm(patched);
+    initialFormRef.current = patched;
+    setDraftRestored(false);
   }
 
   // ── Field helpers ────────────────────────────────────────────────────────
@@ -834,6 +919,24 @@ export function ActaForm({
     }));
   }
 
+  function expandAll() {
+    setForm((prev) => ({ ...prev, estamentos: prev.estamentos.map((e) => ({ ...e, expanded: true })) }));
+  }
+
+  function collapseAll() {
+    setForm((prev) => ({ ...prev, estamentos: prev.estamentos.map((e) => ({ ...e, expanded: false })) }));
+  }
+
+  function getAttendeesSuggestions(rbd: string, rol: string): AttendeeSuggestion[] {
+    const seen = new Set<string>();
+    return actas
+      .filter((a) => a.rbd === rbd && a.id !== form.id)
+      .flatMap((a) => a.asistentes)
+      .filter((a) => a.rol === rol && a.nombre && !seen.has(a.nombre) && seen.add(a.nombre))
+      .map((a) => ({ nombre: a.nombre, rut: a.rut ?? "", correo: a.correo ?? "" }))
+      .slice(0, 5);
+  }
+
   function updateEstamento(index: number, updated: EstamentoState) {
     setForm((prev) => {
       const estamentos = [...prev.estamentos];
@@ -876,7 +979,7 @@ export function ActaForm({
     const file = e.dataTransfer.files[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrors((prev) => ({ ...prev, link_acta: "El archivo supera el tamaño máximo de 10 MB." }));
+      setErrors((prev) => ({ ...prev, link_acta: `El archivo supera el tamaño máximo de ${MAX_FILE_SIZE_MB} MB.` }));
       setUploadStatus("idle");
       return;
     }
@@ -892,7 +995,7 @@ export function ActaForm({
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrors((prev) => ({ ...prev, link_acta: "El archivo supera el tamaño máximo de 10 MB." }));
+      setErrors((prev) => ({ ...prev, link_acta: `El archivo supera el tamaño máximo de ${MAX_FILE_SIZE_MB} MB.` }));
       setUploadStatus("idle");
       e.target.value = "";
       return;
@@ -909,6 +1012,18 @@ export function ActaForm({
 
   const presentCount = form.estamentos.filter((e) => e.asistio === true).length;
   const isDocumentalMode = form.modo_registro === "REGISTRO_DOCUMENTAL";
+
+  const formSteps = isDocumentalMode
+    ? [
+        { label: "Sesión", done: !!form.rbd && !!form.fecha },
+        { label: "Documento", done: !!form.link_acta || !!pendingFile.current },
+      ]
+    : [
+        { label: "Sesión", done: !!form.rbd && !!form.fecha },
+        { label: "Asistencia", done: form.estamentos.some((e) => e.asistio !== null) },
+        { label: "Contenido", done: !!form.tabla_temas.trim() && !!form.acuerdos.trim() },
+        { label: "Evidencia", done: !!form.link_acta || !!pendingFile.current },
+      ];
 
   // ── Validation ───────────────────────────────────────────────────────────
 
@@ -960,9 +1075,8 @@ export function ActaForm({
 
     if (!validate(draft)) return;
 
-    // #8 — Validate that a DIRECTOR is only saving actas for their own school
-    if (profile?.rol === "DIRECTOR" && profile.rbd && form.rbd && form.rbd !== profile.rbd) {
-      setSaveError("Solo puedes guardar actas de tu propio establecimiento.");
+    if (!isGlobalAdmin && accessibleRbds.length > 0 && !accessibleRbds.includes(form.rbd)) {
+      setSaveError("Solo puedes guardar actas de los establecimientos de tu cobertura.");
       return;
     }
 
@@ -996,9 +1110,7 @@ export function ActaForm({
 
       if (!uploadResult.url) {
         setUploadStatus("error");
-        setSaveError(
-          `No se pudo subir el documento de respaldo: ${uploadResult.errorMessage}`,
-        );
+        setSaveError("No se pudo subir el documento de respaldo. Verifica tu conexión e intenta de nuevo.");
         setSubmitting(false);
         return;
       }
@@ -1050,11 +1162,7 @@ export function ActaForm({
       }
 
       setUploadStatus("error");
-      setSaveError(
-        errorMessage
-          ? `No se pudo registrar la sesion en Supabase: ${errorMessage}`
-          : "No se pudo registrar la sesion en Supabase.",
-      );
+      setSaveError(errorMessage ? humanizeDbError(errorMessage) : "No se pudo registrar la sesión. Intenta de nuevo.");
       setSubmitting(false);
       return;
     }
@@ -1067,11 +1175,7 @@ export function ActaForm({
     );
 
     if (!invitadosResult.ok) {
-      setSaveError(
-        invitadosResult.errorMessage
-          ? `Se guardo la sesion, pero fallo la persistencia de invitados: ${invitadosResult.errorMessage}`
-          : "Se guardo la sesion, pero fallo la persistencia de invitados.",
-      );
+      setSaveError("El acta fue guardada, pero ocurrió un error al registrar los invitados. Edita el acta para intentar de nuevo.");
       setSubmitting(false);
       return;
     }
@@ -1088,18 +1192,12 @@ export function ActaForm({
       if (uploadResult2.url) {
         const linkResult = await updateActaLink(savedId, uploadResult2.url);
         if (!linkResult.ok) {
-          setSaveError(
-            linkResult.errorMessage
-              ? `Se guardo la sesion, pero no se pudo actualizar el enlace del documento: ${linkResult.errorMessage}`
-              : "Se guardo la sesion, pero no se pudo actualizar el enlace del documento.",
-          );
+          setSaveError("El acta fue guardada, pero no se pudo actualizar el enlace del documento. Edita el acta para intentar de nuevo.");
           setSubmitting(false);
           return;
         }
       } else if (!isDocumentalMode) {
-        setSaveError(
-          `Se guardo la sesion, pero no se pudo subir el documento de respaldo: ${uploadResult2.errorMessage}`,
-        );
+        setSaveError("El acta fue guardada, pero no se pudo subir el documento de respaldo.");
         setSubmitting(false);
         return;
       }
@@ -1143,7 +1241,7 @@ export function ActaForm({
         {/* Modal */}
         <aside className="relative my-0 flex w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh]">
           {/* Header */}
-          <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200/80 px-6 py-4">
+          <div className="flex flex-shrink-0 items-start justify-between border-b border-slate-200/80 px-6 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ocean">
                 {form.id ? "Editar acta" : "Nueva acta"}
@@ -1153,12 +1251,28 @@ export function ActaForm({
                   ? `Consejo Escolar ${form.tipo_sesion} N° ${String(form.sesion).padStart(2, "0")}`
                   : "Consejo Escolar"}
               </h2>
+              <div className="mt-3 flex items-center gap-1.5">
+                {formSteps.map((step, i) => (
+                  <span key={step.label} className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold",
+                      step.done ? "bg-ocean text-white" : "bg-slate-200 text-slate-400",
+                    )}>
+                      {i + 1}
+                    </span>
+                    <span className={cn("text-xs", step.done ? "font-semibold text-ocean" : "text-slate-400")}>
+                      {step.label}
+                    </span>
+                    {i < formSteps.length - 1 && <span className="text-slate-300">›</span>}
+                  </span>
+                ))}
+              </div>
             </div>
             <button
               type="button"
               aria-label="Cerrar formulario"
               onClick={requestClose}
-              className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-ink"
+              className="mt-1 rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-ink"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1166,6 +1280,19 @@ export function ActaForm({
 
           {/* Scrollable body */}
           <div className="flex-1 space-y-8 overflow-y-auto px-6 py-6">
+
+            {draftRestored && (
+              <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                <span>Se restauró un borrador guardado anteriormente.</span>
+                <button
+                  type="button"
+                  onClick={discardDraft}
+                  className="ml-4 font-semibold underline hover:no-underline"
+                >
+                  Descartar borrador
+                </button>
+              </div>
+            )}
 
             {/* ── 1. Información de la sesión ─────────────────────────────── */}
             <section>
@@ -1178,6 +1305,14 @@ export function ActaForm({
                   <FormInput
                     value={establishmentQuery}
                     onChange={(e) => handleEstablishmentInputChange(e.target.value)}
+                    onBlur={() => {
+                      if (establishmentQuery.trim() && !form.rbd) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          rbd: "Selecciona un establecimiento del listado. Escribe el nombre o RBD completo.",
+                        }));
+                      }
+                    }}
                     disabled={slepLoading}
                     placeholder={slepLoading ? "Cargando establecimientos…" : "Escribe y selecciona establecimiento"}
                     list="acta-establecimientos"
@@ -1394,9 +1529,26 @@ export function ActaForm({
               <>
                 {/* ── 2. Asistencia estamental ─────────────────────────────────── */}
                 <section>
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="sticky top-0 z-10 -mx-6 mb-4 flex items-center justify-between bg-white/95 px-6 py-2 backdrop-blur-sm">
                     <SectionHeader>Asistencia estamental</SectionHeader>
-                    <QuorumBadge presentCount={presentCount} />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={expandAll}
+                        className="text-xs font-semibold text-ocean hover:underline"
+                      >
+                        Expandir todos
+                      </button>
+                      <span className="text-slate-300">·</span>
+                      <button
+                        type="button"
+                        onClick={collapseAll}
+                        className="text-xs font-semibold text-ocean hover:underline"
+                      >
+                        Colapsar todos
+                      </button>
+                      <QuorumBadge presentCount={presentCount} />
+                    </div>
                   </div>
                   <div className="space-y-3">
                     {form.estamentos.map((est, index) => (
@@ -1404,6 +1556,7 @@ export function ActaForm({
                         key={est.key}
                         state={est}
                         onChange={(updated) => updateEstamento(index, updated)}
+                        suggestions={form.rbd ? getAttendeesSuggestions(form.rbd, est.key) : []}
                       />
                     ))}
                   </div>
@@ -1639,11 +1792,11 @@ export function ActaForm({
                     <div>
                       <p className="text-sm font-semibold text-ink">
                         {pendingFile.current
-                          ? pendingFile.current.name
+                          ? "Documento seleccionado — listo para guardar"
                           : "Arrastra el documento aquí o haz clic para seleccionar"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        Cualquier tipo de documento o archivo de respaldo · máximo 10 MB
+                        Cualquier tipo de documento o archivo de respaldo · máximo {MAX_FILE_SIZE_MB} MB
                       </p>
                     </div>
                   </div>
@@ -1655,6 +1808,19 @@ export function ActaForm({
                     className="hidden"
                     onChange={handleFileInput}
                   />
+
+                  {pendingFile.current && fileReadyStatus !== "idle" && (
+                    <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs">
+                      <FileCheck className="h-4 w-4 flex-shrink-0 text-emerald-500" />
+                      <span className="flex-1 truncate font-medium text-ink">{pendingFile.current.name}</span>
+                      <span className="flex-shrink-0 text-slate-400">{formatBytes(pendingFile.current.size)}</span>
+                      {pendingFile.current.type && (
+                        <span className="flex-shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-500">
+                          {pendingFile.current.type.split("/").pop()}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {(fileReadyStatus === "preparing" || fileReadyStatus === "ready") && uploadStatus !== "uploading" && (
                     <div className="mt-3">
@@ -1733,9 +1899,14 @@ export function ActaForm({
 
           {/* Sticky footer */}
           <div className="flex flex-shrink-0 items-center justify-between border-t border-slate-200/80 bg-white px-6 py-4">
-            <Button variant="ghost" onClick={requestClose} disabled={submitting}>
-              Cancelar
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" onClick={requestClose} disabled={submitting}>
+                Cancelar
+              </Button>
+              {lastDraftSavedAt && !submitting && (
+                <span className="text-xs text-slate-400">Borrador guardado {timeAgo(lastDraftSavedAt)}</span>
+              )}
+            </div>
             <div className="flex gap-3">
               <Button
                 variant="secondary"

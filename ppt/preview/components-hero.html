@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  body { padding: 0; }
+  .card { padding: 0; gap: 0; }
+  .hero {
+    background: linear-gradient(140deg, #25306B 0%, #1F2A5E 45%, #006BB9 100%);
+    color: #fff;
+    padding: 36px 40px;
+    display: flex;
+    gap: 36px;
+    align-items: center;
+    min-height: 280px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute; right: -120px; top: -120px; width: 360px; height: 360px;
+    border: 14px solid rgba(255,29,61,0.40);
+    border-radius: 50%;
+  }
+  .hero .left { flex: 1.4; position: relative; z-index: 1; }
+  .hero .right { flex: 1; position: relative; z-index: 1; }
+  .hero .eb { font-size: 11.5px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; color: rgba(255,255,255,0.85); }
+  .hero h1 {
+    font-family: var(--font-sans);
+    font-weight: 900;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 12px 0 14px;
+    color: #fff;
+    max-width: 480px;
+  }
+  .hero p { font-size: 15px; line-height: 1.55; color: rgba(237,240,245,0.92); max-width: 460px; margin: 0 0 22px; font-weight: 500;}
+  .ctas { display: flex; gap: 12px; }
+  .btn { font-weight: 700; font-size: 14px; padding: 11px 20px; border-radius: 8px; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;}
+  .btn.primary { background: #fff; color: var(--navy-500); }
+  .btn.outline { background: transparent; border-color: rgba(255,255,255,0.55); color: #fff; }
+  .arrow {width:14px;height:14px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;}
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stat {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .stat .n { font-size: 32px; font-weight: 900; letter-spacing: -0.02em; line-height: 1; color: #fff; }
+  .stat .l { font-size: 12px; color: rgba(237,240,245,0.85); margin-top: 6px; font-weight: 500;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="hero">
+    <div class="left">
+      <div class="eb">Servicio Local de Educación Pública</div>
+      <h1>Una educación pública de calidad para Colchagua</h1>
+      <p>Administramos los jardines infantiles, escuelas y liceos públicos del territorio, junto a familias, equipos docentes y autoridades locales.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#">Conocer el Servicio
+          <svg class="arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn outline" href="#">Postular a una escuela</a>
+      </div>
+    </div>
+    <div class="right">
+      <div class="stats">
+        <div class="stat"><div class="n">68</div><div class="l">Establecimientos</div></div>
+        <div class="stat"><div class="n">4</div><div class="l">Comunas del territorio</div></div>
+        <div class="stat"><div class="n">22k</div><div class="l">Estudiantes</div></div>
+        <div class="stat"><div class="n">2.5k</div><div class="l">Docentes y asistentes</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

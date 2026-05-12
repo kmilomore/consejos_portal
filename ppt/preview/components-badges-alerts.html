@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_card.css">
+<style>
+  .row { display:flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+    font-family: var(--font-sans);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .b-info    { background: #E5F2FB; color: #004F8A; }
+  .b-success { background: #E3F5EB; color: #1F8A5B; }
+  .b-warning { background: #FFF1D6; color: #8A5400; }
+  .b-danger  { background: #FFE5E9; color: #BD0E25; }
+  .b-neutral { background: var(--neutral-100); color: var(--navy-500); }
+  .b-navy    { background: var(--navy-500); color: #fff; }
+  .b-coral   { background: var(--coral-500); color: #fff; }
+  .b-outline { background: #fff; color: var(--navy-500); border: 1px solid var(--navy-500);}
+
+  .alerts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px;}
+  .alert {
+    padding: 12px 14px; border-radius: 10px;
+    display: flex; gap: 12px; align-items: flex-start;
+    font-size: 13px; line-height: 1.4;
+    border-left: 4px solid currentColor;
+  }
+  .alert b { display:block; margin-bottom: 2px; font-weight: 900; font-size: 13.5px; }
+  .alert p { margin: 0; color: var(--neutral-700); font-weight: 500;}
+  .a-info    { background: #E5F2FB; color: #004F8A; }
+  .a-success { background: #E3F5EB; color: #1F8A5B; }
+  .a-warning { background: #FFF1D6; color: #8A5400; }
+  .a-danger  { background: #FFE5E9; color: #BD0E25; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="row">
+    <span class="badge b-info"><span class="dot"></span> Informativo</span>
+    <span class="badge b-success"><span class="dot"></span> Publicado</span>
+    <span class="badge b-warning"><span class="dot"></span> En revisión</span>
+    <span class="badge b-danger"><span class="dot"></span> Urgente</span>
+    <span class="badge b-neutral">Borrador</span>
+    <span class="badge b-navy">Oficial</span>
+    <span class="badge b-coral">Nuevo</span>
+    <span class="badge b-outline">Archivado</span>
+  </div>
+
+  <div class="alerts">
+    <div class="alert a-info">
+      <div><b>Plazo de admisión 2026</b><p>Las postulaciones se reciben hasta el 30 de octubre por el SAE.</p></div>
+    </div>
+    <div class="alert a-danger">
+      <div><b>Suspensión de clases</b><p>La Escuela G-32 suspende actividades el viernes por motivos sanitarios.</p></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

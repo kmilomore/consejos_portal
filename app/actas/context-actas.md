@@ -1,8 +1,8 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-05-04
+> **Última actualización:** 2026-05-11 (v3)
 > **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
-> **Estado actual:** flujo híbrido operativo, compilando correctamente y con hallazgos recientes en permisos/scope territorial.
+> **Estado actual:** flujo híbrido operativo con 13 mejoras UI/UX implementadas; compilación limpia.
 
 ---
 
@@ -44,13 +44,34 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - feedback visual inmediato al seleccionar documento en el modal, previo a la subida real
 - `npm run build` exitoso tras restaurar el loader y dejar activo el flujo híbrido
 - corrección de `validate(draft)`: "Guardar avance" en `REGISTRO_DOCUMENTAL` ahora sigue exigiendo documento adjunto, evitando el constraint `actas_registro_documental_doc_check`
-- corrección del estado `uploadStatus` al rechazar archivos >10 MB: ahora se resetea a `"idle"` para no mostrar el banner de error anterior junto al nuevo mensaje de tamaño
+- corrección del estado `uploadStatus` al rechazar archivos >50 MB: ahora se resetea a `"idle"` para no mostrar el banner de error anterior junto al nuevo mensaje de tamaño
+- guard de RBD en `handleSubmit` reemplazado: ya no depende de `profile.rol === "DIRECTOR"` sino de `isGlobalAdmin + accessibleRbds`; cubre a representantes parciales con rol textual `ADMIN`
+- drafts de localStorage con TTL de 24 horas: se guardan como `{ form, savedAt }` y se descartan automáticamente al expirar, acotando el tiempo que el PII de asistentes (nombre, RUT, correo) persiste en equipos compartidos
+- `actas_invitados` filtrado por `acta_id` cuando hay `rbdFilter`: se construye el conjunto de IDs desde las actas del scope antes de consultar invitados, evitando traer datos de otras escuelas por red
+- `humanizeDbError()` en `acta-form.tsx`: mapea errores internos de Supabase (`duplicate key`, `check constraint`, `foreign key`) a mensajes en español comprensibles para el usuario final
+- banner de borrador restaurado: cuando se abre un formulario con draft previo aparece un aviso visible con botón "Descartar borrador" que limpia localStorage y resetea el estado
+- `onBlur` en selector de establecimiento: si el usuario escribe texto y sale del campo sin confirmar un RBD válido, el error aparece inmediatamente sin esperar al submit
+- modal de detalle (`ActaDetail`) posicionado con `items-start`: el header siempre se ve al abrir, sin importar la cantidad de datos del acta; el scroll interno sigue dentro del modal
+- filtro por establecimiento en el listado de actas: visible solo para `isGlobalAdmin`; filtra `acta.rbd` en el `useMemo` junto con los demás filtros; las escuelas se cargan desde `snapshot.establishments`
+- **L1** — columna "Establecimiento" en lugar de RBD: muestra nombre del establecimiento (lookup desde `snapshot.establishments`) con RBD como texto secundario; la búsqueda libre también matchea contra el nombre
+- **L3** — ícono de documento adjunto en la fila: aparece `FileText` enlazado a `acta.link_acta` cuando existe; click no propaga al row para evitar abrir el detalle
+- **L7** — ordenamiento de columnas por Sesión y Fecha: headers clickeables con indicador de flecha; estado `sortField` + `sortDir` dentro del mismo `useMemo` de `filteredRows`; default Fecha desc
+- **L4** — navegación prev/next dentro del modal de detalle: `filteredRows` y `onNavigate` se pasan desde la página; el modal muestra chevrons que navegan por la lista filtrada actual
+- **D1** — resumen de quórum en el header del modal: badge `X/Y · Quórum válido/Sin quórum` visible solo para `ACTA_COMPLETA`; umbral mínimo 4 de 6
+- **D2** — banner de próxima sesión al inicio del body del modal: aparece si `acta.proxima_sesion` existe; reemplaza la row inline que estaba al final del detalle
+- **D3** — botón "Copiar enlace" en el header del modal: copia `?acta=<id>` al portapapeles; muestra "Copiado" 2 s y vuelve al estado original
+- **F1** — indicador visible de autoguardado en el footer del formulario: "Borrador guardado hace X min" aparece junto al botón Cancelar después de cada persistencia en localStorage; calculado con `timeAgo()`
+- **F4** — botones "Expandir todos" / "Colapsar todos" en la sección de asistencia: modifica `expanded` en todos los `EstamentoState` del array de forma inmutable
+- **F5** — barra de progreso por pasos en el header del formulario: indicadores numerados (Sesión → Asistencia → Contenido → Evidencia para acta completa; Sesión → Documento para documental); paso completado se pinta en `ocean`
+- **F7** — vista previa del archivo seleccionado: card con nombre, tamaño formateado (`formatBytes`) y sub-tipo MIME; aparece debajo del dropzone cuando hay `pendingFile`
+- **F8** — autocompletado de datos del asistente desde actas previas: el campo "Nombre completo" de cada `EstamentoCard` usa `<datalist>` con nombres históricos del mismo RBD y rol; al seleccionar una sugerencia se auto-rellenan RUT y correo
+- **F11** — `QuorumBadge` sticky al hacer scroll en el formulario: la cabecera de la sección de asistencia tiene `sticky top-0 z-10 bg-white/95 backdrop-blur-sm`; incluye además los botones Expandir/Colapsar
 
 ### Pendiente o parcial
 
 - activación del RPC `save_acta_complete` en cliente
 - eliminación del PDF en Storage al borrar acta
-- validación en entorno real de la migración `20260424_consejos_storage_evidencias_public_any_file.sql`
+- validación en entorno real de la migración `20260505_consejos_storage_evidencias_50mb.sql`
 - validación MIME real del archivo en servidor
 - persistencia de correo de invitados en BD
 - selector UI para `programacion_origen_id`
@@ -85,6 +106,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 | `types/domain.ts` | `Acta`, `AttendeeSlot`, `InvitedGuest`, `ActaRecordMode` |
 | `supabase/migrations/20260418_save_acta_atomic.sql` | RPC atómica alineada al modo híbrido, aún no activada en cliente |
 | `supabase/migrations/20260424_consejos_actas_registro_documental.sql` | migración que habilita `modo_registro`, `observacion_documental` y horarios nullable |
+| `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql` | sube el límite del bucket `evidencias_actas` a 50 MB para alinearlo con la UI |
 
 ### Orden recomendado para investigar un problema
 
@@ -169,11 +191,16 @@ Fuente:
 
 Comportamiento actual:
 - usa `snapshot.actas` y `snapshot.establishments`
-- filtra por texto libre sobre `tabla_temas`, `acuerdos`, `observacion_documental`, `lugar`, `rbd`, `comuna`
+- filtra por texto libre sobre `tabla_temas`, `acuerdos`, `observacion_documental`, `lugar`, `rbd`, `comuna` y nombre del establecimiento (via `establishmentMap`)
 - filtra además por `tipo_sesion`
 - filtra además por `modo_registro`
+- filtra además por `rbd` cuando `isGlobalAdmin === true` y el usuario selecciona una escuela (filtro visible solo para admins globales)
+- ordena por `sortField` (`"fecha"` o `"sesion"`) con dirección `sortDir` (`"asc"` | `"desc"`); default: Fecha desc
 - muestra badge `Completa` o `Documental` por fila
+- muestra el nombre del establecimiento en lugar del RBD en la columna de escuela (RBD como texto secundario)
+- muestra ícono de documento cuando `acta.link_acta` existe
 - el horario renderiza tolerando `null`
+- todos los filtros y el ordenamiento corren en el mismo `useMemo`; `sortField`, `sortDir` y `establishmentMap` están en las dependencias
 
 Hallazgo importante:
 
@@ -257,9 +284,14 @@ Comportamiento:
 Comportamiento actual:
 - `ActaDetail` detecta `modo_registro`
 - si es documental, prioriza bloque de observación documental
-- si es completa, muestra asistencia, invitados, acuerdos y desarrollo
+- si es completa, muestra asistencia, invitados, acuerdos y desarrollo; incluye badge de quórum en el header
 - la tabla de asistentes incluye columna `RUT`
+- si `acta.proxima_sesion` existe, aparece un banner destacado al inicio del body (reemplaza la row inline al final)
+- botón "Copiar enlace" copia `?acta=<id>` al portapapeles directamente desde el header
+- navegación prev/next por la lista filtrada actual mediante chevrons en el header; flechas deshabilitadas en los extremos
+- el header muestra nombre del establecimiento (`escuela?.nombre ?? acta.rbd`) junto al RBD
 - impresión usa `window.print()` y layout A4
+- `siblingActas` y `onNavigate` provienen de `app/actas/page.tsx`; si no se pasan, los chevrons no se muestran
 
 ### Flujo H — Eliminar acta
 
@@ -326,6 +358,13 @@ No tocar sin revisar primero:
 - cualquier pantalla que use `profile.rol === 'ADMIN'` como sinónimo de acceso global introduce riesgo de mostrar más contexto del debido
 - `validate(draft=true)` no puede ser un `return true` incondicional: el constraint `actas_registro_documental_doc_check` se aplica en BD independientemente del modo de guardado; si el draft omite la validación de documento, la fila se inserta con `link_acta: null` y la BD la rechaza con un error 400 opaco
 - rechazar un archivo por tamaño no basta con mostrar el error de campo; hay que resetear `uploadStatus` a `"idle"` o el banner de upload-error anterior sigue visible en pantalla
+- el guard textual `profile.rol === "DIRECTOR"` no era suficiente: representantes con rol `ADMIN` pero scope parcial podían guardar actas fuera de su cobertura en client-side; el guard vigente usa `isGlobalAdmin + accessibleRbds`
+- drafts sin TTL en localStorage son un riesgo de PII en equipos compartidos; la clave `savedAt` permite expirarlos a las 24 horas sin depender de eventos de sesión
+- la query de `actas_invitados` sin filtrar por `acta_id` trae datos de todas las escuelas por red aunque RLS los descarte después en JS; al filtrar en la query se evita la fuga por transporte
+- los mensajes de error crudos de Supabase (en inglés y con nombres de constraints) llegan al usuario si no se interceptan; `humanizeDbError` es el punto canónico de traducción
+- mostrar solo el RBD en la columna de escuela obliga al usuario a memorizar códigos; el nombre del establecimiento desde `snapshot.establishments` aporta contexto sin red adicional
+- el ordenamiento de columnas que no resetea el índice del modal abierto introduce inconsistencia: el nav prev/next usa `filteredRows` en tiempo de render del modal, lo que es siempre coherente con la lista actual
+- la sugerencia de asistentes desde `actas` previas no debe cruzar RBDs: `getAttendeesSuggestions` filtra `a.rbd === rbd` antes de extraer nombres; sin este filtro se expondría PII de otras escuelas
 
 ### Aciertos del diseño actual
 
@@ -335,6 +374,15 @@ No tocar sin revisar primero:
 - la precarga por escuela activa reduce errores de RBD en creación
 - endurecer asistentes presentes mejora trazabilidad sin complicar el caso documental
 - separar `isGlobalAdmin` del rol textual permite sostener representantes del sostenedor con navegación tipo admin pero alcance parcial real
+- el guard de RBD basado en `accessibleRbds` es agnóstico al rol textual: funciona igual para `DIRECTOR`, `ADMIN` parcial y cualquier rol futuro sin cambios en client-side
+- el banner de borrador restaurado elimina la ambigüedad de si el formulario viene de un draft o de cero, y ofrece salida explícita al usuario
+- el `onBlur` en el selector de establecimiento adelanta el error al momento de perder foco, antes del submit, reduciendo ciclos de corrección
+- el indicador de pasos en el header del formulario convierte el progreso en algo visible sin agregar navegación por pestañas ni romper el flujo de scroll único
+- el sticky del header de asistencia resuelve el problema de perder el quórum de vista mientras se rellenan los 6 estamentos; sin esto el badge desaparecía al hacer scroll
+- el autocompletado de asistentes basado en actas previas reduce el tiempo de ingreso repetitivo para establecimientos con consejo estable; no reemplaza la validación de campos
+- pasar `siblingActas` desde la página al modal es la forma correcta de compartir la lista filtrada sin que el modal tenga acceso directo al snapshot
+- `timeAgo` como cadena local en el indicador de autoguardado es suficiente para feedback operativo; no requiere internacionalización ni timestamps exactos
+- el separador `· RBD` en el header del modal de detalle permite identificar el establecimiento por nombre y verificar el código sin buscar otra columna
 
 ---
 
@@ -342,6 +390,7 @@ No tocar sin revisar primero:
 
 - si no está aplicada `20260424_consejos_actas_registro_documental.sql`, el frontend híbrido queda desalineado con la base
 - si no está aplicada `20260424_consejos_representante_scope.sql`, los representantes pueden terminar viendo un comportamiento incoherente con la cobertura esperada
+- si no está aplicada `20260505_consejos_storage_evidencias_50mb.sql`, la UI puede aceptar hasta 50 MB pero Supabase Storage seguirá rechazando archivos sobre 10 MB
 - si se rompe `queries.ts`, el módulo puede compilar pero cargar semántica equivocada
 - el flujo cliente-side todavía no es transaccional entre acta e invitados
 - el documento adjunto sigue fuera de la transacción SQL
@@ -350,7 +399,15 @@ No tocar sin revisar primero:
 - el correo de invitados se pierde porque no existe columna persistente
 - cualquier KPI nuevo puede inducir error si no aclara si cuenta solo completas o ambas modalidades
 - un archivo rechazado por tamaño máximo debe también resetear `uploadStatus`; de lo contrario el banner de error previo convive con el nuevo mensaje de validación
+
+- el límite vigente de carga para documentos de acta es 50 MB y debe mantenerse alineado entre UI y bucket `evidencias_actas`
 - el texto del perfil en `usuarios_perfiles.rol` no basta para inferir alcance: hoy el verdadero permiso global está en `is_global_admin()` y el scope territorial en `current_accessible_rbds()`
+- si se añade un rol nuevo que no sea `DIRECTOR` ni `ADMIN` pero tenga scope parcial, el guard `isGlobalAdmin + accessibleRbds` lo cubre automáticamente siempre que `get_current_portal_scope()` devuelva sus RBDs correctamente
+- drafts creados antes de 2026-05-11 están en formato `FormState` plano (sin `savedAt`); `parseSavedDraft` los descarta automáticamente al no encontrar `savedAt` — ningún dato queda huérfano
+- `getAttendeesSuggestions` depende de que `actas` tenga datos de asistentes del mismo RBD; si el usuario crea su primer acta para un establecimiento, no habrá sugerencias — el campo funciona igual sin datalist
+- el nav prev/next del modal navega por `filteredRows` en el momento del render; si el usuario cambia un filtro con el modal abierto y la acta ya no está en la lista filtrada, `currentIndex` será `-1` y los botones quedarán deshabilitados sin cerrar el modal automáticamente
+- el sticky del header de asistencia con `backdrop-blur-sm` puede generar artefactos visuales en Safari si el contenedor scrollable no tiene `overflow-y-auto` explícito; no remover esa propiedad del body del formulario
+- `navigator.clipboard.writeText` requiere contexto seguro (HTTPS); en entornos locales sin SSL el botón "Copiar enlace" puede fallar silenciosamente — el `try/catch` no está implementado, el error se propagará a la consola
 
 ---
 
@@ -367,17 +424,35 @@ No tocar sin revisar primero:
 7. No confiar en imports `@/utils/supabase/client`; en este repo el import correcto es `@/lib/supabase/client`.
 8. No volver al borrador único `acta-draft-new` para todos los casos; hoy el draft es por acta.
 9. No relajar la obligación de RUT/correo/modalidad para asistentes presentes sin rediseño explícito.
-10. No volver a tratar `profile.rol === 'ADMIN'` como equivalente a “admin global” sin revisar también `isGlobalAdmin`.11. No usar `if (draft) return true` como atajo total en `validate()`: las reglas que son constraints de BD deben aplicarse siempre, incluso para "Guardar avance".
+10. No volver a tratar `profile.rol === 'ADMIN'` como equivalente a “admin global” sin revisar también `isGlobalAdmin`.
+11. No usar `if (draft) return true` como atajo total en `validate()`: las reglas que son constraints de BD deben aplicarse siempre, incluso para “Guardar avance”.
+12. No restaurar el guard textual `profile.rol === “DIRECTOR”` en `handleSubmit`; el guard vigente usa `isGlobalAdmin + accessibleRbds` y cubre todos los roles con scope parcial.
+13. No guardar en localStorage el `FormState` plano sin `savedAt`; el formato esperado por `parseSavedDraft` es `{ form: FormState, savedAt: number }`.
+14. No exponer mensajes de error de Supabase directamente en `setSaveError`; usar `humanizeDbError()` o redactar un mensaje propio en español.
+15. No volver a `items-center` en el contenedor de `ActaDetail`; el modal debe anclar desde arriba del viewport (`items-start`) para que el header sea inmediatamente visible.
+16. No mostrar el filtro de establecimiento a usuarios no globales; la condición `isGlobalAdmin` en `app/actas/page.tsx` es deliberada y no debe relajarse a `canSelectSchool` sin validar el contrato de scope.
+17. No usar `sortField` y `sortDir` fuera del `useMemo` de `filteredRows`; el orden es presentación pura y no debe afectar el estado del modal abierto ni el conteo de resultados.
+18. No implementar `getAttendeesSuggestions` con acceso a todos los RBDs del snapshot; la función filtra `a.rbd === rbd` obligatoriamente para no sugerir PII de otras escuelas.
+19. No llamar `navigator.clipboard.writeText` sin considerar que puede lanzar en entornos sin HTTPS; agregar `try/catch` si se reutiliza el patrón de copiado en otros lugares.
+20. No sacar el `QuorumBadge` del wrapper sticky sin moverlo a otro contexto visible; si se mueve al body scrollable el usuario pierde referencia de quórum mientras rellena los 6 estamentos.
+
 ### No tocar sin revisar también
 
 - `types/domain.ts`
 - `lib/supabase/queries.ts`
 - `supabase/migrations/20260424_consejos_actas_registro_documental.sql`
 - `supabase/migrations/20260418_save_acta_atomic.sql`
+- `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql`
 - `lib/supabase/use-portal-snapshot.tsx`
+- `components/portal/acta-detail.tsx` — posicionamiento del modal, layout A4, navegación prev/next, banner D2 y botón D3
+- `app/actas/page.tsx` — filtros, ordenamiento y condición `isGlobalAdmin` para filtro de escuela; `establishmentMap`; props pasados a `ActaDetail`
+- `components/portal/acta-form.tsx` — header de progreso F5, sticky header de asistencia F11, `getAttendeesSuggestions`, `formatBytes`, `timeAgo`
 
 Razón:
-- estos archivos forman el contrato del módulo entre UI, snapshot y BD
+- los primeros forman el contrato del módulo entre UI, snapshot y BD
+- `acta-detail.tsx` tiene clases `print:*` que definen el layout de impresión; cambios de layout pueden romper la vista A4; la navegación prev/next depende de que `siblingActas` se pase desde la página
+- `page.tsx` concentra todos los filtros del listado en un único `useMemo`; agregar estado fuera de ese memo rompe la consistencia del conteo y del nav modal
+- el sticky header de `acta-form.tsx` requiere que el body del formulario mantenga `overflow-y-auto`; removerlo rompe tanto el scroll interno como el `backdrop-blur`
 
 ---
 
@@ -395,6 +470,16 @@ Razón:
 10. la operación híbrida debe seguir funcionando para las 4 comunas sin flags separados en frontend.
 11. el representante del sostenedor puede navegar con perfil tipo admin, pero su visibilidad efectiva debe seguir limitada por RBD/comuna autorizados en Supabase.
 12. `validate(draft)` debe proteger todas las reglas que son invariantes de BD aunque el guardado sea parcial.
+13. el guard de RBD en `handleSubmit` usa `isGlobalAdmin + accessibleRbds`, no el rol textual; no reemplazar.
+14. los drafts en localStorage tienen formato `{ form, savedAt }` y TTL de 24 horas; `parseSavedDraft` es la única función que los lee.
+15. los errores de Supabase que llegan al usuario pasan por `humanizeDbError()`; no exponer mensajes crudos del cliente.
+16. `ActaDetail` ancla desde `items-start` del viewport; el scroll interno queda en el body del modal, no en el documento.
+17. el filtro por establecimiento en el listado es exclusivo de `isGlobalAdmin`; el estado `filterRbd` forma parte del `useMemo` de `filteredRows`.
+18. el ordenamiento de columnas (`sortField`, `sortDir`) se aplica dentro del mismo `useMemo` de `filteredRows`, después del filtrado; no se maneja en estado separado.
+19. `siblingActas` y `onNavigate` se pasan desde `app/actas/page.tsx` a `ActaDetail`; el modal no accede al snapshot directamente.
+20. `getAttendeesSuggestions` filtra siempre por `rbd` antes de devolver nombres; no devuelve sugerencias de otras escuelas.
+21. el indicador de autoguardado (`lastDraftSavedAt`) solo se actualiza al persistir en localStorage, no al detectar cambios en el formulario.
+22. el header de asistencia usa `sticky top-0` dentro del body con `overflow-y-auto`; depende de esa propiedad en el contenedor padre para funcionar correctamente.
 
 ---
 
@@ -403,7 +488,7 @@ Razón:
 Antes de editar:
 
 1. Revisar `context.md` y este archivo.
-2. Verificar si está aplicada `20260424_consejos_storage_evidencias_public_any_file.sql` cuando haya cambios de storage o tipos de archivo.
+2. Verificar si están aplicadas `20260424_consejos_storage_evidencias_public_any_file.sql` y `20260505_consejos_storage_evidencias_50mb.sql` cuando haya cambios de storage, tipos de archivo o tamaño máximo.
 3. Verificar si está aplicada `20260424_consejos_representante_scope.sql` antes de concluir que un problema de visibilidad es “solo frontend”.
 2. Confirmar si el cambio afecta `ACTA_COMPLETA`, `REGISTRO_DOCUMENTAL` o ambos.
 3. Verificar si toca contrato de dominio, snapshot o migración.
@@ -442,37 +527,49 @@ Validación mínima esperada:
 ActasPage monta
   -> usePortalSnapshot()
   -> rows = snapshot.actas
-  -> filtro por texto + tipo + modo
+  -> establishmentMap = Map<rbd, nombre> desde snapshot.establishments
+  -> filtro por texto (incluye nombre escuela) + tipo + modo + rbd (rbd solo visible si isGlobalAdmin)
+  -> ordena por sortField/sortDir en el mismo useMemo → filteredRows
+  -> columna Establecimiento muestra nombre + RBD secundario
+  -> ícono de documento en fila si acta.link_acta existe
+  -> headers Sesión y Fecha clickeables para ordenar
 
 Usuario abre nueva acta
   -> ActaForm precarga escuela activa si existe
-  -> restaura draft local por clave
+  -> restaura draft local por clave (si existe y tiene < 24h)
+  -> muestra banner de borrador restaurado si corresponde
+  -> header muestra pasos de progreso (F5): Sesión → Asistencia → Contenido → Evidencia
   -> elige ACTA_COMPLETA o REGISTRO_DOCUMENTAL
+
+Mientras rellena formulario
+  -> borrador se guarda cada 800ms; footer muestra "Borrador guardado hace X min" (F1)
+  -> sección asistencia con sticky header + Expandir/Colapsar todos + QuorumBadge (F4, F11)
+  -> nombres de asistentes sugieren desde actas previas del mismo RBD/rol (F8)
+  -> al seleccionar archivo, aparece preview con nombre, tamaño y tipo MIME (F7)
 
 Si guarda ACTA_COMPLETA
   -> valida fecha, horas, temas, acuerdos y asistentes presentes
-  -> upsertActa
-  -> replaceActaInvitados
-  -> uploadActaPdf / updateActaLink si aplica
-  -> limpia draft
-  -> toast
-  -> refresh
+  -> guard: !isGlobalAdmin && !accessibleRbds.includes(form.rbd) → bloquea
+  -> upsertActa → replaceActaInvitados → uploadActaPdf / updateActaLink si aplica
+  -> limpia draft → toast → refresh
 
 Si guarda REGISTRO_DOCUMENTAL
   -> valida fecha + documento
-  -> upsertActa sin asistentes ni invitados
-  -> uploadActaPdf / updateActaLink si aplica
-  -> limpia draft
-  -> toast específico
-  -> refresh
+  -> guard: !isGlobalAdmin && !accessibleRbds.includes(form.rbd) → bloquea
+  -> upsertActa sin asistentes ni invitados → uploadActaPdf / updateActaLink si aplica
+  -> limpia draft → toast específico → refresh
 
 Usuario ve detalle
-  -> ActaDetail adapta la lectura según modo_registro
+  -> ActaDetail monta anclado arriba del viewport (items-start)
+  -> si proxima_sesion existe: banner destacado al inicio del body (D2)
+  -> header muestra nombre establecimiento + RBD, badge de quórum para ACTA_COMPLETA (D1)
+  -> botón "Copiar enlace" copia ?acta=<id> al portapapeles (D3)
+  -> chevrons prev/next navegan por filteredRows pasado desde la página (L4)
+  -> adapta la lectura según modo_registro
+  -> scroll interno dentro del modal, no del documento
 
 Usuario elimina
-  -> ConfirmDialog
-  -> deleteActa
-  -> refresh
+  -> ConfirmDialog → deleteActa → refresh
 ```
 
 ---

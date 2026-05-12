@@ -1,24 +1,46 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* =========================================================================
    SLEP Colchagua · Design Tokens
    Servicio Local de Educación Pública Colchagua
    ========================================================================= */
 
-/* Web fonts are loaded by Next.js localFont (layout.tsx) as --font-museo-sans */
+/* ---------- Web fonts ---------- */
+@font-face {
+  font-family: "Museo Sans";
+  src: url("fonts/MuseoSans-100.woff") format("woff");
+  font-weight: 100 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Museo Sans";
+  src: url("fonts/MuseoSans-500.woff") format("woff");
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Museo Sans";
+  src: url("fonts/MuseoSans-700.woff") format("woff");
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Museo Sans";
+  src: url("fonts/MuseoSans-900.woff") format("woff");
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  color-scheme: light;
-
   /* ---------- Brand colors (pure) ---------- */
-  --slep-navy:        #25306B;
-  --slep-royal:       #006BB9;
-  --slep-coral:       #FF1D3D;
-  --slep-soft-white:  #EDF0F5;
+  --slep-navy:        #25306B;  /* Pantone 2756C — institutional dominant */
+  --slep-royal:       #006BB9;  /* Pantone 2175C — interactive / accent   */
+  --slep-coral:       #FF1D3D;  /* Pantone 1788C — alert / emphasis        */
+  --slep-soft-white:  #EDF0F5;  /* Pantone 663C  — surfaces / negative     */
   --slep-white:       #FFFFFF;
-  --slep-black:       #0B0F1E;
+  --slep-black:       #0B0F1E;  /* near-black derived from navy            */
 
   /* ---------- Navy scale ---------- */
   --navy-50:  #EEF0F7;
@@ -26,7 +48,7 @@
   --navy-200: #A9B1D2;
   --navy-300: #7B85B6;
   --navy-400: #525E96;
-  --navy-500: #25306B;
+  --navy-500: #25306B;   /* brand navy */
   --navy-600: #1F2A5E;
   --navy-700: #182250;
   --navy-800: #131B40;
@@ -38,7 +60,7 @@
   --royal-200: #8FC4EA;
   --royal-300: #56A6DE;
   --royal-400: #208ECF;
-  --royal-500: #006BB9;
+  --royal-500: #006BB9;   /* brand royal */
   --royal-600: #005FA5;
   --royal-700: #004F8A;
   --royal-800: #003E6C;
@@ -50,56 +72,56 @@
   --coral-200: #FF8E9D;
   --coral-300: #FF5C73;
   --coral-400: #FF3855;
-  --coral-500: #FF1D3D;
+  --coral-500: #FF1D3D;   /* brand coral */
   --coral-600: #E5142F;
   --coral-700: #BD0E25;
   --coral-800: #94081B;
   --coral-900: #6C0413;
 
   /* ---------- Neutrals (cool, aligned with Soft White) ---------- */
-  --neutral-0:   #FFFFFF;
-  --neutral-50:  #F7F9FC;
-  --neutral-100: #EDF0F5;
-  --neutral-200: #DDE3EC;
-  --neutral-300: #C2CAD7;
-  --neutral-400: #97A0B2;
-  --neutral-500: #6A7388;
-  --neutral-600: #4A5266;
-  --neutral-700: #323A4D;
-  --neutral-800: #1F2638;
-  --neutral-900: #11162A;
+  --neutral-0:    #FFFFFF;
+  --neutral-50:   #F7F9FC;
+  --neutral-100:  #EDF0F5;   /* brand soft white */
+  --neutral-200:  #DDE3EC;
+  --neutral-300:  #C2CAD7;
+  --neutral-400:  #97A0B2;
+  --neutral-500:  #6A7388;
+  --neutral-600:  #4A5266;
+  --neutral-700:  #323A4D;
+  --neutral-800:  #1F2638;
+  --neutral-900:  #11162A;
 
   /* ---------- Semantic surface tokens ---------- */
-  --bg-page:      var(--neutral-100);
-  --bg-surface:   var(--neutral-0);
-  --bg-sunken:    var(--neutral-50);
-  --bg-inverse:   var(--navy-500);
-  --bg-inverse-2: var(--navy-700);
-  --bg-accent:    var(--royal-500);
-  --bg-emphasis:  var(--coral-500);
+  --bg-page:        var(--neutral-100);
+  --bg-surface:     var(--neutral-0);
+  --bg-sunken:      var(--neutral-50);
+  --bg-inverse:     var(--navy-500);
+  --bg-inverse-2:   var(--navy-700);
+  --bg-accent:      var(--royal-500);
+  --bg-emphasis:    var(--coral-500);
 
   /* ---------- Foreground tokens ---------- */
-  --fg-1:          var(--navy-500);
-  --fg-2:          var(--neutral-700);
-  --fg-3:          var(--neutral-500);
-  --fg-muted:      var(--neutral-400);
-  --fg-on-dark-1:  var(--neutral-0);
-  --fg-on-dark-2:  var(--neutral-100);
-  --fg-on-dark-3:  var(--navy-100);
-  --fg-link:       var(--royal-500);
-  --fg-link-hover: var(--royal-700);
-  --fg-danger:     var(--coral-600);
+  --fg-1:           var(--navy-500);   /* primary text on light */
+  --fg-2:           var(--neutral-700);
+  --fg-3:           var(--neutral-500);
+  --fg-muted:       var(--neutral-400);
+  --fg-on-dark-1:   var(--neutral-0);
+  --fg-on-dark-2:   var(--neutral-100);
+  --fg-on-dark-3:   var(--navy-100);
+  --fg-link:        var(--royal-500);
+  --fg-link-hover:  var(--royal-700);
+  --fg-danger:      var(--coral-600);
 
   /* ---------- Borders & dividers ---------- */
-  --border-1:      var(--neutral-200);
-  --border-2:      var(--neutral-300);
-  --border-strong: var(--navy-500);
-  --border-accent: var(--royal-500);
-  --border-danger: var(--coral-500);
+  --border-1:       var(--neutral-200);
+  --border-2:       var(--neutral-300);
+  --border-strong:  var(--navy-500);
+  --border-accent:  var(--royal-500);
+  --border-danger:  var(--coral-500);
 
   /* ---------- Status (derived) ---------- */
-  --status-info:       var(--royal-500);
-  --status-info-bg:    var(--royal-50);
+  --status-info:     var(--royal-500);
+  --status-info-bg:  var(--royal-50);
   --status-success:    #1F8A5B;
   --status-success-bg: #E3F5EB;
   --status-warning:    #C77A00;
@@ -115,23 +137,23 @@
   --grad-tricolor:  linear-gradient(90deg, #25306B 0%, #25306B 60%, #FF1D3D 60%, #FF1D3D 100%);
 
   /* ---------- Shadows (cool, navy-tinted) ---------- */
-  --shadow-xs:    0 1px 2px rgba(37, 48, 107, 0.06);
-  --shadow-sm:    0 2px 6px rgba(37, 48, 107, 0.08);
-  --shadow-md:    0 6px 18px rgba(37, 48, 107, 0.10);
-  --shadow-lg:    0 16px 40px rgba(37, 48, 107, 0.14);
-  --shadow-xl:    0 28px 64px rgba(37, 48, 107, 0.18);
+  --shadow-xs:  0 1px 2px rgba(37, 48, 107, 0.06);
+  --shadow-sm:  0 2px 6px rgba(37, 48, 107, 0.08);
+  --shadow-md:  0 6px 18px rgba(37, 48, 107, 0.10);
+  --shadow-lg:  0 16px 40px rgba(37, 48, 107, 0.14);
+  --shadow-xl:  0 28px 64px rgba(37, 48, 107, 0.18);
   --shadow-focus: 0 0 0 3px rgba(0, 107, 185, 0.35);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.10);
 
   /* ---------- Corner radii ---------- */
-  --radius-xs:      2px;
-  --radius-sm:      4px;
-  --radius-md:      8px;
-  --radius-lg:      12px;
-  --radius-xl:      20px;
-  --radius-2xl:     28px;
-  --radius-pill:    999px;
-  --radius-card:    12px;
+  --radius-xs:  2px;
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+  --radius-pill: 999px;
+  --radius-card: 12px;
   --radius-control: 8px;
 
   /* ---------- Spacing (4-pt grid) ---------- */
@@ -150,14 +172,14 @@
   --space-24: 96px;
 
   /* ---------- Typography — families ---------- */
-  --font-sans:    var(--font-museo-sans), "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --font-display: var(--font-museo-sans), "Avenir Next", "Segoe UI", sans-serif;
-  --font-mono:    ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --font-sans: "Museo Sans", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Museo Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 
   /* ---------- Typography — weights ---------- */
   --weight-thin:    100;
   --weight-light:   300;
-  --weight-regular: 500;
+  --weight-regular: 500;   /* Museo Sans 500 is the working "regular" */
   --weight-bold:    700;
   --weight-black:   900;
 
@@ -189,49 +211,44 @@
   --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in:       cubic-bezier(0.4, 0, 1, 1);
   --ease-out:      cubic-bezier(0, 0, 0.2, 1);
-  --dur-fast: 120ms;
-  --dur-base: 200ms;
-  --dur-slow: 360ms;
+  --dur-fast:    120ms;
+  --dur-base:    200ms;
+  --dur-slow:    360ms;
 
   /* ---------- Layout ---------- */
-  --container-sm: 640px;
-  --container-md: 960px;
-  --container-lg: 1200px;
-  --container-xl: 1400px;
+  --container-sm:  640px;
+  --container-md:  960px;
+  --container-lg:  1200px;
+  --container-xl:  1400px;
 }
 
 /* =========================================================================
-   Base styles
+   Semantic element styles — base
    ========================================================================= */
-
-html {
-  scroll-behavior: smooth;
-}
-
-html,
-body {
+html, body {
   font-family: var(--font-sans);
   color: var(--fg-1);
   background: var(--bg-page);
   font-weight: var(--weight-regular);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.font-display {
+/* Display & headings — institutional, set with Museo Sans heavy weights */
+.display-1,
+h1.display {
   font-family: var(--font-display);
+  font-weight: var(--weight-black);
+  font-size: var(--text-6xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
 }
 
 h1 {
+  font-family: var(--font-display);
   font-weight: var(--weight-black);
   font-size: var(--text-4xl);
   line-height: var(--leading-tight);
@@ -241,6 +258,7 @@ h1 {
 }
 
 h2 {
+  font-family: var(--font-display);
   font-weight: var(--weight-bold);
   font-size: var(--text-3xl);
   line-height: var(--leading-snug);
@@ -250,6 +268,7 @@ h2 {
 }
 
 h3 {
+  font-family: var(--font-display);
   font-weight: var(--weight-bold);
   font-size: var(--text-2xl);
   line-height: var(--leading-snug);
@@ -258,6 +277,7 @@ h3 {
 }
 
 h4 {
+  font-family: var(--font-display);
   font-weight: var(--weight-bold);
   font-size: var(--text-xl);
   line-height: var(--leading-snug);
@@ -266,6 +286,7 @@ h4 {
 }
 
 h5 {
+  font-family: var(--font-sans);
   font-weight: var(--weight-bold);
   font-size: var(--text-md);
   line-height: var(--leading-snug);
@@ -273,35 +294,7 @@ h5 {
   margin: 0 0 var(--space-2);
 }
 
-p,
-.body {
-  font-weight: var(--weight-regular);
-  font-size: var(--text-base);
-  line-height: var(--leading-normal);
-  color: var(--fg-2);
-  margin: 0 0 var(--space-4);
-  text-wrap: pretty;
-}
-
-a {
-  color: var(--fg-link);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-thickness: 1px;
-  transition: color var(--dur-fast) var(--ease-standard);
-}
-a:hover {
-  color: var(--fg-link-hover);
-}
-
-code,
-kbd,
-pre {
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-}
-
-/* Eyebrow / overline */
+/* Eyebrow / overline — common institutional pattern */
 .eyebrow {
   font-family: var(--font-sans);
   font-weight: var(--weight-bold);
@@ -311,66 +304,54 @@ pre {
   color: var(--royal-500);
 }
 
+p,
+.body {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-regular);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--fg-2);
+  margin: 0 0 var(--space-4);
+  text-wrap: pretty;
+}
+
+.lead {
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+  color: var(--fg-2);
+  font-weight: var(--weight-regular);
+}
+
+small,
+.caption {
+  font-size: var(--text-sm);
+  color: var(--fg-3);
+}
+
+.fineprint {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  letter-spacing: var(--tracking-wide);
+}
+
+a {
+  color: var(--fg-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+a:hover { color: var(--fg-link-hover); }
+
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
 /* Selection */
 ::selection {
   background: var(--royal-500);
   color: var(--neutral-0);
-}
-
-/* ── Print styles ──────────────────────────────────────────────────── */
-@media print {
-  nav,
-  aside:not([class*="acta-detail"]),
-  header,
-  footer,
-  [data-sidebar],
-  .print\:hidden {
-    display: none !important;
-  }
-
-  body {
-    background: white !important;
-    min-height: unset;
-  }
-
-  .fixed {
-    position: static !important;
-  }
-
-  @page {
-    margin: 20mm;
-    size: A4;
-  }
-}
-
-/* ── Animations ────────────────────────────────────────────────────── */
-@keyframes panel-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.panel-reveal {
-  animation: panel-fade-up 320ms var(--ease-emphasis);
-}
-
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.skeleton-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--neutral-200) 25%,
-    var(--neutral-50)  50%,
-    var(--neutral-200) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.6s linear infinite;
 }
