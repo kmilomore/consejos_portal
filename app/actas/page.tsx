@@ -15,6 +15,8 @@ import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { formatDate } from "@/lib/utils";
 import type { Acta, ActaRecordMode, SessionType } from "@/types/domain";
 
+type SearchField = "all" | "establishment" | "topics" | "agreements" | "comuna" | "rbd";
+
 function formatSchedule(acta: Acta) {
   if (acta.hora_inicio && acta.hora_termino) {
     return `${acta.hora_inicio} – ${acta.hora_termino}`;
@@ -46,7 +48,9 @@ export default function ActasPage() {
 
   // ── Search & filters — #27 ───────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRbd, setFilterRbd] = useState<string>("");
+  const [searchField, setSearchField] = useState<SearchField>("all");
+  const [filterSchoolQuery, setFilterSchoolQuery] = useState("");
+  const [filterComuna, setFilterComuna] = useState<string>("");
   const [filterTipo, setFilterTipo] = useState<SessionType | "">("");
   const [filterModo, setFilterModo] = useState<ActaRecordMode | "">("");
   const [sortField, setSortField] = useState<"fecha" | "sesion">("fecha");
@@ -69,24 +73,46 @@ export default function ActasPage() {
     [snapshot.establishments],
   );
 
+  const comunaOptions = useMemo(() => {
+    return [...new Set(rows.map((acta) => acta.comuna).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  }, [rows]);
+
+  const hasActiveFilters = Boolean(searchQuery || filterTipo || filterModo || filterSchoolQuery || filterComuna || searchField !== "all");
+
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
+    const schoolQuery = filterSchoolQuery.toLowerCase().trim();
     const filtered = rows.filter((acta) => {
       const matchesTipo = filterTipo ? acta.tipo_sesion === filterTipo : true;
       const matchesModo = filterModo ? acta.modo_registro === filterModo : true;
-      const matchesRbd = filterRbd ? acta.rbd === filterRbd : true;
-      if (!matchesTipo || !matchesModo || !matchesRbd) return false;
+      const establishmentName = establishmentMap.get(acta.rbd)?.toLowerCase() ?? "";
+      const matchesSchool = schoolQuery
+        ? establishmentName.includes(schoolQuery) || acta.rbd.toLowerCase().includes(schoolQuery)
+        : true;
+      const matchesComuna = filterComuna ? acta.comuna === filterComuna : true;
+      if (!matchesTipo || !matchesModo || !matchesSchool || !matchesComuna) return false;
       if (!q) return true;
-      const name = establishmentMap.get(acta.rbd)?.toLowerCase() ?? "";
-      return (
-        acta.tabla_temas.toLowerCase().includes(q) ||
-        acta.acuerdos.toLowerCase().includes(q) ||
-        acta.observacion_documental.toLowerCase().includes(q) ||
-        acta.lugar.toLowerCase().includes(q) ||
-        acta.rbd.toLowerCase().includes(q) ||
-        acta.comuna.toLowerCase().includes(q) ||
-        name.includes(q)
-      );
+      const searchScopes: Record<SearchField, boolean> = {
+        all: (
+          acta.tabla_temas.toLowerCase().includes(q) ||
+          acta.acuerdos.toLowerCase().includes(q) ||
+          acta.observacion_documental.toLowerCase().includes(q) ||
+          acta.lugar.toLowerCase().includes(q) ||
+          acta.rbd.toLowerCase().includes(q) ||
+          acta.comuna.toLowerCase().includes(q) ||
+          establishmentName.includes(q)
+        ),
+        establishment: establishmentName.includes(q),
+        topics: (
+          acta.tabla_temas.toLowerCase().includes(q) ||
+          acta.observacion_documental.toLowerCase().includes(q)
+        ),
+        agreements: acta.acuerdos.toLowerCase().includes(q),
+        comuna: acta.comuna.toLowerCase().includes(q),
+        rbd: acta.rbd.toLowerCase().includes(q),
+      };
+
+      return searchScopes[searchField];
     });
     return [...filtered].sort((a, b) => {
       const cmp = sortField === "fecha"
@@ -94,7 +120,22 @@ export default function ActasPage() {
         : a.sesion - b.sesion;
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [rows, searchQuery, filterModo, filterTipo, filterRbd, sortField, sortDir, establishmentMap]);
+  }, [rows, searchQuery, searchField, filterModo, filterTipo, filterSchoolQuery, filterComuna, sortField, sortDir, establishmentMap]);
+
+  const visibleSummary = useMemo(() => {
+    const completas = filteredRows.filter((acta) => acta.modo_registro === "ACTA_COMPLETA").length;
+    const documentales = filteredRows.length - completas;
+    const ordinarias = filteredRows.filter((acta) => acta.tipo_sesion === "Ordinaria").length;
+    const conDocumento = filteredRows.filter((acta) => Boolean(acta.link_acta)).length;
+
+    return {
+      total: filteredRows.length,
+      completas,
+      documentales,
+      ordinarias,
+      conDocumento,
+    };
+  }, [filteredRows]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -115,6 +156,15 @@ export default function ActasPage() {
   function openEdit(acta: Acta) {
     setEditActa(acta);
     setFormOpen(true);
+  }
+
+  function clearFilters() {
+    setSearchQuery("");
+    setSearchField("all");
+    setFilterSchoolQuery("");
+    setFilterComuna("");
+    setFilterTipo("");
+    setFilterModo("");
   }
 
   async function handleDelete() {
@@ -139,6 +189,18 @@ export default function ActasPage() {
         {/* Action bar */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-wrap gap-2">
+            <select
+              value={searchField}
+              onChange={(e) => setSearchField(e.target.value as SearchField)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+            >
+              <option value="all">Buscar en todo</option>
+              <option value="establishment">Establecimiento</option>
+              <option value="topics">Temas y observación</option>
+              <option value="agreements">Acuerdos</option>
+              <option value="comuna">Comuna</option>
+              <option value="rbd">RBD</option>
+            </select>
             <div className="relative w-full max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
@@ -150,19 +212,29 @@ export default function ActasPage() {
               />
             </div>
             {isGlobalAdmin && snapshot.establishments.length > 0 && (
-              <select
-                value={filterRbd}
-                onChange={(e) => setFilterRbd(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
-              >
-                <option value="">Todos los establecimientos</option>
-                {snapshot.establishments.map((e) => (
-                  <option key={e.rbd} value={e.rbd}>
-                    {e.nombre} ({e.rbd})
-                  </option>
-                ))}
-              </select>
+              <div className="relative w-full max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  placeholder="Buscar establecimiento o RBD…"
+                  value={filterSchoolQuery}
+                  onChange={(e) => setFilterSchoolQuery(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-slate-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+                />
+              </div>
             )}
+            <select
+              value={filterComuna}
+              onChange={(e) => setFilterComuna(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+            >
+              <option value="">Todas las comunas</option>
+              {comunaOptions.map((comuna) => (
+                <option key={comuna} value={comuna}>
+                  {comuna}
+                </option>
+              ))}
+            </select>
             <select
               value={filterModo}
               onChange={(e) => setFilterModo(e.target.value as ActaRecordMode | "")}
@@ -181,24 +253,43 @@ export default function ActasPage() {
               <option value="Ordinaria">Ordinaria</option>
               <option value="Extraordinaria">Extraordinaria</option>
             </select>
+            {hasActiveFilters && (
+              <Button variant="secondary" onClick={clearFilters}>Limpiar filtros</Button>
+            )}
           </div>
           <Button onClick={openNew}>Nueva acta</Button>
         </div>
 
-        {/* Results count when filtering */}
-        {(searchQuery || filterTipo || filterModo || filterRbd) && (
-          <p className="mb-4 text-xs text-slate-500">
-            {filteredRows.length} resultado{filteredRows.length !== 1 ? "s" : ""} encontrado{filteredRows.length !== 1 ? "s" : ""}
-          </p>
-        )}
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Resultados</p>
+            <p className="mt-1 text-2xl font-semibold text-ink">{visibleSummary.total}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Completas</p>
+            <p className="mt-1 text-2xl font-semibold text-emerald-700">{visibleSummary.completas}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Documentales</p>
+            <p className="mt-1 text-2xl font-semibold text-amber-700">{visibleSummary.documentales}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Ordinarias</p>
+            <p className="mt-1 text-2xl font-semibold text-ocean">{visibleSummary.ordinarias}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Con documento</p>
+            <p className="mt-1 text-2xl font-semibold text-ink">{visibleSummary.conDocumento}</p>
+          </div>
+        </div>
 
         {filteredRows.length > 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <div className="max-h-[68vh] overflow-auto rounded-2xl border border-slate-200">
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <th
-                    className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+                    className="sticky top-0 z-10 cursor-pointer bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
                     onClick={() => toggleSort("sesion")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -206,9 +297,9 @@ export default function ActasPage() {
                       {sortField === "sesion" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                     </span>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Establecimiento</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Establecimiento</th>
                   <th
-                    className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+                    className="sticky top-0 z-10 cursor-pointer bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
                     onClick={() => toggleSort("fecha")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -216,10 +307,10 @@ export default function ActasPage() {
                       {sortField === "fecha" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                     </span>
                   </th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">Horario</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Formato</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Lugar</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Acciones</th>
+                  <th className="sticky top-0 z-10 hidden bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">Horario</th>
+                  <th className="sticky top-0 z-10 hidden bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Formato</th>
+                  <th className="sticky top-0 z-10 hidden bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Lugar</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

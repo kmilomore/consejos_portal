@@ -1,6 +1,6 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-05-12 (v5)
+> **Última actualización:** 2026-05-12 (v6)
 > **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
 > **Estado actual:** flujo híbrido operativo con 13 mejoras UI/UX implementadas; compilación limpia.
 
@@ -53,9 +53,15 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - `onBlur` en selector de establecimiento: si el usuario escribe texto y sale del campo sin confirmar un RBD válido, el error aparece inmediatamente sin esperar al submit
 - modal de detalle (`ActaDetail`) posicionado con `items-start`: el header siempre se ve al abrir, sin importar la cantidad de datos del acta; el scroll interno sigue dentro del modal
 - filtro por establecimiento en el listado de actas: visible solo para `isGlobalAdmin`; filtra `acta.rbd` en el `useMemo` junto con los demás filtros; las escuelas se cargan desde `snapshot.establishments`
+- filtro por establecimiento con texto escribible: visible solo para `isGlobalAdmin`; permite buscar por nombre o RBD desde la misma barra sin recorrer un `select` largo
 - **L1** — columna "Establecimiento" en lugar de RBD: muestra nombre del establecimiento (lookup desde `snapshot.establishments`) con RBD como texto secundario; la búsqueda libre también matchea contra el nombre
 - **L3** — ícono de documento adjunto en la fila: aparece `FileText` enlazado a `acta.link_acta` cuando existe; click no propaga al row para evitar abrir el detalle
 - **L7** — ordenamiento de columnas por Sesión y Fecha: headers clickeables con indicador de flecha; estado `sortField` + `sortDir` dentro del mismo `useMemo` de `filteredRows`; default Fecha desc
+- **L8** — filtro por comuna en el listado: nuevo `select` dedicado; filtra `acta.comuna` dentro del mismo `useMemo` que el resto de filtros
+- **L9** — header sticky de la tabla: encabezados fijados dentro del contenedor scrollable para mantener contexto visual en listados largos
+- **L10** — botón `Limpiar filtros`: resetea búsqueda, campo de búsqueda, texto de establecimiento, comuna, tipo y modo sin tocar el estado del modal ni la data del snapshot
+- **L11** — búsqueda avanzada por campo: selector `searchField` con opciones `todo`, `establecimiento`, `temas y observación`, `acuerdos`, `comuna` y `RBD`
+- **L12** — resumen visible de resultados filtrados: cards superiores con total, completas, documentales, ordinarias y filas con documento adjunto
 - **L4** — navegación prev/next dentro del modal de detalle: `filteredRows` y `onNavigate` se pasan desde la página; el modal muestra chevrons que navegan por la lista filtrada actual
 - **D1** — resumen de quórum en el header del modal: badge `X/Y · Quórum válido/Sin quórum` visible solo para `ACTA_COMPLETA`; umbral mínimo 4 de 6
 - **D2** — banner de próxima sesión al inicio del body del modal: aparece si `acta.proxima_sesion` existe; reemplaza la row inline que estaba al final del detalle
@@ -209,15 +215,20 @@ Fuente:
 
 Comportamiento actual:
 - usa `snapshot.actas` y `snapshot.establishments`
-- filtra por texto libre sobre `tabla_temas`, `acuerdos`, `observacion_documental`, `lugar`, `rbd`, `comuna` y nombre del establecimiento (via `establishmentMap`)
+- filtra por texto libre o por campo específico sobre `tabla_temas`, `acuerdos`, `observacion_documental`, `lugar`, `rbd`, `comuna` y nombre del establecimiento (via `establishmentMap`)
 - filtra además por `tipo_sesion`
 - filtra además por `modo_registro`
-- filtra además por `rbd` cuando `isGlobalAdmin === true` y el usuario selecciona una escuela (filtro visible solo para admins globales)
+- filtra además por nombre de establecimiento o `rbd` cuando `isGlobalAdmin === true` y el usuario escribe en el campo dedicado (filtro visible solo para admins globales)
+- filtra además por `comuna` mediante selector dedicado
 - ordena por `sortField` (`"fecha"` o `"sesion"`) con dirección `sortDir` (`"asc"` | `"desc"`); default: Fecha desc
+- expone un selector de campo de búsqueda para acotar la coincidencia sin alterar la fuente de datos
 - muestra badge `Completa` o `Documental` por fila
 - muestra el nombre del establecimiento en lugar del RBD en la columna de escuela (RBD como texto secundario)
 - muestra ícono de documento cuando `acta.link_acta` existe
 - el horario renderiza tolerando `null`
+- muestra cards de resumen sobre el subconjunto filtrado actual (`total`, `completas`, `documentales`, `ordinarias`, `con documento`)
+- permite resetear todos los filtros con un solo botón cuando existe algún criterio activo
+- mantiene el header visible mientras se hace scroll dentro del listado tabular
 - todos los filtros y el ordenamiento corren en el mismo `useMemo`; `sortField`, `sortDir` y `establishmentMap` están en las dependencias
 - si el snapshot ya está cacheado, la navegación de vuelta a `/actas/` no debe mostrar skeleton global ni volver a consultar Supabase por fuera de `refresh()`
 - si el usuario acaba de guardar una acta y el módulo local la muestra correctamente, pero `/metricas/` no refleja el cambio, el primer sospechoso ya no es el formulario sino un snapshot stale fuera de esta página
@@ -287,6 +298,7 @@ Comportamiento diferencial:
 - no reintroducir estados de loading que tapen toda la página si ya existe `snapshot.actas` cacheado
 - no duplicar la lógica de lectura de actas fuera de `lib/supabase/use-portal-snapshot.tsx` y `lib/supabase/queries.ts`
 - no asumir que el problema está en el guardado del acta si la fila aparece en `/actas/`; confirmar primero si el desacople está en snapshot o en las otras fuentes agregadas
+- no sacar `searchField`, `filterComuna`, `filterTipo`, `filterModo`, `filterRbd`, `sortField` o `sortDir` fuera del mismo `useMemo` de `filteredRows`; el resumen superior y la navegación del modal dependen de ese subconjunto consistente
 - no exige horario completo
 - no exige tabla de temas ni acuerdos
 - no guarda asistentes

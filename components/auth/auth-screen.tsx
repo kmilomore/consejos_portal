@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
 import authBackground from "@/app/auth/auth.webp";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 
