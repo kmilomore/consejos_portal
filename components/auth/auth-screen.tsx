@@ -13,7 +13,7 @@ function GoogleButton({ onClick, disabled }: { onClick: () => void; disabled: bo
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center justify-center gap-3 rounded-[20px] bg-ink px-6 py-4 text-base font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50"
+      className="flex w-full items-center justify-center gap-3 rounded-control bg-ink px-6 py-4 text-base font-bold text-white shadow-md transition hover:bg-navy-700 active:scale-[0.98] disabled:opacity-50"
     >
       <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="#4285F4" d="M21.805 10.023H12v3.955h5.627c-.242 1.272-.968 2.35-2.056 3.074v2.553h3.326c1.946-1.79 3.063-4.427 3.063-7.563 0-.682-.061-1.336-.155-2.019z" />
@@ -45,7 +45,7 @@ export function AuthScreen() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+    <div className="relative min-h-screen overflow-hidden bg-navy-900 text-white">
       <div
         aria-hidden="true"
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -56,41 +56,41 @@ export function AuthScreen() {
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-5 py-8 sm:px-6 lg:px-8">
         <div className="w-full max-w-[460px]">
-          <div className="rounded-[34px] border border-white/10 bg-white p-6 text-ink shadow-[0_28px_100px_rgba(5,10,20,0.42)] sm:p-8">
+          <div className="rounded-modal border border-white/10 bg-white p-6 text-ink shadow-xl sm:p-8">
             <div className="h-1.5 w-20 rounded-full bg-ocean" />
 
             <div className="mt-8">
               <p className="text-[11px] font-bold uppercase tracking-[0.34em] text-ocean">Consejos Escolares</p>
-              <h1 className="font-display mt-5 text-5xl font-black leading-[0.9] tracking-[-0.05em] text-[#0b1526] sm:text-[3.8rem]">
+              <h1 className="font-display mt-5 text-5xl font-black leading-[0.9] tracking-[-0.05em] text-ink sm:text-[3.8rem]">
                 Acceso.
               </h1>
-              <p className="mt-4 text-sm font-medium leading-7 text-slate-600">
+              <p className="mt-4 text-sm font-medium leading-7 text-neutral-600">
                 Portal de Consejos Escolares · SLEP Colchagua
               </p>
-              <p className="mt-3 text-sm font-medium leading-7 text-slate-500">
+              <p className="mt-3 text-sm font-medium leading-7 text-neutral-500">
                 Ingresa con tu cuenta institucional de Google {ALLOWED_DOMAIN}.
               </p>
             </div>
 
             {feedback && (
-              <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-bold leading-7 text-sky-800">
+              <div className="mt-6 rounded-card border border-status-info bg-status-info-bg px-4 py-3 text-sm font-bold leading-7 text-status-info">
                 {feedback}
               </div>
             )}
             {errorMessage && (
-              <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold leading-7 text-rose-700">
+              <div className="mt-6 rounded-card border border-status-danger bg-status-danger-bg px-4 py-3 text-sm font-bold leading-7 text-status-danger">
                 {errorMessage}
               </div>
             )}
 
             <div className="mt-8 space-y-5">
               <GoogleButton onClick={() => { void handleGoogleSignIn(); }} disabled={isLoading} />
-              <p className="text-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+              <p className="text-center text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">
                 Acceso habilitado solo con Google Workspace
               </p>
             </div>
 
-            <p className="mt-7 border-t border-slate-200 pt-5 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+            <p className="mt-7 border-t border-neutral-200 pt-5 text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">
               Acceso restringido · {ALLOWED_DOMAIN}
             </p>
           </div>

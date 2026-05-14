@@ -192,7 +192,7 @@ export default function ActasPage() {
             <select
               value={searchField}
               onChange={(e) => setSearchField(e.target.value as SearchField)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+              className="rounded-card border border-neutral-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
             >
               <option value="all">Buscar en todo</option>
               <option value="establishment">Establecimiento</option>
@@ -202,31 +202,31 @@ export default function ActasPage() {
               <option value="rbd">RBD</option>
             </select>
             <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -tranneutral-y-1/2 text-neutral-400" />
               <input
                 type="search"
                 placeholder="Buscar actas…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-slate-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+                className="w-full rounded-card border border-neutral-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-neutral-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
               />
             </div>
             {isGlobalAdmin && snapshot.establishments.length > 0 && (
               <div className="relative w-full max-w-sm">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -tranneutral-y-1/2 text-neutral-400" />
                 <input
                   type="search"
                   placeholder="Buscar establecimiento o RBD…"
                   value={filterSchoolQuery}
                   onChange={(e) => setFilterSchoolQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-slate-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+                  className="w-full rounded-card border border-neutral-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-neutral-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
                 />
               </div>
             )}
             <select
               value={filterComuna}
               onChange={(e) => setFilterComuna(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+              className="rounded-card border border-neutral-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
             >
               <option value="">Todas las comunas</option>
               {comunaOptions.map((comuna) => (
@@ -238,7 +238,7 @@ export default function ActasPage() {
             <select
               value={filterModo}
               onChange={(e) => setFilterModo(e.target.value as ActaRecordMode | "")}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+              className="rounded-card border border-neutral-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
             >
               <option value="">Todos los registros</option>
               <option value="ACTA_COMPLETA">Acta completa</option>
@@ -247,7 +247,7 @@ export default function ActasPage() {
             <select
               value={filterTipo}
               onChange={(e) => setFilterTipo(e.target.value as SessionType | "")}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+              className="rounded-card border border-neutral-200 bg-white px-3 py-2 text-sm text-ink focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
             >
               <option value="">Todos los tipos</option>
               <option value="Ordinaria">Ordinaria</option>
@@ -261,35 +261,35 @@ export default function ActasPage() {
         </div>
 
         <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Resultados</p>
+          <div className="rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">Resultados</p>
             <p className="mt-1 text-2xl font-semibold text-ink">{visibleSummary.total}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Completas</p>
-            <p className="mt-1 text-2xl font-semibold text-emerald-700">{visibleSummary.completas}</p>
+          <div className="rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">Completas</p>
+            <p className="mt-1 text-2xl font-semibold text-status-success00">{visibleSummary.completas}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Documentales</p>
-            <p className="mt-1 text-2xl font-semibold text-amber-700">{visibleSummary.documentales}</p>
+          <div className="rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">Documentales</p>
+            <p className="mt-1 text-2xl font-semibold text-status-warning00">{visibleSummary.documentales}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Ordinarias</p>
+          <div className="rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">Ordinarias</p>
             <p className="mt-1 text-2xl font-semibold text-ocean">{visibleSummary.ordinarias}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Con documento</p>
+          <div className="rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">Con documento</p>
             <p className="mt-1 text-2xl font-semibold text-ink">{visibleSummary.conDocumento}</p>
           </div>
         </div>
 
         {filteredRows.length > 0 ? (
-          <div className="max-h-[68vh] overflow-auto rounded-2xl border border-slate-200">
+          <div className="max-h-[68vh] overflow-auto rounded-card border border-neutral-200">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-neutral-50">
                 <tr>
                   <th
-                    className="sticky top-0 z-10 cursor-pointer bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+                    className="sticky top-0 z-10 cursor-pointer bg-neutral-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 hover:text-neutral-600"
                     onClick={() => toggleSort("sesion")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -297,9 +297,9 @@ export default function ActasPage() {
                       {sortField === "sesion" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                     </span>
                   </th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Establecimiento</th>
+                  <th className="sticky top-0 z-10 bg-neutral-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Establecimiento</th>
                   <th
-                    className="sticky top-0 z-10 cursor-pointer bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+                    className="sticky top-0 z-10 cursor-pointer bg-neutral-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 hover:text-neutral-600"
                     onClick={() => toggleSort("fecha")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -307,13 +307,13 @@ export default function ActasPage() {
                       {sortField === "fecha" && (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                     </span>
                   </th>
-                  <th className="sticky top-0 z-10 hidden bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 md:table-cell">Horario</th>
-                  <th className="sticky top-0 z-10 hidden bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Formato</th>
-                  <th className="sticky top-0 z-10 hidden bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 lg:table-cell">Lugar</th>
-                  <th className="sticky top-0 z-10 bg-slate-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Acciones</th>
+                  <th className="sticky top-0 z-10 hidden bg-neutral-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 md:table-cell">Horario</th>
+                  <th className="sticky top-0 z-10 hidden bg-neutral-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 lg:table-cell">Formato</th>
+                  <th className="sticky top-0 z-10 hidden bg-neutral-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 lg:table-cell">Lugar</th>
+                  <th className="sticky top-0 z-10 bg-neutral-50 px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-neutral-100">
                 {filteredRows.map((acta) => (
                   <tr
                     key={acta.id}
@@ -323,7 +323,7 @@ export default function ActasPage() {
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-ink">Consejo Escolar {acta.tipo_sesion}</p>
                       <div className="mt-1 flex items-center gap-2">
-                        <p className="text-xs text-slate-500">N° {String(acta.sesion).padStart(2, "0")}</p>
+                        <p className="text-xs text-neutral-500">N° {String(acta.sesion).padStart(2, "0")}</p>
                         <Badge tone={acta.modo_registro === "REGISTRO_DOCUMENTAL" ? "warn" : "success"}>
                           {acta.modo_registro === "REGISTRO_DOCUMENTAL" ? "Documental" : "Completa"}
                         </Badge>
@@ -345,12 +345,12 @@ export default function ActasPage() {
                       <p className="text-sm font-medium text-ink">{establishmentMap.get(acta.rbd) ?? acta.rbd}</p>
                       <p className="font-mono text-xs text-ocean">{acta.rbd}</p>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-600">{formatDate(acta.fecha)}</td>
-                    <td className="hidden px-4 py-3.5 text-slate-500 md:table-cell">{formatSchedule(acta)}</td>
+                    <td className="px-4 py-3.5 text-neutral-600">{formatDate(acta.fecha)}</td>
+                    <td className="hidden px-4 py-3.5 text-neutral-500 md:table-cell">{formatSchedule(acta)}</td>
                     <td className="hidden px-4 py-3.5 lg:table-cell">
                       <Badge tone="success">{acta.formato}</Badge>
                     </td>
-                    <td className="hidden px-4 py-3.5 text-slate-600 lg:table-cell">{acta.lugar}{acta.lugar && acta.comuna ? ", " : ""}{acta.comuna}</td>
+                    <td className="hidden px-4 py-3.5 text-neutral-600 lg:table-cell">{acta.lugar}{acta.lugar && acta.comuna ? ", " : ""}{acta.comuna}</td>
                     <td className="px-4 py-3.5">
                       <div
                         className="flex items-center justify-end gap-2"
@@ -378,11 +378,11 @@ export default function ActasPage() {
             </table>
           </div>
         ) : rows.length === 0 ? (
-          <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
+          <div className="rounded-card border border-dashed border-neutral-200 bg-neutral-50 px-5 py-8 text-sm text-neutral-600">
             Sin datos en esta sección.
           </div>
         ) : (
-          <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm text-slate-600">
+          <div className="rounded-card border border-dashed border-neutral-200 bg-neutral-50 px-5 py-8 text-center text-sm text-neutral-600">
             Ningún acta coincide con la búsqueda.
           </div>
         )}

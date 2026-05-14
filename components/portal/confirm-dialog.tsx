@@ -29,16 +29,16 @@ export function ConfirmDialog({
         className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
         onClick={onCancel}
       />
-      <div className="relative w-full max-w-sm rounded-[28px] bg-white p-6 shadow-panel">
+      <div className="relative w-full max-w-sm rounded-modal bg-white p-6 shadow-lg">
         <h3 className="text-base font-semibold text-ink">{title}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+        <p className="mt-2 text-sm leading-6 text-neutral-600">{description}</p>
         <div className="mt-6 flex justify-end gap-3">
           <Button variant="ghost" onClick={onCancel}>
             Cancelar
           </Button>
           <Button
             onClick={onConfirm}
-            className={tone === "danger" ? "!bg-rose-600 hover:!bg-rose-700 !text-white !shadow-rose-600/20" : ""}
+            className={tone === "danger" ? "!bg-status-danger hover:!bg-coral-700 !text-white !shadow-status-danger/20" : ""}
           >
             {confirmLabel}
           </Button>

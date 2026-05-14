@@ -203,12 +203,12 @@ export default function ProgramacionPage() {
   if (status === "loading") {
     return (
       <div className="space-y-6">
-        <div className="skeleton-shimmer h-20 rounded-[28px]" />
-        <div className="skeleton-shimmer h-[360px] rounded-[28px]" />
+        <div className="skeleton-shimmer h-20 rounded-modal" />
+        <div className="skeleton-shimmer h-[360px] rounded-modal" />
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="skeleton-shimmer h-40 rounded-[24px]" />
-          <div className="skeleton-shimmer h-40 rounded-[24px]" />
-          <div className="skeleton-shimmer h-40 rounded-[24px]" />
+          <div className="skeleton-shimmer h-40 rounded-card" />
+          <div className="skeleton-shimmer h-40 rounded-card" />
+          <div className="skeleton-shimmer h-40 rounded-card" />
         </div>
       </div>
     );
@@ -375,8 +375,8 @@ export default function ProgramacionPage() {
         description="Programa, ajusta y ejecuta sesiones del consejo escolar desde el establecimiento activo."
       >
         <div className="mb-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="rounded-modal border border-neutral-200/80 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-neutral-100 pb-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-ocean">Calendario</p>
                 <h3 className="mt-1 text-lg font-semibold text-ink">
@@ -384,16 +384,16 @@ export default function ProgramacionPage() {
                 </h3>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" type="button" className="h-10 w-10 rounded-2xl px-0" onClick={() => setViewDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}>
+                <Button variant="secondary" type="button" className="h-10 w-10 rounded-card px-0" onClick={() => setViewDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="secondary" type="button" className="h-10 w-10 rounded-2xl px-0" onClick={() => setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}>
+                <Button variant="secondary" type="button" className="h-10 w-10 rounded-card px-0" onClick={() => setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-7 gap-2 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+            <div className="mt-4 grid grid-cols-7 gap-2 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">
               {weekDays.map((day) => (
                 <div key={day} className="py-2">{day}</div>
               ))}
@@ -426,11 +426,11 @@ export default function ProgramacionPage() {
                       void handleDropProgramacion(dateKey);
                     }}
                     className={cn(
-                      "min-h-[92px] cursor-pointer rounded-[22px] border px-2 py-3 text-left transition",
+                      "min-h-[92px] cursor-pointer rounded-card border px-2 py-3 text-left transition",
                       isSelected
                         ? "border-ocean bg-ocean/8 shadow-sm"
-                        : "border-slate-200/80 bg-slate-50/45 hover:border-slate-300 hover:bg-white",
-                      dragOverDate === dateKey && "border-amber-300 bg-amber-50 ring-2 ring-amber-200",
+                        : "border-neutral-200/80 bg-neutral-50/45 hover:border-neutral-300 hover:bg-white",
+                      dragOverDate === dateKey && "border-status-warning/50 bg-status-warning-bg ring-2 ring-status-warning/30",
                       !isCurrentMonth && "opacity-45",
                     )}
                   >
@@ -454,7 +454,7 @@ export default function ProgramacionPage() {
                             setDragOverDate(null);
                           }}
                           className={cn(
-                            "truncate rounded-full bg-white px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200/70",
+                            "truncate rounded-full bg-white px-2 py-1 text-[11px] font-medium text-neutral-600 ring-1 ring-neutral-200/70",
                             row.estado === "PROGRAMADA" && !row.acta_vinculada_id && "cursor-grab active:cursor-grabbing",
                           )}
                         >
@@ -468,14 +468,14 @@ export default function ProgramacionPage() {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="rounded-modal border border-neutral-200/80 bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3 border-b border-neutral-100 pb-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-ocean">
                   {editingProgramacion ? "Editar sesión" : "Nueva sesión"}
                 </p>
                 <h3 className="mt-1 text-lg font-semibold text-ink">{activeSchoolName}</h3>
-                <p className="mt-1 text-sm text-slate-500">RBD {activeRbd ?? "sin selección"}</p>
+                <p className="mt-1 text-sm text-neutral-500">RBD {activeRbd ?? "sin selección"}</p>
               </div>
               {editingProgramacion ? (
                 <Button variant="ghost" type="button" className="gap-2" onClick={() => resetCreateForm(selectedDate)}>
@@ -487,12 +487,12 @@ export default function ProgramacionPage() {
 
             <div className="mt-4 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm text-slate-600">
+                <label className="space-y-2 text-sm text-neutral-600">
                   <span className="font-medium text-ink">Tipo de sesión</span>
                   <select
                     value={form.tipo_sesion}
                     onChange={(event) => setForm((prev) => ({ ...prev, tipo_sesion: event.target.value as SessionType }))}
-                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+                    className="h-11 w-full rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
                   >
                     {sessionTypes.map((type) => (
                       <option key={type} value={type}>{type}</option>
@@ -500,12 +500,12 @@ export default function ProgramacionPage() {
                   </select>
                 </label>
 
-                <label className="space-y-2 text-sm text-slate-600">
+                <label className="space-y-2 text-sm text-neutral-600">
                   <span className="font-medium text-ink">Formato</span>
                   <select
                     value={form.formato_planeado}
                     onChange={(event) => setForm((prev) => ({ ...prev, formato_planeado: event.target.value as SessionFormat }))}
-                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+                    className="h-11 w-full rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
                   >
                     {sessionFormats.map((format) => (
                       <option key={format} value={format}>{format}</option>
@@ -515,7 +515,7 @@ export default function ProgramacionPage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm text-slate-600">
+                <label className="space-y-2 text-sm text-neutral-600">
                   <span className="font-medium text-ink">Fecha</span>
                   <input
                     type="date"
@@ -524,47 +524,47 @@ export default function ProgramacionPage() {
                       setForm((prev) => ({ ...prev, fecha_programada: event.target.value }));
                       setSelectedDate(event.target.value);
                     }}
-                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+                    className="h-11 w-full rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
                   />
                 </label>
 
-                <label className="space-y-2 text-sm text-slate-600">
+                <label className="space-y-2 text-sm text-neutral-600">
                   <span className="font-medium text-ink">Hora</span>
                   <input
                     type="time"
                     value={form.hora_programada}
                     onChange={(event) => setForm((prev) => ({ ...prev, hora_programada: event.target.value }))}
-                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+                    className="h-11 w-full rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
                   />
                 </label>
               </div>
 
-              <label className="space-y-2 text-sm text-slate-600">
+              <label className="space-y-2 text-sm text-neutral-600">
                 <span className="font-medium text-ink">Lugar tentativo</span>
                 <input
                   type="text"
                   value={form.lugar_tentativo}
                   onChange={(event) => setForm((prev) => ({ ...prev, lugar_tentativo: event.target.value }))}
                   placeholder="Ej. Biblioteca, sala de reuniones o enlace virtual"
-                  className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+                  className="h-11 w-full rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
                 />
               </label>
 
-              <label className="space-y-2 text-sm text-slate-600">
+              <label className="space-y-2 text-sm text-neutral-600">
                 <span className="font-medium text-ink">Temáticas</span>
                 <textarea
                   value={form.tematicas}
                   onChange={(event) => setForm((prev) => ({ ...prev, tematicas: event.target.value }))}
                   rows={4}
                   placeholder="Describe los temas principales a tratar en la sesión"
-                  className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+                  className="w-full rounded-card border border-neutral-200 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
                 />
               </label>
 
-              <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 p-4">
+              <div className="rounded-card border border-neutral-200/80 bg-neutral-50/70 p-4">
                 <div className="flex items-start gap-3">
                   <CalendarDays className="mt-0.5 h-4 w-4 text-ocean" />
-                  <div className="space-y-2 text-sm text-slate-600">
+                  <div className="space-y-2 text-sm text-neutral-600">
                     <p className="font-semibold text-ink">
                       {isResolvingNumber
                         ? "Calculando correlativo..."
@@ -575,7 +575,7 @@ export default function ProgramacionPage() {
                     <p>
                       La numeración se resuelve por establecimiento, tipo de sesión y año, considerando programaciones y actas ya registradas.
                     </p>
-                    {numberError ? <p className="font-medium text-rose-600">{numberError}</p> : null}
+                    {numberError ? <p className="font-medium text-status-danger">{numberError}</p> : null}
                   </div>
                 </div>
               </div>
@@ -594,50 +594,50 @@ export default function ProgramacionPage() {
         </div>
 
         <div className="mb-6 grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="rounded-card border border-neutral-200/80 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <CalendarDays className="h-4 w-4 text-ocean" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Fecha seleccionada</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">Fecha seleccionada</p>
                 <p className="mt-1 text-sm font-semibold text-ink">{selectedDate ? formatDate(selectedDate) : "Sin fecha"}</p>
               </div>
             </div>
           </div>
-          <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="rounded-card border border-neutral-200/80 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <Clock3 className="h-4 w-4 text-ocean" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Sesiones del día</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">Sesiones del día</p>
                 <p className="mt-1 text-sm font-semibold text-ink">{selectedDateRows.length}</p>
               </div>
             </div>
           </div>
-          <div className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-sm">
+          <div className="rounded-card border border-neutral-200/80 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <MapPin className="h-4 w-4 text-ocean" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Escuela activa</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">Escuela activa</p>
                 <p className="mt-1 text-sm font-semibold text-ink">RBD {activeRbd ?? "sin selección"}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-6 grid gap-3 rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_0.5fr_0.5fr]">
+        <div className="mb-6 grid gap-3 rounded-card border border-neutral-200/80 bg-white p-4 shadow-sm lg:grid-cols-[1.2fr_0.5fr_0.5fr]">
           <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -tranneutral-y-1/2 text-neutral-400" />
             <input
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Buscar por sesión, estado, lugar o temática"
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+              className="h-11 w-full rounded-card border border-neutral-200 bg-white pl-10 pr-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
             />
           </label>
           <select
             value={filterTipo}
             onChange={(event) => setFilterTipo(event.target.value as SessionType | "")}
-            className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+            className="h-11 rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
           >
             <option value="">Todos los tipos</option>
             <option value="Ordinaria">Ordinaria</option>
@@ -646,7 +646,7 @@ export default function ProgramacionPage() {
           <select
             value={filterEstado}
             onChange={(event) => setFilterEstado(event.target.value as PlanningStatus | "")}
-            className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
+            className="h-11 rounded-card border border-neutral-200 bg-white px-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
           >
             <option value="">Todos los estados</option>
             <option value="PROGRAMADA">Programada</option>
@@ -655,8 +655,8 @@ export default function ProgramacionPage() {
           </select>
         </div>
 
-        <div className="mb-6 rounded-[28px] border border-slate-200/80 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="mb-6 rounded-modal border border-neutral-200/80 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3 border-b border-neutral-100 pb-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-ocean">Agenda diaria</p>
               <h3 className="mt-1 text-lg font-semibold text-ink">{formatDate(selectedDate)}</h3>
@@ -667,7 +667,7 @@ export default function ProgramacionPage() {
           </div>
 
           {draggingProgramacionId || isReprogramming ? (
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-3 text-sm text-neutral-500">
               {isReprogramming ? "Reprogramando sesión..." : "Arrastra una sesión programada a otra fecha del calendario para reprogramarla visualmente."}
             </p>
           ) : null}
@@ -675,7 +675,7 @@ export default function ProgramacionPage() {
           {selectedDateRows.length > 0 ? (
             <div className="mt-4 grid gap-3">
               {selectedDateRows.map((row) => (
-                <div key={row.id} className="rounded-[22px] border border-slate-200/80 bg-slate-50/65 p-4">
+                <div key={row.id} className="rounded-card border border-neutral-200/80 bg-neutral-50/65 p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
@@ -685,8 +685,8 @@ export default function ProgramacionPage() {
                         </Badge>
                         {row.acta_vinculada_id ? <Badge tone="neutral">Acta vinculada</Badge> : null}
                       </div>
-                      <p className="text-sm text-slate-600">{row.hora_programada} · {row.formato_planeado} · {row.lugar_tentativo}</p>
-                      <p className="text-sm text-slate-500">{row.tematicas}</p>
+                      <p className="text-sm text-neutral-600">{row.hora_programada} · {row.formato_planeado} · {row.lugar_tentativo}</p>
+                      <p className="text-sm text-neutral-500">{row.tematicas}</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -704,7 +704,7 @@ export default function ProgramacionPage() {
                         <FileText className="h-4 w-4" />
                         {row.acta_vinculada_id ? "Acta creada" : "Crear acta"}
                       </Button>
-                      <Button variant="ghost" type="button" className="gap-2 text-rose-600 hover:text-rose-700" onClick={() => setCancelTarget(row)} disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}>
+                      <Button variant="ghost" type="button" className="gap-2 text-status-danger hover:text-coral-700" onClick={() => setCancelTarget(row)} disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}>
                         <XCircle className="h-4 w-4" />
                         Cancelar
                       </Button>
@@ -714,20 +714,20 @@ export default function ProgramacionPage() {
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
+            <div className="mt-4 rounded-card border border-dashed border-neutral-200 bg-neutral-50 px-5 py-8 text-sm text-neutral-600">
               No hay sesiones programadas para este día.
             </div>
           )}
         </div>
 
         {rows.length > 0 ? (
-          <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-400">
+          <div className="overflow-hidden rounded-modal border border-neutral-200/80 bg-white shadow-sm">
+            <div className="border-b border-neutral-100 bg-neutral-50/70 px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-neutral-400">
               Programaciones registradas
             </div>
             <div className="max-h-[560px] overflow-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left">
-                <thead className="bg-slate-50/95 text-xs uppercase tracking-[0.18em] text-slate-500">
+              <table className="min-w-full divide-y divide-neutral-200 text-left">
+                <thead className="bg-neutral-50/95 text-xs uppercase tracking-[0.18em] text-neutral-500">
                   <tr>
                     <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Sesión</th>
                     <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Fecha</th>
@@ -737,12 +737,12 @@ export default function ProgramacionPage() {
                     <th className="sticky top-0 px-4 py-4 font-semibold text-right backdrop-blur">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white text-sm text-slate-700">
+                <tbody className="divide-y divide-neutral-200 bg-white text-sm text-neutral-700">
                   {rows.map((row, index) => (
-                    <tr key={row.id} className={index % 2 === 0 ? "bg-white" : "bg-slate-50/45"}>
+                    <tr key={row.id} className={index % 2 === 0 ? "bg-white" : "bg-neutral-50/45"}>
                       <td className="px-4 py-4">
                         <p className="font-medium text-ink">{row.tipo_sesion} #{String(row.numero_sesion).padStart(2, "0")}</p>
-                        <p className="text-xs text-slate-500">RBD {row.rbd}</p>
+                        <p className="text-xs text-neutral-500">RBD {row.rbd}</p>
                       </td>
                       <td className="px-4 py-4">{formatDate(row.fecha_programada)} · {row.hora_programada}</td>
                       <td className="px-4 py-4">{row.formato_planeado}</td>
@@ -776,7 +776,7 @@ export default function ProgramacionPage() {
                             type="button"
                             onClick={() => setActaProgramacion(row)}
                             disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}
-                            className="rounded-full px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-full px-3 py-1 text-xs font-semibold text-neutral-700 ring-1 ring-neutral-200 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {row.acta_vinculada_id ? "Acta creada" : "Crear acta"}
                           </button>
@@ -797,7 +797,7 @@ export default function ProgramacionPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-sm text-slate-600">
+          <div className="rounded-card border border-dashed border-neutral-200 bg-neutral-50 px-5 py-8 text-sm text-neutral-600">
             Todavía no hay sesiones programadas para el establecimiento activo. Usa el calendario y el formulario para registrar la primera.
           </div>
         )}

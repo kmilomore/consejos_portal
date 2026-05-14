@@ -67,6 +67,15 @@ const config: Config = {
         mist:  "#EDF0F5",
         ocean: "#006BB9",
         ember: "#FF1D3D",
+        /* Status tokens */
+        "status-info":       "#006BB9",
+        "status-info-bg":    "#E5F2FB",
+        "status-success":    "#1F8A5B",
+        "status-success-bg": "#E3F5EB",
+        "status-warning":    "#C77A00",
+        "status-warning-bg": "#FFF1D6",
+        "status-danger":     "#E5142F",
+        "status-danger-bg":  "#FFE5E9",
       },
       boxShadow: {
         xs:    "0 1px 2px rgba(37,48,107,0.06)",
@@ -92,6 +101,7 @@ const config: Config = {
       borderRadius: {
         control: "8px",
         card:    "12px",
+        modal:   "20px",
         pill:    "999px",
       },
     },

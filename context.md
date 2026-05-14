@@ -1,6 +1,6 @@
 # Contexto del Proyecto: Consejos
 
-> **Última actualización:** 2026-05-12  
+> **Última actualización:** 2026-05-14  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
 > **Contexto específico de programación:** ver `context_programacion.md` para el detalle operativo completo del módulo `programacion/`, sus invariantes, flujos y criterios para iterar con IA.
 
@@ -354,10 +354,12 @@ Ruta 1 — mejorar navegación admin:
 - `lib/supabase/use-slep-directorio.ts`
 
 Ruta 2 — mejorar paneles visuales y consistencia:
-- `app/globals.css`
+- `node_modules/@slep-colchagua/design-system/INSTRUCCIONES_DISENO.md` (fuente de verdad del DS)
+- `app/colors_and_type.css` (tokens CSS)
+- `tailwind.config.ts` (tokens en clases Tailwind)
+- `app/globals.css` (utilidades base, skeletons, hero-grid)
 - `components/portal/section-card.tsx`
 - `components/ui/button.tsx`
-- `tailwind.config.ts`
 
 Ruta 3 — mejorar experiencia de datos por establecimiento:
 - `lib/supabase/use-portal-snapshot.tsx`
@@ -1024,39 +1026,100 @@ $$;
 
 ## 12. Diseño Visual y Branding
 
+**Fuente de verdad del sistema visual:** `node_modules/@slep-colchagua/design-system/INSTRUCCIONES_DISENO.md`
+Tokens CSS en: `app/colors_and_type.css` (espejo de `node_modules/@slep-colchagua/design-system/tokens/colors_and_type.css`)
+
 ### Tipografía
 
 Fuente local (no Google Fonts):
 - `MuseoSans-100.woff`, `MuseoSans-500.woff`, `MuseoSans-700.woff`, `MuseoSans-900.woff`
-- Variable: `--font-museo-sans`
+- Variable CSS: `--font-museo-sans`
+- Fallback obligatorio: Avenir Next → Segoe UI → Helvetica Neue → Arial
+- **Nunca usar**: Inter, Roboto, Open Sans
 
 ### Paleta Tailwind
 
+#### Escalas completas (brand primaries)
+
+| Escala | DEFAULT | Uso principal |
+|---|---|---|
+| `navy` | `#25306B` | Texto, navy-700 para hovers, navy-900 para fondos oscuros |
+| `royal` | `#006BB9` | Primario interactivo (botones, links, foco) |
+| `coral` | `#FF1D3D` | Destructivo, errores, acciones de peligro |
+| `neutral` | — | Fondos, bordes, texto secundario (escala 0–900) |
+
+#### Aliases semánticos Tailwind
+
+| Token | Valor | Uso |
+|---|---|---|
+| `ink` | `#25306B` (navy-500) | Texto principal |
+| `mist` | `#EDF0F5` (neutral-100) | Fondos de sección |
+| `ocean` | `#006BB9` (royal-500) | Primario (acciones, links, foco) |
+| `ember` | `#FF1D3D` (coral-500) | Errores, destructivo |
+
+> No existe `sand` ni `pine` — esos aliases fueron eliminados.
+
+#### Tokens de estado (status)
+
 | Token | Color | Uso |
 |---|---|---|
-| `ink` | `#0b1526` | Texto principal |
-| `mist` | `#eef4fb` | Fondos de sección |
-| `ocean` | `#0f69b4` | Primario (acciones, links) |
-| `sand` | `#ffffff` | Superficies |
-| `ember` | `#ff1d3d` | Errores, acciones destructivas |
-| `pine` | `#0f69b4` | Alias de ocean |
+| `status-info` | `#006BB9` | Info — texto o icono |
+| `status-info-bg` | `#E5F2FB` | Info — fondo de bloque |
+| `status-success` | `#1F8A5B` | Éxito — texto o icono |
+| `status-success-bg` | `#E3F5EB` | Éxito — fondo de bloque |
+| `status-warning` | `#C77A00` | Advertencia — texto o icono |
+| `status-warning-bg` | `#FFF1D6` | Advertencia — fondo de bloque |
+| `status-danger` | `#E5142F` | Peligro/error — texto o icono |
+| `status-danger-bg` | `#FFE5E9` | Peligro/error — fondo de bloque |
+
+> **Regla**: Nunca usar `amber-*`, `sky-*`, `rose-*`, `emerald-*`, `green-*`, `blue-*` o `slate-*`. Siempre usar tokens de estado o escalas `navy`/`royal`/`coral`/`neutral`.
+
+### Radios de borde
+
+| Clase Tailwind | Valor | Contexto de uso |
+|---|---|---|
+| `rounded-control` | `8px` | Inputs, selects, botones, chips interactivos |
+| `rounded-card` | `12px` | Cards, paneles de contenido, filas destacadas |
+| `rounded-modal` | `20px` | Modales, sheets, superficies grandes |
+| `rounded-pill` | `999px` | Badges, chips visuales, avatares |
+
+> **Regla crítica**: Nunca usar `rounded-2xl`, `rounded-[24px]`, `rounded-[28px]`, etc. Siempre usar las clases semánticas. Nunca `border-radius > 16px` en cards.
+
+### Sistema de sombras (navy-tinted)
+
+Todas las sombras usan `rgba(37,48,107,x)` — nunca `rgba(0,0,0,x)` ni valores slate/gray.
+
+| Clase | Valor | Uso |
+|---|---|---|
+| `shadow-xs` | `0 1px 2px rgba(37,48,107,0.06)` | Sutil, casi sin elevación |
+| `shadow-sm` | `0 2px 6px rgba(37,48,107,0.08)` | Cards mínimas |
+| `shadow-md` | `0 6px 18px rgba(37,48,107,0.10)` | Cards estándar, dropdowns |
+| `shadow-lg` | `0 16px 40px rgba(37,48,107,0.14)` | Panels, sidebars |
+| `shadow-xl` | `0 28px 64px rgba(37,48,107,0.18)` | Modales |
+| `shadow-focus` | `0 0 0 3px rgba(0,107,185,0.35)` | Ring de foco accesible |
+
+### Proporciones y gradientes
+
+- Color proportion rule: ~60% white/soft, ~25% navy, ~10% royal, ~5% coral
+- Gradientes **solo** en heroes, covers y banners — nunca en cards ni panels
+- Gradientes disponibles: `bg-grad-navy`, `bg-grad-deep-blue`, `bg-grad-hero`, `bg-grad-red-fade`
 
 ### Fondo y ambiente
 
 `globals.css` define:
-- Gradientes azulados con acento rojo sutil
-- Grid fino fijo sobre la interfaz
-- Selección de texto azul
+- `bg-hero-grid`: hero con grid fino + gradiente para la sección de resumen
+- Selección de texto azul (`::selection`)
 - `@media print`: oculta nav/sidebar, fondo blanco, A4
+- `skeleton-shimmer`: animación de esqueleto para estados de carga
 
 ### Componentes UI propios
 
 | Componente | Variantes |
 |---|---|
-| `Button` | `primary`, `secondary`, `ghost` |
-| `Badge` | `success`, `warn`, `info`, y más según `badge.tsx` |
+| `Button` | `primary`, `secondary`, `ghost` — `rounded-control` (nunca `rounded-full`) |
+| `Badge` | `neutral`, `success`, `warn` — `rounded-pill` (chips visuales) |
 | `Toaster` / `toast()` | `success`, `error`, `info` |
-| `ConfirmDialog` | `tone: "default" | "danger"` |
+| `ConfirmDialog` | `tone: "default" \| "danger"` |
 
 ---
 
@@ -1224,6 +1287,40 @@ $$;
 
 ---
 
+### Avance 19 — Migración al design system @slep-colchagua/design-system (2026-05-14)
+
+Se realizó una migración completa del sistema visual del portal al paquete `@slep-colchagua/design-system`.
+
+El problema de partida era que el proyecto tenía tokens CSS y configuración Tailwind correctos, pero los archivos seguían usando clases de color no-DS (`slate-*`, `amber-*`, `sky-*`, `rose-*`, `emerald-*`) y radios de borde hardcodeados (`rounded-[24px]`, `rounded-2xl`, etc.).
+
+Archivos intervenidos:
+
+- `tailwind.config.ts` — se agregaron 8 status tokens (`status-info`, `status-success`, `status-warning`, `status-danger` + sus variantes `-bg`) y `rounded-modal: "20px"`
+- `components/portal/shell.tsx` — `slate-*` → `neutral-*`, radios → `rounded-card`/`rounded-modal`, estado activo de navegación limpio sin sombras grises
+- `components/auth/auth-screen.tsx` — `slate-950` → `navy-900`, radios semánticos, tokens de estado en bloques de feedback
+- `components/portal/section-card.tsx` — `rounded-[28px]` → `rounded-modal`, sombra gris → `shadow-md`
+- `components/ui/button.tsx` — `rounded-full` → `rounded-control` (botones son controles, no pills), sombras navy-tinted
+- `components/ui/badge.tsx` — reescritura con tones `neutral`/`success`/`warn`, `rounded-pill`
+- `components/portal/stat-card.tsx` — radios y colores actualizados
+- `components/portal/data-banner.tsx` — reescritura completa con tokens de estado semánticos
+- `components/portal/confirm-dialog.tsx` — radios semánticos, danger con `status-danger`
+- `components/portal/session-table.tsx` — `slate-*` → `neutral-*`, radios semánticos
+- `components/portal/acta-form.tsx` — 12 replace_all + ediciones específicas para amber→warning, QuorumBadge con status tokens
+- `app/resumen/page.tsx` — CTAs con `rounded-control`, hero con radios correctos
+- `app/actas/page.tsx` — `slate-*` → `neutral-*`, status tokens para estados de sesión
+- `app/admin/page.tsx` — `slate-*` → `neutral-*`, error/success/rural con tokens semánticos
+- `app/metricas/page.tsx` — `slate-*` → `neutral-*`, status tokens
+- `app/programacion/page.tsx` — `slate-*` → `neutral-*`, drag-over con `status-warning`, status tokens en todas las variantes de estado
+
+Reglas aplicadas sistemáticamente:
+- Nunca `slate-*`, `amber-*`, `sky-*`, `rose-*`, `emerald-*` — siempre `neutral-*` o tokens de estado
+- Nunca `rounded-2xl` o `rounded-[Npx]` — siempre `rounded-control`/`rounded-card`/`rounded-modal`/`rounded-pill`
+- Nunca sombras con `rgba(0,0,0,x)` o `rgba(148,163,184,x)` — siempre navy-tinted vía `shadow-md`/`shadow-lg` etc.
+- Botones CTA: `rounded-control` (8px), badges y chips: `rounded-pill` (999px)
+- Colores de estado siempre con par texto + fondo: `text-status-warning bg-status-warning-bg`
+
+---
+
 ## 19. Convenciones para Futuras Ediciones
 
 - Mantener compatibilidad con export estático en todo momento.
@@ -1233,6 +1330,17 @@ $$;
 - Todo feedback post-mutación: usar `toast()`.
 - Toda UI que podría tener cambios no guardados: implementar dirty guard con `initialFormRef`.
 - Mantener la pantalla de acceso como pantalla pura, sin contenido informativo.
-- Preservar la coherencia visual: contraste alto, jerarquía fuerte, superficies limpias, blur controlado.
 - `DataBanner` solo para errores reales — no silenciar errores reales, no mostrar éxito ni vacío.
 - Los borradores de formulario van a `localStorage` — solo para formularios de creación, no edición.
+
+#### Reglas del sistema visual (@slep-colchagua/design-system)
+
+- **Nunca usar hex hardcodeados** — siempre clases Tailwind semánticas o variables CSS del DS.
+- **Nunca usar** `slate-*`, `amber-*`, `sky-*`, `rose-*`, `emerald-*`, `green-*`, `blue-*` — usar `neutral-*`, `navy-*`, `royal-*`, `coral-*` o tokens `status-*`.
+- **Nunca usar** `rounded-2xl`, `rounded-xl`, `rounded-[Npx]` — usar `rounded-control` (8px), `rounded-card` (12px), `rounded-modal` (20px), `rounded-pill` (999px).
+- **Nunca usar sombras grises** (`rgba(0,0,0,x)`, `rgba(148,163,184,x)`) — usar siempre las sombras navy-tinted definidas en `tailwind.config.ts` (`shadow-sm`, `shadow-md`, `shadow-lg`, `shadow-xl`).
+- **Botones y controles**: `rounded-control`. **Badges y chips**: `rounded-pill`. Nunca `rounded-full` para botones.
+- **Colores de estado**: siempre en par texto + fondo — ej. `text-status-warning bg-status-warning-bg`.
+- **Gradientes** solo en heroes, covers y banners — nunca en cards ni panels.
+- **No bounce, spring, marquee ni parallax**. Las microanimaciones deben ser discretas (duración ≤ 300ms, ease natural).
+- Antes de agregar cualquier clase de color nueva, verificar contra `INSTRUCCIONES_DISENO.md` y `tailwind.config.ts`.

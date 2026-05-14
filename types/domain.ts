@@ -1,4 +1,4 @@
-export type UserRole = "ADMIN" | "DIRECTOR";
+export type UserRole = "ADMIN" | "DIRECTOR" | (string & {});
 
 export type SessionType = "Ordinaria" | "Extraordinaria";
 export type SessionFormat = "Presencial" | "Online" | "Híbrido";

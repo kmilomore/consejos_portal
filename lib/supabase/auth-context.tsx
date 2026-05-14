@@ -301,7 +301,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         accessible_rbds: nextProfile.rbd ? [nextProfile.rbd] : [],
         default_rbd: nextProfile.rbd,
         can_select_school: false,
-        landing_route: nextProfile.rol === "ADMIN" ? "/admin/" : "/resumen/",
+        landing_route: nextProfile.rbd ? "/resumen/" : "/admin/",
       };
 
       const scopeResult = await client.rpc("get_current_portal_scope");
@@ -331,7 +331,9 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       setCanSelectSchool(resolvedScope.can_select_school);
       setLandingRoute(resolvedScope.landing_route);
 
-      if (!nextProfile.rbd) {
+      const establishmentRbd = nextProfile.rbd ?? resolvedScope.default_rbd;
+
+      if (!establishmentRbd) {
         setEstablishment(null);
         profileLoaded.current = true;
         setIsLoading(false);
@@ -341,7 +343,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const establishmentResult = await client
         .from("establecimientos")
         .select("rbd, nombre, direccion, comuna")
-        .eq("rbd", nextProfile.rbd)
+        .eq("rbd", establishmentRbd)
         .single();
 
       if (cancelled) {
@@ -395,7 +397,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   }, [accessibleRbds, isGlobalAdmin, isLoading, selectedRbd, session]);
 
   useEffect(() => {
-    if (!supabase || profile?.rol !== "ADMIN" || !isGlobalAdmin) {
+    if (!supabase || !isGlobalAdmin) {
       setAllEstablishments([]);
       return;
     }
@@ -420,7 +422,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         return;
       }
 
-      if (profile.rol !== "ADMIN") {
+      if (landingRoute !== "/admin/") {
         window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
         if (selectedRbd !== null) {
           setSelectedRbd(null);
@@ -436,7 +438,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     } catch {
       // localStorage may be unavailable; ignore silently
     }
-  }, [profile, selectedRbd, session]);
+  }, [landingRoute, profile, selectedRbd, session]);
 
   async function signInWithGoogle(): Promise<AuthResult> {
     if (!supabase) {

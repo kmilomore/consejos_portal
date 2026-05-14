@@ -345,7 +345,7 @@ function FormLabel({
   required?: boolean;
 }) {
   return (
-    <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
       {children}
       {required && <span className="ml-1 text-ember">*</span>}
     </label>
@@ -359,9 +359,9 @@ function FormInput({
   return (
     <input
       className={cn(
-        "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-slate-400",
+        "mt-1 w-full rounded-card border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-neutral-400",
         "focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20",
-        "disabled:bg-slate-50 disabled:text-slate-400",
+        "disabled:bg-neutral-50 disabled:text-neutral-400",
         className,
       )}
       {...props}
@@ -377,7 +377,7 @@ function FormSelect({
   return (
     <select
       className={cn(
-        "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink",
+        "mt-1 w-full rounded-card border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-ink",
         "focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20",
         className,
       )}
@@ -396,7 +396,7 @@ function FormTextarea({
     <textarea
       rows={4}
       className={cn(
-        "mt-1 w-full resize-y rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-slate-400",
+        "mt-1 w-full resize-y rounded-card border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-neutral-400",
         "focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20",
         className,
       )}
@@ -440,11 +440,11 @@ function EstamentoCard({ state, onChange, suggestions = [] }: EstamentoCardProps
         : "bg-slate-300";
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white">
+    <div className="rounded-card border border-neutral-200/80 bg-white">
       <button
         type="button"
         onClick={() => set("expanded", !state.expanded)}
-        className="flex w-full items-center justify-between rounded-2xl px-5 py-4 text-left transition hover:bg-slate-50"
+        className="flex w-full items-center justify-between rounded-card px-5 py-4 text-left transition hover:bg-neutral-50"
       >
         <div className="flex items-center gap-3">
           <span className={cn("h-2 w-2 rounded-full", dotColor)} />
@@ -458,9 +458,9 @@ function EstamentoCard({ state, onChange, suggestions = [] }: EstamentoCardProps
             <span className="text-xs font-semibold text-amber-600">No asistió</span>
           )}
           {state.expanded ? (
-            <ChevronUp className="h-4 w-4 text-slate-400" />
+            <ChevronUp className="h-4 w-4 text-neutral-400" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-slate-400" />
+            <ChevronDown className="h-4 w-4 text-neutral-400" />
           )}
         </div>
       </button>
@@ -496,7 +496,7 @@ function EstamentoCard({ state, onChange, suggestions = [] }: EstamentoCardProps
 
           {/* No asistió — confirmación visual */}
           {state.asistio === false && (
-            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <div className="rounded-card border border-status-warning/20 bg-status-warning-bg px-4 py-3 text-sm text-status-warning">
               Este representante <span className="font-semibold">no asistió</span> a la sesión.
             </div>
           )}
@@ -617,7 +617,7 @@ function QuorumBadge({ presentCount }: { presentCount: number }) {
       aria-label={`${presentCount} de ${ESTAMENTOS.length} asistentes — ${valid ? "quórum válido" : "sin quórum"}`}
       className={cn(
         "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold",
-        valid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800",
+        valid ? "bg-status-success-bg text-status-success" : "bg-status-warning-bg text-status-warning",
       )}
     >
       <span>
@@ -1241,7 +1241,7 @@ export function ActaForm({
         {/* Modal */}
         <aside className="relative my-0 flex w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh]">
           {/* Header */}
-          <div className="flex flex-shrink-0 items-start justify-between border-b border-slate-200/80 px-6 py-4">
+          <div className="flex flex-shrink-0 items-start justify-between border-b border-neutral-200/80 px-6 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ocean">
                 {form.id ? "Editar acta" : "Nueva acta"}
@@ -1256,14 +1256,14 @@ export function ActaForm({
                   <span key={step.label} className="flex items-center gap-1.5">
                     <span className={cn(
                       "inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold",
-                      step.done ? "bg-ocean text-white" : "bg-slate-200 text-slate-400",
+                      step.done ? "bg-ocean text-white" : "bg-neutral-200 text-neutral-400",
                     )}>
                       {i + 1}
                     </span>
-                    <span className={cn("text-xs", step.done ? "font-semibold text-ocean" : "text-slate-400")}>
+                    <span className={cn("text-xs", step.done ? "font-semibold text-ocean" : "text-neutral-400")}>
                       {step.label}
                     </span>
-                    {i < formSteps.length - 1 && <span className="text-slate-300">›</span>}
+                    {i < formSteps.length - 1 && <span className="text-neutral-300">›</span>}
                   </span>
                 ))}
               </div>
@@ -1272,7 +1272,7 @@ export function ActaForm({
               type="button"
               aria-label="Cerrar formulario"
               onClick={requestClose}
-              className="mt-1 rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-ink"
+              className="mt-1 rounded-full p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-ink"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1282,7 +1282,7 @@ export function ActaForm({
           <div className="flex-1 space-y-8 overflow-y-auto px-6 py-6">
 
             {draftRestored && (
-              <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              <div className="flex items-center justify-between rounded-card border border-status-warning/30 bg-status-warning-bg px-4 py-3 text-sm text-status-warning">
                 <span>Se restauró un borrador guardado anteriormente.</span>
                 <button
                   type="button"
@@ -1328,7 +1328,7 @@ export function ActaForm({
                     ))}
                   </datalist>
                   {!slepLoading && establishmentQuery.trim() && !form.rbd && (
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-neutral-500">
                       Escribe el nombre o RBD completo para seleccionar una escuela del listado.
                     </p>
                   )}
@@ -1362,14 +1362,14 @@ export function ActaForm({
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, modo_registro: "ACTA_COMPLETA" }))}
                       className={cn(
-                        "rounded-2xl border px-4 py-3 text-left transition",
+                        "rounded-card border px-4 py-3 text-left transition",
                         form.modo_registro === "ACTA_COMPLETA"
                           ? "border-ocean bg-mist ring-2 ring-ocean/15"
-                          : "border-slate-200 hover:border-ocean/40 hover:bg-slate-50",
+                          : "border-neutral-200 hover:border-ocean/40 hover:bg-neutral-50",
                       )}
                     >
                       <p className="text-sm font-semibold text-ink">Acta completa</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-neutral-500">
                         Usa el formulario habitual con asistencia, tabla y acuerdos.
                       </p>
                     </button>
@@ -1377,14 +1377,14 @@ export function ActaForm({
                       type="button"
                       onClick={() => setForm((prev) => ({ ...prev, modo_registro: "REGISTRO_DOCUMENTAL" }))}
                       className={cn(
-                        "rounded-2xl border px-4 py-3 text-left transition",
+                        "rounded-card border px-4 py-3 text-left transition",
                         form.modo_registro === "REGISTRO_DOCUMENTAL"
                           ? "border-ocean bg-mist ring-2 ring-ocean/15"
-                          : "border-slate-200 hover:border-ocean/40 hover:bg-slate-50",
+                          : "border-neutral-200 hover:border-ocean/40 hover:bg-neutral-50",
                       )}
                     >
                       <p className="text-sm font-semibold text-ink">Registro documental</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-neutral-500">
                         Registra número de sesión y datos generales, adjuntando el acta en PDF.
                       </p>
                     </button>
@@ -1505,8 +1505,8 @@ export function ActaForm({
             {isDocumentalMode ? (
               <section>
                 <SectionHeader>Registro documental</SectionHeader>
-                <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm text-slate-600">
+                <div className="space-y-4 rounded-card border border-neutral-200 bg-neutral-50 p-5">
+                  <p className="text-sm text-neutral-600">
                     Este modo permite iniciar el correlativo y respaldo operativo sin completar el acta estructurada.
                   </p>
                   <div>
@@ -1539,7 +1539,7 @@ export function ActaForm({
                       >
                         Expandir todos
                       </button>
-                      <span className="text-slate-300">·</span>
+                      <span className="text-neutral-300">·</span>
                       <button
                         type="button"
                         onClick={collapseAll}
@@ -1585,7 +1585,7 @@ export function ActaForm({
                       {form.guests.map((guest) => (
                         <div
                           key={guest.localId}
-                          className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"
+                          className="grid gap-3 rounded-card border border-neutral-200 bg-neutral-50 p-4 sm:grid-cols-[1fr_1fr_1fr_auto]"
                         >
                           <div>
                             <FormLabel>Nombre</FormLabel>
@@ -1634,7 +1634,7 @@ export function ActaForm({
                       <button
                         type="button"
                         onClick={addGuest}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-ocean/40 px-4 py-2.5 text-sm font-semibold text-ocean transition hover:bg-mist"
+                        className="flex w-full items-center justify-center gap-2 rounded-card border border-dashed border-ocean/40 px-4 py-2.5 text-sm font-semibold text-ocean transition hover:bg-mist"
                       >
                         <Plus className="h-4 w-4" />
                         Agregar fila
@@ -1725,14 +1725,14 @@ export function ActaForm({
             <section>
               <SectionHeader>Evidencia documental</SectionHeader>
               {isDocumentalMode && (
-                <p className="mb-3 text-sm text-slate-600">
+                <p className="mb-3 text-sm text-neutral-600">
                   En registro documental el archivo adjunto en Supabase Storage es obligatorio para abrir el correlativo operativo.
                 </p>
               )}
 
               {form.link_acta ? (
                 /* Existing document */
-                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+                <div className="flex items-center justify-between rounded-card border border-neutral-200 bg-neutral-50 px-5 py-4">
                   <div className="flex items-center gap-3">
                     <FileCheck className="h-5 w-5 text-emerald-600" />
                     <span className="text-sm font-medium text-ink">
@@ -1777,16 +1777,16 @@ export function ActaForm({
                       e.key === "Enter" && fileInputRef.current?.click()
                     }
                     className={cn(
-                      "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition",
+                      "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed px-6 py-10 text-center transition",
                       dragOver
                         ? "border-ocean bg-mist"
-                        : "border-slate-200 bg-slate-50 hover:border-ocean/50 hover:bg-mist/50",
+                        : "border-neutral-200 bg-neutral-50 hover:border-ocean/50 hover:bg-mist/50",
                     )}
                   >
                     <Upload
                       className={cn(
                         "h-8 w-8",
-                        dragOver ? "text-ocean" : "text-slate-400",
+                        dragOver ? "text-ocean" : "text-neutral-400",
                       )}
                     />
                     <div>
@@ -1795,7 +1795,7 @@ export function ActaForm({
                           ? "Documento seleccionado — listo para guardar"
                           : "Arrastra el documento aquí o haz clic para seleccionar"}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-neutral-500">
                         Cualquier tipo de documento o archivo de respaldo · máximo {MAX_FILE_SIZE_MB} MB
                       </p>
                     </div>
@@ -1810,12 +1810,12 @@ export function ActaForm({
                   />
 
                   {pendingFile.current && fileReadyStatus !== "idle" && (
-                    <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs">
+                    <div className="mt-3 flex items-center gap-2.5 rounded-card border border-neutral-200 bg-white px-3.5 py-2.5 text-xs">
                       <FileCheck className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                       <span className="flex-1 truncate font-medium text-ink">{pendingFile.current.name}</span>
-                      <span className="flex-shrink-0 text-slate-400">{formatBytes(pendingFile.current.size)}</span>
+                      <span className="flex-shrink-0 text-neutral-400">{formatBytes(pendingFile.current.size)}</span>
                       {pendingFile.current.type && (
-                        <span className="flex-shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-500">
+                        <span className="flex-shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-neutral-500">
                           {pendingFile.current.type.split("/").pop()}
                         </span>
                       )}
@@ -1824,7 +1824,7 @@ export function ActaForm({
 
                   {(fileReadyStatus === "preparing" || fileReadyStatus === "ready") && uploadStatus !== "uploading" && (
                     <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                      <div className="mb-1 flex items-center justify-between text-xs text-neutral-500">
                         <span>
                           {fileReadyStatus === "preparing"
                             ? "Preparando documento en el formulario…"
@@ -1832,7 +1832,7 @@ export function ActaForm({
                         </span>
                         <span>{fileReadyProgress}%</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
                         <div
                           className={cn(
                             "h-2 rounded-full transition-all duration-300",
@@ -1847,11 +1847,11 @@ export function ActaForm({
                   {/* Progress bar */}
                   {uploadStatus === "uploading" && (
                     <div className="mt-3">
-                      <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                      <div className="mb-1 flex items-center justify-between text-xs text-neutral-500">
                         <span>Subiendo documento…</span>
                         <span>{uploadProgress}%</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
                         <div
                           className="h-2 rounded-full bg-ocean transition-all duration-300"
                           style={{ width: `${uploadProgress}%` }}
@@ -1891,20 +1891,20 @@ export function ActaForm({
 
             {/* Save error banner */}
             {saveError && (
-              <div className="rounded-2xl border border-ember/30 bg-ember/5 px-5 py-4 text-sm text-ember">
+              <div className="rounded-card border border-ember/30 bg-ember/5 px-5 py-4 text-sm text-ember">
                 {saveError}
               </div>
             )}
           </div>
 
           {/* Sticky footer */}
-          <div className="flex flex-shrink-0 items-center justify-between border-t border-slate-200/80 bg-white px-6 py-4">
+          <div className="flex flex-shrink-0 items-center justify-between border-t border-neutral-200/80 bg-white px-6 py-4">
             <div className="flex items-center gap-3">
               <Button variant="ghost" onClick={requestClose} disabled={submitting}>
                 Cancelar
               </Button>
               {lastDraftSavedAt && !submitting && (
-                <span className="text-xs text-slate-400">Borrador guardado {timeAgo(lastDraftSavedAt)}</span>
+                <span className="text-xs text-neutral-400">Borrador guardado {timeAgo(lastDraftSavedAt)}</span>
               )}
             </div>
             <div className="flex gap-3">
