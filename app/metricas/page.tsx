@@ -5,8 +5,8 @@ import Link from "next/link";
 import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
 import { StatCard } from "@/components/portal/stat-card";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
+import { usePortalAuth } from "@/lib/auth/context";
+import { usePortalSnapshot } from "@/lib/hooks/use-portal-snapshot";
 import { cn, formatDate, formatPercent } from "@/lib/utils";
 
 type SessionMetricRow = {

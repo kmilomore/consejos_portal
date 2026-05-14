@@ -1,4 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
+import { STORAGE_KEYS } from "@/lib/constants";
+import { logger } from "@/lib/logger";
+import type { Json } from "@/types/database.types";
 import type {
   Acta,
   ActaRecordMode,
@@ -39,8 +42,6 @@ export interface PersistenceStepResult {
   ok: boolean;
   errorMessage?: string;
 }
-
-const SNAPSHOT_VERSION_STORAGE_KEY = "consejos.portal.snapshot.version";
 
 export interface ProgramacionUpsertInput {
   id?: string;
@@ -212,7 +213,7 @@ export function readPortalSnapshotVersion(): number {
     return 0;
   }
 
-  const raw = window.sessionStorage.getItem(SNAPSHOT_VERSION_STORAGE_KEY);
+  const raw = window.sessionStorage.getItem(STORAGE_KEYS.SNAPSHOT_VERSION);
   const parsed = raw ? Number(raw) : 0;
   return Number.isFinite(parsed) ? parsed : 0;
 }
@@ -222,11 +223,7 @@ function bumpPortalSnapshotVersion() {
     return;
   }
 
-  window.sessionStorage.setItem(SNAPSHOT_VERSION_STORAGE_KEY, String(Date.now()));
-}
-
-export function getProgramaciones(): Programacion[] {
-  return [];
+  window.sessionStorage.setItem(STORAGE_KEYS.SNAPSHOT_VERSION, String(Date.now()));
 }
 
 export async function getNextSessionNumber(
@@ -358,10 +355,6 @@ export async function cancelProgramacion(programacionId: string): Promise<Persis
   return { ok: true };
 }
 
-export function getActas(): Acta[] {
-  return [];
-}
-
 export interface ActaUpsertInput {
   id?: string;
   programacion_origen_id?: string;
@@ -386,10 +379,9 @@ export interface ActaUpsertInput {
   asistentes: AttendeeSlot[];
 }
 
-function buildActaDocumentPath(actaId: string, rbd: string, fileName: string): string {
-  const year = new Date().getFullYear();
+function buildActaDocumentPath(actaId: string, rbd: string, fileName: string, actaYear: number): string {
   const ext = fileName.includes(".") ? fileName.split(".").pop()!.toLowerCase() : "pdf";
-  return `${rbd.replace(/\//g, "-")}/${year}/${actaId}.${ext}`;
+  return `${rbd.replace(/\//g, "-")}/${actaYear}/${actaId}.${ext}`;
 }
 
 export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationResult> {
@@ -417,7 +409,7 @@ export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationRe
     observacion_documental: input.observacion_documental,
     proxima_sesion: input.proxima_sesion,
     link_acta: input.link_acta,
-    asistentes: input.asistentes,
+    asistentes: input.asistentes as unknown as Json,
   };
 
   const { data, error } = await supabase
@@ -427,7 +419,7 @@ export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationRe
     .single();
 
   if (error) {
-    console.error("upsertActa (upsert):", error.message);
+    logger.error("upsertActa", error.message);
     return { id: null, errorMessage: error.message };
   }
 
@@ -440,7 +432,7 @@ export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationRe
       .eq("id", input.programacion_origen_id);
 
     if (programacionError) {
-      console.error("upsertActa (link programacion):", programacionError.message);
+      logger.error("upsertActa (link programacion)", programacionError.message);
       return { id: savedId, errorMessage: `Acta guardada, pero no se pudo vincular la programación: ${programacionError.message}` };
     }
   }
@@ -460,7 +452,7 @@ export async function replaceActaInvitados(
   const { error: deleteError } = await supabase.from("actas_invitados").delete().eq("acta_id", actaId);
 
   if (deleteError) {
-    console.error("replaceActaInvitados (delete):", deleteError.message);
+    logger.error("replaceActaInvitados (delete)", deleteError.message);
     return { ok: false, errorMessage: deleteError.message };
   }
 
@@ -470,7 +462,7 @@ export async function replaceActaInvitados(
       .insert(guests.map((guest) => ({ acta_id: actaId, nombre: guest.nombre, cargo: guest.cargo })));
 
     if (insertError) {
-      console.error("replaceActaInvitados (insert):", insertError.message);
+      logger.error("replaceActaInvitados (insert)", insertError.message);
       return { ok: false, errorMessage: insertError.message };
     }
   }
@@ -484,12 +476,13 @@ export async function uploadActaDocument(
   actaId: string,
   rbd: string,
   file: File,
+  actaYear: number,
   onProgress?: (percent: number) => void,
 ): Promise<{ url: string; errorMessage: null } | { url: null; errorMessage: string }> {
   const supabase = createClient();
   if (!supabase) return { url: null, errorMessage: "Cliente Supabase no disponible." };
   const storageBucket = "evidencias_actas";
-  const safePath = buildActaDocumentPath(actaId, rbd, file.name);
+  const safePath = buildActaDocumentPath(actaId, rbd, file.name, actaYear);
 
   onProgress?.(50);
 
@@ -498,7 +491,7 @@ export async function uploadActaDocument(
     .upload(safePath, file, { upsert: true, contentType: file.type || "application/octet-stream" });
 
   if (error) {
-    console.error("uploadActaDocument:", error.message);
+    logger.error("uploadActaDocument", error.message);
     onProgress?.(0);
     return { url: null, errorMessage: error.message };
   }
@@ -508,16 +501,16 @@ export async function uploadActaDocument(
   return { url: data.publicUrl, errorMessage: null };
 }
 
-export async function deleteActaDocument(actaId: string, rbd: string, fileName: string): Promise<boolean> {
+export async function deleteActaDocument(actaId: string, rbd: string, fileName: string, actaYear: number): Promise<boolean> {
   const supabase = createClient();
   if (!supabase) return false;
 
   const storageBucket = "evidencias_actas";
-  const safePath = buildActaDocumentPath(actaId, rbd, fileName);
+  const safePath = buildActaDocumentPath(actaId, rbd, fileName, actaYear);
   const { error } = await supabase.storage.from(storageBucket).remove([safePath]);
 
   if (error) {
-    console.error("deleteActaDocument:", error.message);
+    logger.error("deleteActaDocument", error.message);
     return false;
   }
 
@@ -530,7 +523,7 @@ export async function updateActaLink(actaId: string, url: string): Promise<Persi
 
   const { error } = await supabase.from("actas").update({ link_acta: url }).eq("id", actaId);
   if (error) {
-    console.error("updateActaLink:", error.message);
+    logger.error("updateActaLink", error.message);
     return { ok: false, errorMessage: error.message };
   }
 
@@ -546,7 +539,7 @@ export async function deleteActa(actaId: string): Promise<boolean> {
   const { error } = await supabase.from("actas").delete().eq("id", actaId);
 
   if (error) {
-    console.error("deleteActa:", error.message);
+    logger.error("deleteActa", error.message);
     return false;
   }
 

@@ -1,3 +1,5 @@
+// The `(string & {})` intersection preserves autocomplete for the literal members
+// without collapsing the union to plain `string`. Do not simplify.
 export type UserRole = "ADMIN" | "DIRECTOR" | (string & {});
 
 export type SessionType = "Ordinaria" | "Extraordinaria";

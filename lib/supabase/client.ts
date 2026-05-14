@@ -1,6 +1,7 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 
-let browserClient: ReturnType<typeof createBrowserClient> | null | undefined;
+let browserClient: ReturnType<typeof createSupabaseClient<Database>> | null | undefined;
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,6 +15,11 @@ export function createClient() {
     return browserClient;
   }
 
-  browserClient = createBrowserClient(url, anonKey);
+  browserClient = createSupabaseClient<Database>(url, anonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: "consejos-portal",
+    },
+  });
   return browserClient;
 }

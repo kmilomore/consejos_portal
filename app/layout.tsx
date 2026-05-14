@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { PortalAuthProvider } from "@/lib/supabase/auth-context";
+import { PortalAuthProvider } from "@/lib/auth/context";
 import { AppFrame } from "@/components/portal/app-frame";
 import { Toaster } from "@/components/ui/toast";
 import "./colors_and_type.css";

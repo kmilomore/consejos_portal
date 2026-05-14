@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { toast } from "@/components/ui/toast";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { PortalSnapshotProvider } from "@/lib/supabase/use-portal-snapshot";
+import { usePortalAuth } from "@/lib/auth/context";
+import { PortalSnapshotProvider } from "@/lib/hooks/use-portal-snapshot";
 import { PortalShell } from "@/components/portal/shell";
 
 export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) {

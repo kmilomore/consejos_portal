@@ -19,8 +19,8 @@ import {
   School2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
+import { usePortalAuth } from "@/lib/auth/context";
+import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Establishment, Profile } from "@/types/domain";

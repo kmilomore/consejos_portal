@@ -3,7 +3,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { STORAGE_KEYS } from "@/lib/constants";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
+
+const LOAD_ACCESS_TIMEOUT_MS = 15_000;
 
 interface AuthResult {
   error?: string;
@@ -44,9 +47,6 @@ function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
 
   return `No fue posible abrir el portal: ${message}`;
 }
-
-const SELECTED_RBD_STORAGE_KEY = "consejos.portal.selected-rbd";
-const AUTH_STATE_STORAGE_KEY = "consejos.portal.auth-state.v1";
 
 interface AuthStateCache {
   session: Session | null;
@@ -96,7 +96,7 @@ function readStoredAuthState(): StoredAuthState | null {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(AUTH_STATE_STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(STORAGE_KEYS.AUTH_STATE);
     if (!raw) {
       return null;
     }
@@ -107,13 +107,18 @@ function readStoredAuthState(): StoredAuthState | null {
   }
 }
 
-function writeStoredAuthState(state: StoredAuthState) {
+function writeStoredAuthState(state: StoredAuthState, lastRef: React.MutableRefObject<string | null>) {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.sessionStorage.setItem(AUTH_STATE_STORAGE_KEY, JSON.stringify(state));
+    const serialized = JSON.stringify(state);
+    if (serialized === lastRef.current) {
+      return;
+    }
+    lastRef.current = serialized;
+    window.sessionStorage.setItem(STORAGE_KEYS.AUTH_STATE, serialized);
   } catch {
     // Ignore storage write failures and keep the in-memory cache only.
   }
@@ -125,7 +130,7 @@ function clearStoredAuthState() {
   }
 
   try {
-    window.sessionStorage.removeItem(AUTH_STATE_STORAGE_KEY);
+    window.sessionStorage.removeItem(STORAGE_KEYS.AUTH_STATE);
   } catch {
     // Ignore storage cleanup failures.
   }
@@ -182,13 +187,14 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   const profileLoaded = useRef(authStateCache.profileLoaded);
   const storedAuthStateRef = useRef<StoredAuthState | null>(null);
   const appliedStoredAuthUserIdRef = useRef<string | null>(null);
+  const lastWrittenAuthStateRef = useRef<string | null>(null);
 
   useEffect(() => {
     const storedAuthState = readStoredAuthState();
     storedAuthStateRef.current = storedAuthState;
 
     try {
-      const storedRbd = window.localStorage.getItem(SELECTED_RBD_STORAGE_KEY);
+      const storedRbd = window.localStorage.getItem(STORAGE_KEYS.SELECTED_RBD);
       if (storedRbd) {
         setSelectedRbd((current) => current ?? storedRbd);
       }
@@ -233,6 +239,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     }
   }, [session, storageHydrated]);
 
+  // Sync in-memory + sessionStorage cache. Uses a ref-based comparison to skip
+  // writes when state hasn't actually changed between render cycles.
   useEffect(() => {
     if (!storageHydrated) {
       return;
@@ -251,23 +259,27 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     const sessionUserId = session?.user?.id ?? null;
 
     if (!sessionUserId) {
+      lastWrittenAuthStateRef.current = null;
       clearStoredAuthState();
       return;
     }
 
-    writeStoredAuthState({
-      userId: sessionUserId,
-      profile,
-      establishment,
-      isGlobalAdmin,
-      accessibleRbds,
-      canSelectSchool,
-      landingRoute,
-      accessError,
-      profileLoaded: profileLoaded.current,
-      selectedRbd,
-      allEstablishments,
-    });
+    writeStoredAuthState(
+      {
+        userId: sessionUserId,
+        profile,
+        establishment,
+        isGlobalAdmin,
+        accessibleRbds,
+        canSelectSchool,
+        landingRoute,
+        accessError,
+        profileLoaded: profileLoaded.current,
+        selectedRbd,
+        allEstablishments,
+      },
+      lastWrittenAuthStateRef,
+    );
   }, [accessError, accessibleRbds, allEstablishments, canSelectSchool, establishment, isGlobalAdmin, landingRoute, profile, selectedRbd, session, storageHydrated]);
 
   useEffect(() => {
@@ -313,6 +325,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         // (createBrowserClient fires INITIAL_SESSION with null before reading cookies)
         resetAuthStateCache();
         profileLoaded.current = false;
+        lastWrittenAuthStateRef.current = null;
         setSession(null);
         setProfile(null);
         setEstablishment(null);
@@ -355,41 +368,72 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     }
     setAccessError(null);
 
+    // Capture the narrowed string before entering async closures — TypeScript cannot
+    // propagate narrowing of outer-scope variables through async functions.
+    const uid = userId;
+
+    // Abort the load after 15s to avoid an infinite spinner on network issues.
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        cancelled = true;
+        setAccessError("El portal tardó demasiado en cargar. Recarga la página e intenta de nuevo.");
+        profileLoaded.current = true;
+        setIsLoading(false);
+      }
+    }, LOAD_ACCESS_TIMEOUT_MS);
+
     async function loadAccess() {
       let bootstrapErrorMessage: string | null = null;
 
-      let profileResult = await client
-        .from("usuarios_perfiles")
-        .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
-        .eq("id", userId)
-        .single();
+      // Fetch profile, with one bootstrap+retry if the first query finds no row.
+      // Extracted into a const-returning helper so TypeScript can narrow the
+      // discriminated union on the result without `let`-reassignment confusion.
+      async function fetchProfileData() {
+        const first = await client
+          .from("usuarios_perfiles")
+          .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
+          .eq("id", uid)
+          .single();
 
-      if (profileResult.error || !profileResult.data) {
-        const bootstrapResult = await client.rpc("bootstrap_current_user_profile_from_base_escuelas");
-
-        if (bootstrapResult.error) {
-          bootstrapErrorMessage = bootstrapResult.error.message;
+        if (!first.error && first.data) {
+          return first;
         }
 
-        if (!cancelled && !bootstrapResult.error) {
-          profileResult = await client
-            .from("usuarios_perfiles")
-            .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
-            .eq("id", userId)
-            .single();
+        const bootstrap = await client.rpc("bootstrap_current_user_profile_from_base_escuelas");
+        if (bootstrap.error) {
+          bootstrapErrorMessage = bootstrap.error.message;
+          return first;
         }
+
+        if (cancelled) {
+          return first;
+        }
+
+        return client
+          .from("usuarios_perfiles")
+          .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
+          .eq("id", uid)
+          .single();
       }
+
+      const profileResult = await fetchProfileData();
 
       if (cancelled) {
         return;
       }
 
-      if (profileResult.error || !profileResult.data) {
+      // Extract primitives before narrowing: TypeScript cannot narrow the Supabase
+      // PostgrestSingleResponse<T> discriminated union reliably without database
+      // type generation, causing `.data` to collapse to `never` after the guard.
+      const profileData = profileResult.data as Profile | null;
+      const profileError = profileResult.error;
+
+      if (profileError || !profileData) {
         setProfile(null);
         setEstablishment(null);
         setAccessError(normalizeAccessErrorMessage(
           bootstrapErrorMessage
-            ?? profileResult.error?.message
+            ?? profileError?.message
             ?? "No existe un perfil portal vinculado a este usuario.",
         ));
         profileLoaded.current = true;
@@ -397,7 +441,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         return;
       }
 
-      const nextProfile = profileResult.data as Profile;
+      const nextProfile = profileData;
       let resolvedScope: PortalScope = {
         role_text: nextProfile.rol,
         is_global_admin: false,
@@ -407,16 +451,29 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         landing_route: nextProfile.rbd ? "/resumen/" : "/admin/",
       };
 
-      const scopeResult = await client.rpc("get_current_portal_scope");
+      // Run scope resolution and establishment fetch in parallel when the rbd
+      // is already known from the profile (covers all director-role users).
+      const profileRbd = nextProfile.rbd;
+      const [scopeResult, earlyEstResult] = await Promise.all([
+        client.rpc("get_current_portal_scope"),
+        profileRbd
+          ? client.from("establecimientos").select("rbd, nombre, direccion, comuna").eq("rbd", profileRbd).single()
+          : Promise.resolve(null),
+      ]);
 
-      if (!cancelled && !scopeResult.error) {
-        const scopeRow = Array.isArray(scopeResult.data)
-          ? scopeResult.data[0]
-          : scopeResult.data;
+      if (cancelled) {
+        return;
+      }
+
+      // Cast RPC data to unknown first — without database type generation Supabase's
+      // generic response types collapse to `never` when TypeScript tries to narrow them.
+      if (!scopeResult.error) {
+        const rawData = scopeResult.data as unknown;
+        const scopeRow = (Array.isArray(rawData) ? rawData[0] : rawData) as Record<string, unknown> | null | undefined;
 
         if (scopeRow) {
           resolvedScope = {
-            role_text: scopeRow.role_text,
+            role_text: typeof scopeRow.role_text === "string" ? scopeRow.role_text : nextProfile.rol,
             is_global_admin: Boolean(scopeRow.is_global_admin),
             accessible_rbds: Array.isArray(scopeRow.accessible_rbds)
               ? scopeRow.accessible_rbds.filter((value: unknown): value is string => typeof value === "string")
@@ -434,7 +491,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       setCanSelectSchool(resolvedScope.can_select_school);
       setLandingRoute(resolvedScope.landing_route);
 
-      const establishmentRbd = nextProfile.rbd ?? resolvedScope.default_rbd;
+      const establishmentRbd = profileRbd ?? resolvedScope.default_rbd;
 
       if (!establishmentRbd) {
         setEstablishment(null);
@@ -443,25 +500,32 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         return;
       }
 
-      const establishmentResult = await client
-        .from("establecimientos")
-        .select("rbd, nombre, direccion, comuna")
-        .eq("rbd", establishmentRbd)
-        .single();
+      // Use the already-fetched result when the rbd came from the profile;
+      // otherwise fall back to a fresh query (admin with a non-null default_rbd).
+      const rawEstResult = earlyEstResult
+        ?? (cancelled
+          ? null
+          : await client.from("establecimientos").select("rbd, nombre, direccion, comuna").eq("rbd", establishmentRbd).single());
 
       if (cancelled) {
         return;
       }
 
-      if (establishmentResult.error || !establishmentResult.data) {
+      // Extract via unknown to avoid the same Supabase generic narrowing issue.
+      const estData = (rawEstResult as { data?: unknown } | null)?.data as Establishment | null | undefined;
+      const estError = (rawEstResult as { error?: { message: string } | null } | null)?.error;
+
+      if (!estData) {
         setEstablishment(null);
-        setAccessError(normalizeAccessErrorMessage(establishmentResult.error?.message ?? "No se encontró el establecimiento asociado al perfil autenticado."));
+        setAccessError(normalizeAccessErrorMessage(
+          estError?.message ?? "No se encontró el establecimiento asociado al perfil autenticado.",
+        ));
         profileLoaded.current = true;
         setIsLoading(false);
         return;
       }
 
-      setEstablishment(establishmentResult.data as Establishment);
+      setEstablishment(estData);
       profileLoaded.current = true;
       setIsLoading(false);
     }
@@ -470,6 +534,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [establishment, profile, supabase, userId]);
 
@@ -526,7 +591,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       if (landingRoute !== "/admin/") {
-        window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
+        window.localStorage.removeItem(STORAGE_KEYS.SELECTED_RBD);
         if (selectedRbd !== null) {
           setSelectedRbd(null);
         }
@@ -534,9 +599,9 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       if (selectedRbd) {
-        window.localStorage.setItem(SELECTED_RBD_STORAGE_KEY, selectedRbd);
+        window.localStorage.setItem(STORAGE_KEYS.SELECTED_RBD, selectedRbd);
       } else {
-        window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
+        window.localStorage.removeItem(STORAGE_KEYS.SELECTED_RBD);
       }
     } catch {
       // localStorage may be unavailable; ignore silently
@@ -577,10 +642,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     }
 
     resetAuthStateCache();
+    lastWrittenAuthStateRef.current = null;
 
     try {
       if (typeof window !== "undefined") {
-        window.localStorage.removeItem(SELECTED_RBD_STORAGE_KEY);
+        window.localStorage.removeItem(STORAGE_KEYS.SELECTED_RBD);
       }
     } catch {
       // localStorage may be unavailable; ignore silently

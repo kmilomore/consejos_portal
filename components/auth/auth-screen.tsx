@@ -3,7 +3,7 @@
 import { useState } from "react";
 import authBackground from "@/app/auth/auth.webp";
 import { toast } from "@/components/ui/toast";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
+import { usePortalAuth } from "@/lib/auth/context";
 
 const ALLOWED_DOMAIN =
   (process.env.NEXT_PUBLIC_AUTH_ALLOWED_DOMAIN ?? "@slepcolchagua.cl").toLowerCase();

@@ -21,8 +21,8 @@ import { SectionCard } from "@/components/portal/section-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
+import { usePortalAuth } from "@/lib/auth/context";
+import { usePortalSnapshot } from "@/lib/hooks/use-portal-snapshot";
 import { cn, formatDate } from "@/lib/utils";
 import type { Acta, PlanningStatus, Programacion, SessionFormat, SessionType } from "@/types/domain";
 

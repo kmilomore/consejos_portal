@@ -1,10 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, type PropsWithChildren } from "react";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
+import { usePortalAuth } from "@/lib/auth/context";
+import { STORAGE_KEYS } from "@/lib/constants";
 import { fetchPortalSnapshot, readPortalSnapshotVersion, type PortalSnapshot } from "@/lib/supabase/queries";
-
-// ─── Shared context ────────────────────────────────────────────────────────────
 
 interface PortalSnapshotState {
   snapshot: PortalSnapshot;
@@ -31,17 +30,13 @@ type SnapshotCacheEntry = {
 const snapshotCache = new Map<string, SnapshotCacheEntry>();
 const snapshotRequests = new Map<string, Promise<PortalSnapshot>>();
 
-function getSnapshotStorageKey(cacheKey: string) {
-  return `consejos.portal.snapshot.${cacheKey}`;
-}
-
 function readStoredSnapshot(cacheKey: string): SnapshotCacheEntry | null {
   if (typeof window === "undefined") {
     return null;
   }
 
   try {
-    const raw = window.sessionStorage.getItem(getSnapshotStorageKey(cacheKey));
+    const raw = window.sessionStorage.getItem(STORAGE_KEYS.SNAPSHOT(cacheKey));
     if (!raw) {
       return null;
     }
@@ -66,7 +61,7 @@ function writeStoredSnapshot(cacheKey: string, entry: SnapshotCacheEntry) {
   }
 
   try {
-    window.sessionStorage.setItem(getSnapshotStorageKey(cacheKey), JSON.stringify(entry));
+    window.sessionStorage.setItem(STORAGE_KEYS.SNAPSHOT(cacheKey), JSON.stringify(entry));
   } catch {
     // Ignore storage failures and keep the in-memory cache.
   }
@@ -77,8 +72,6 @@ const PortalSnapshotContext = createContext<PortalSnapshotState>({
   status: "loading",
   refresh: () => {},
 });
-
-// ─── Provider (mount once in AppFrame) ────────────────────────────────────────
 
 export function PortalSnapshotProvider({ children }: PropsWithChildren): React.ReactElement {
   const { session, selectedRbd } = usePortalAuth();
@@ -167,8 +160,6 @@ export function PortalSnapshotProvider({ children }: PropsWithChildren): React.R
     </PortalSnapshotContext.Provider>
   );
 }
-
-// ─── Consumer hook (used by every page) ───────────────────────────────────────
 
 export function usePortalSnapshot(): PortalSnapshotState {
   return useContext(PortalSnapshotContext);

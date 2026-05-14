@@ -10,8 +10,8 @@ import { SectionCard } from "@/components/portal/section-card";
 import { ActaForm } from "@/components/portal/acta-form";
 import { ActaDetail } from "@/components/portal/acta-detail";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
-import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
+import { usePortalSnapshot } from "@/lib/hooks/use-portal-snapshot";
+import { usePortalAuth } from "@/lib/auth/context";
 import { formatDate } from "@/lib/utils";
 import type { Acta, ActaRecordMode, SessionType } from "@/types/domain";
 

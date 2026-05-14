@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Building2, MapPin, Search, TreePine, Users } from "lucide-react";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
+import { usePortalAuth } from "@/lib/auth/context";
+import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import type { SlepEscuela } from "@/types/domain";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

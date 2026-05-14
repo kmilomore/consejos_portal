@@ -2,16 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
+import { usePortalAuth } from "@/lib/auth/context";
+import { STORAGE_KEYS } from "@/lib/constants";
 import type { Establishment, SlepEscuela } from "@/types/domain";
 
 const slepDirectorioCache = new Map<string, SlepEscuela[]>();
 const slepDirectorioErrorCache = new Map<string, string | null>();
 const slepDirectorioRequests = new Map<string, Promise<{ data: SlepEscuela[] | null; error: string | null }>>();
-
-function getSlepDirectorioStorageKey(userId: string) {
-  return `consejos.slep-directorio.${userId}`;
-}
 
 function readStoredDirectorio(userId: string): SlepEscuela[] | null {
   if (typeof window === "undefined") {
@@ -19,7 +16,7 @@ function readStoredDirectorio(userId: string): SlepEscuela[] | null {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(getSlepDirectorioStorageKey(userId));
+    const raw = window.sessionStorage.getItem(STORAGE_KEYS.SLEP_DIRECTORIO(userId));
     if (!raw) {
       return null;
     }
@@ -37,7 +34,7 @@ function writeStoredDirectorio(userId: string, data: SlepEscuela[]) {
   }
 
   try {
-    window.sessionStorage.setItem(getSlepDirectorioStorageKey(userId), JSON.stringify({ data }));
+    window.sessionStorage.setItem(STORAGE_KEYS.SLEP_DIRECTORIO(userId), JSON.stringify({ data }));
   } catch {
     // Ignore storage write failures and keep the in-memory cache.
   }
@@ -142,8 +139,10 @@ export function useSlepDirectorio() {
 
     let cancelled = false;
 
-    const request = slepDirectorioRequests.get(userId) ?? client
-      .rpc("get_slep_directorio")
+    // Promise.resolve() converts Supabase's PromiseLike to a full Promise so
+    // that .finally() (ES2018) is available on the chain.
+    const request = slepDirectorioRequests.get(userId) ?? Promise.resolve(client
+      .rpc("get_slep_directorio"))
       .then(({ data: rows, error: rpcError }: { data: SlepEscuela[] | null; error: { message: string } | null }) => {
         return client
           .from("establecimientos")

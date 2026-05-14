@@ -22,8 +22,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
-import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
+import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
+import { usePortalAuth } from "@/lib/auth/context";
 import type { Acta, ActaRecordMode, AttendeeSlot, Establishment, Programacion, SessionFormat, SessionType } from "@/types/domain";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1105,6 +1105,7 @@ export function ActaForm({
         uploadTargetActaId,
         form.rbd,
         pendingFile.current,
+        Number(form.fecha.slice(0, 4)),
         (progress) => setUploadProgress(progress),
       );
 
@@ -1158,7 +1159,7 @@ export function ActaForm({
 
     if (!savedId) {
       if (shouldRollbackUploadedDocument && generatedActaId && pendingFile.current) {
-        await deleteActaDocument(generatedActaId, form.rbd, pendingFile.current.name);
+        await deleteActaDocument(generatedActaId, form.rbd, pendingFile.current.name, Number(form.fecha.slice(0, 4)));
       }
 
       setUploadStatus("error");
@@ -1186,6 +1187,7 @@ export function ActaForm({
         savedId,
         form.rbd,
         pendingFile.current,
+        Number(form.fecha.slice(0, 4)),
         (p) => setUploadProgress(p),
       );
       setUploadStatus(uploadResult2.url ? "done" : "error");

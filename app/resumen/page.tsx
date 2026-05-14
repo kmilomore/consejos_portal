@@ -4,9 +4,9 @@ import Link from "next/link";
 import { ArrowRight, School2 } from "lucide-react";
 import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
-import { usePortalAuth } from "@/lib/supabase/auth-context";
-import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
-import { useSlepDirectorio } from "@/lib/supabase/use-slep-directorio";
+import { usePortalAuth } from "@/lib/auth/context";
+import { usePortalSnapshot } from "@/lib/hooks/use-portal-snapshot";
+import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import { cn } from "@/lib/utils";
 
 export default function SummaryPage() {
