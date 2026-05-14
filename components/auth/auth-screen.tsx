@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import authBackground from "@/app/auth/auth.webp";
+import { toast } from "@/components/ui/toast";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 
 const ALLOWED_DOMAIN =
@@ -27,10 +28,11 @@ function GoogleButton({ onClick, disabled }: { onClick: () => void; disabled: bo
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
-export function AuthScreen() {
+export function AuthScreen({ externalError }: { externalError?: string | null } = {}) {
   const { signInWithGoogle, isLoading } = usePortalAuth();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const visibleError = errorMessage ?? externalError ?? null;
 
   async function handleGoogleSignIn() {
     setErrorMessage(null);
@@ -38,6 +40,7 @@ export function AuthScreen() {
     const result = await signInWithGoogle();
     if (result.error) {
       setErrorMessage(result.error);
+      toast(result.error, "error");
       return;
     }
 
@@ -77,9 +80,9 @@ export function AuthScreen() {
                 {feedback}
               </div>
             )}
-            {errorMessage && (
+            {visibleError && (
               <div className="mt-6 rounded-card border border-status-danger bg-status-danger-bg px-4 py-3 text-sm font-bold leading-7 text-status-danger">
-                {errorMessage}
+                {visibleError}
               </div>
             )}
 

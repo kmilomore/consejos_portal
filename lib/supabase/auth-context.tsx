@@ -9,6 +9,42 @@ interface AuthResult {
   error?: string;
 }
 
+function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
+  const message = (rawMessage ?? "").trim();
+  const lowerMessage = message.toLowerCase();
+
+  if (!message) {
+    return "No fue posible validar tu acceso al portal."
+  }
+
+  if (
+    lowerMessage.includes("no existe un perfil portal")
+    || lowerMessage.includes("json object requested, multiple (or no) rows returned")
+    || lowerMessage.includes("usuario_perfiles")
+    || lowerMessage.includes("usuarios_perfiles")
+  ) {
+    return "Tu cuenta autenticada no tiene un perfil habilitado en el portal. Revisa que tu correo esté cargado en la base de accesos."
+  }
+
+  if (
+    lowerMessage.includes("no se encontró el establecimiento asociado")
+    || lowerMessage.includes("establecimiento asociado")
+    || lowerMessage.includes("establecimientos")
+  ) {
+    return "Tu cuenta sí autenticó, pero no tiene una escuela vinculada para entrar al portal."
+  }
+
+  if (
+    lowerMessage.includes("permission denied")
+    || lowerMessage.includes("not authorized")
+    || lowerMessage.includes("forbidden")
+  ) {
+    return "Tu cuenta autenticó, pero no tiene permisos para abrir este portal."
+  }
+
+  return `No fue posible abrir el portal: ${message}`;
+}
+
 const SELECTED_RBD_STORAGE_KEY = "consejos.portal.selected-rbd";
 const AUTH_STATE_STORAGE_KEY = "consejos.portal.auth-state.v1";
 
@@ -306,11 +342,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       if (profileResult.error || !profileResult.data) {
         setProfile(null);
         setEstablishment(null);
-        setAccessError(
+        setAccessError(normalizeAccessErrorMessage(
           bootstrapErrorMessage
             ?? profileResult.error?.message
             ?? "No existe un perfil portal vinculado a este usuario.",
-        );
+        ));
         profileLoaded.current = true;
         setIsLoading(false);
         return;
@@ -374,7 +410,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
       if (establishmentResult.error || !establishmentResult.data) {
         setEstablishment(null);
-        setAccessError(establishmentResult.error?.message ?? "No se encontró el establecimiento asociado al perfil autenticado.");
+        setAccessError(normalizeAccessErrorMessage(establishmentResult.error?.message ?? "No se encontró el establecimiento asociado al perfil autenticado."));
         profileLoaded.current = true;
         setIsLoading(false);
         return;

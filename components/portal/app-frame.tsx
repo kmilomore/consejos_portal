@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { PortalSnapshotProvider } from "@/lib/supabase/use-portal-snapshot";
 import { PortalShell } from "@/components/portal/shell";
@@ -25,6 +26,14 @@ export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) 
       router.replace(landingRoute);
     }
   }, [isAuthEntry, isLoading, landingRoute, pathname, router, session]);
+
+  useEffect(() => {
+    if (!session || !accessError) {
+      return;
+    }
+
+    toast(accessError, "error");
+  }, [accessError, session]);
 
   // Auth entry: render login page directly. No loader, no banners.
   if (isAuthEntry) {
