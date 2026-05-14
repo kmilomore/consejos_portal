@@ -253,6 +253,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     setAccessError(null);
 
     async function loadAccess() {
+      let bootstrapErrorMessage: string | null = null;
+
       let profileResult = await client
         .from("usuarios_perfiles")
         .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
@@ -261,6 +263,10 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
       if (profileResult.error || !profileResult.data) {
         const bootstrapResult = await client.rpc("bootstrap_current_user_profile_from_base_escuelas");
+
+        if (bootstrapResult.error) {
+          bootstrapErrorMessage = bootstrapResult.error.message;
+        }
 
         if (!cancelled && !bootstrapResult.error) {
           profileResult = await client
@@ -278,7 +284,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       if (profileResult.error || !profileResult.data) {
         setProfile(null);
         setEstablishment(null);
-        setAccessError(profileResult.error?.message ?? "No existe un perfil portal vinculado a este usuario.");
+        setAccessError(
+          bootstrapErrorMessage
+            ?? profileResult.error?.message
+            ?? "No existe un perfil portal vinculado a este usuario.",
+        );
         profileLoaded.current = true;
         setIsLoading(false);
         return;
