@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iconografía — SLEP Colchagua · Referencia HTML</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<!-- Material Icons (biblioteca del SVG de referencia iconos.svg) -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<!-- Lucide (recomendado en estilo.md para uso en componentes) -->
+<script src="https://unpkg.com/lucide@latest" defer></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    background: var(--neutral-100);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    color: var(--fg-1);
+  }
+
+  h1  { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; margin: 0 0 6px; }
+  h2  { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 20px; color: var(--navy-500); }
+  p   { font-size: 14px; color: var(--fg-3); margin: 0 0 32px; }
+
+  .section {
+    background: #fff;
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    padding: 28px 28px 20px;
+    margin-bottom: 32px;
+  }
+  .section-eyebrow {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--royal-500);
+    margin: 0 0 6px;
+  }
+  .section-title {
+    font-size: 18px; font-weight: 900; letter-spacing: -0.01em;
+    margin: 0 0 4px; color: var(--navy-500);
+  }
+  .section-desc {
+    font-size: 12px; color: var(--neutral-500);
+    margin: 0 0 24px; font-family: var(--font-mono);
+  }
+
+  /* ============================================================
+     GRID DE ICONOS
+     ============================================================ */
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 4px;
+  }
+  .icon-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 12px 8px;
+    border-radius: 8px; cursor: default;
+    transition: background 120ms ease;
+  }
+  .icon-item:hover { background: var(--neutral-100); }
+  .icon-item .icon-label {
+    font-size: 9.5px; color: var(--neutral-500);
+    font-family: var(--font-mono);
+    text-align: center; line-height: 1.3;
+    word-break: break-all;
+  }
+
+  /* ============================================================
+     TAMAÑOS DE ICONO — del SVG: 18, 24, 36, 48px
+     ============================================================ */
+  .material-icons.size-18 { font-size: 18px; }
+  .material-icons.size-24 { font-size: 24px; }
+  .material-icons.size-36 { font-size: 36px; }
+  .material-icons.size-48 { font-size: 48px; }
+  .material-icons-outlined.size-18 { font-size: 18px; }
+  .material-icons-outlined.size-24 { font-size: 24px; }
+  .material-icons-outlined.size-36 { font-size: 36px; }
+  .material-icons-outlined.size-48 { font-size: 48px; }
+
+  /* ============================================================
+     COLORES POR CONTEXTO (reglas SLEP)
+     ============================================================ */
+  .icon-navy    { color: var(--navy-500); }
+  .icon-royal   { color: var(--royal-500); }
+  .icon-coral   { color: var(--coral-500); }
+  .icon-white   { color: #fff; }
+  .icon-muted   { color: var(--neutral-400); }
+  .icon-success { color: var(--status-success); }
+  .icon-warning { color: var(--status-warning); }
+  .icon-danger  { color: var(--status-danger); }
+
+  /* ============================================================
+     DEMOS DE CONTEXTO
+     ============================================================ */
+  .context-row {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 20px;
+  }
+  .icon-in-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 8px;
+    font-family: var(--font-sans); font-weight: 700; font-size: 14px;
+    border: none; cursor: pointer;
+  }
+  .btn-primary { background: var(--royal-500); color: #fff; }
+  .btn-secondary { background: #fff; color: var(--navy-500); border: 1px solid var(--navy-500); }
+  .btn-ghost { background: transparent; color: var(--navy-500); padding: 10px 4px; }
+  .btn-danger { background: var(--coral-500); color: #fff; }
+
+  .icon-in-service {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: var(--royal-50); color: var(--royal-500);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .icon-in-alert-info  { color: var(--status-info); }
+  .icon-in-alert-warn  { color: var(--status-warning); }
+  .icon-in-alert-ok    { color: var(--status-success); }
+  .icon-in-alert-err   { color: var(--status-danger); }
+
+  .chip-mi {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    font-family: var(--font-sans);
+  }
+  .chip-info  { background: var(--royal-50); color: var(--royal-700); }
+  .chip-ok    { background: #E3F5EB; color: #1F8A5B; }
+  .chip-warn  { background: #FFF1D6; color: #8A5400; }
+  .chip-coral { background: var(--coral-50); color: var(--coral-700); }
+
+  /* ============================================================
+     ICONOS GUBERNAMENTALES (sección Gob del SVG)
+     ============================================================ */
+  .gob-grid {
+    display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start;
+  }
+  .gob-item { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  .gob-item h4 {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--neutral-500); margin: 0;
+  }
+  .gob-sizes { display: flex; gap: 20px; align-items: flex-end; }
+  .gob-size-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .gob-size-label { font-size: 9px; font-family: var(--font-mono); color: var(--neutral-400); }
+
+  /* ClaveÚnica — ícono reconstituido desde SVG */
+  .icon-claveunica {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: #E8232A; /* rojo ClaveÚnica */
+    color: #fff;
+    font-weight: 900; font-family: var(--font-sans);
+    letter-spacing: -0.03em;
+    flex-shrink: 0;
+  }
+  .icon-claveunica.s18 { width: 18px; height: 18px; font-size: 8px; }
+  .icon-claveunica.s24 { width: 24px; height: 24px; font-size: 10px; }
+  .icon-claveunica.s36 { width: 36px; height: 36px; font-size: 15px; }
+  .icon-claveunica.s48 { width: 48px; height: 48px; font-size: 20px; }
+
+  /* ChileAtiende — reconstituido */
+  .icon-chileatiende {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    background: #0F69C4; /* azul ChileAtiende */
+    color: #fff;
+    font-weight: 900; font-family: var(--font-sans);
+    letter-spacing: -0.03em;
+    flex-shrink: 0;
+  }
+  .icon-chileatiende.s18 { width: 18px; height: 18px; font-size: 7px; border-radius: 3px; }
+  .icon-chileatiende.s24 { width: 24px; height: 24px; font-size: 9px; border-radius: 4px; }
+  .icon-chileatiende.s36 { width: 36px; height: 36px; font-size: 14px; border-radius: 6px; }
+  .icon-chileatiende.s48 { width: 48px; height: 48px; font-size: 18px; border-radius: 8px; }
+
+  /* DocDigital — reconstituido */
+  .icon-docdigital {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    background: var(--navy-500);
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .icon-docdigital.s18 { width: 18px; height: 18px; }
+  .icon-docdigital.s24 { width: 24px; height: 24px; }
+  .icon-docdigital.s36 { width: 36px; height: 36px; }
+  .icon-docdigital.s48 { width: 48px; height: 48px; }
+
+  /* size comparison row */
+  .size-row {
+    display: flex; gap: 24px; align-items: flex-end;
+    padding: 16px 20px; background: var(--neutral-50);
+    border-radius: 8px; margin-bottom: 16px;
+  }
+  .size-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .size-item .sz-label { font-size: 10px; font-family: var(--font-mono); color: var(--neutral-400); }
+
+  /* category separator */
+  .cat-sep {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--neutral-400);
+    padding: 14px 0 8px;
+    border-top: 1px solid var(--border-1);
+    margin-top: 8px;
+  }
+
+  /* two-column grid layout for main content */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  code {
+    font-family: var(--font-mono); font-size: 12px;
+    background: var(--neutral-100); padding: 2px 6px; border-radius: 4px;
+    color: var(--navy-700);
+  }
+  pre {
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+    background: var(--neutral-900); color: #E2E8F0;
+    padding: 20px; border-radius: 8px; overflow-x: auto;
+    margin: 0 0 16px;
+  }
+  pre .c { color: #94A3B8; }
+  pre .k { color: #93C5FD; }
+  pre .v { color: #86EFAC; }
+  pre .s { color: #FCA5A5; }
+</style>
+</head>
+<body>
+
+<h1>Iconografía — SLEP Colchagua</h1>
+<p>Referencia HTML basada en <code>iconos.svg</code> · 2 127 iconos en 18 categorías + sección Gov · Biblioteca: Material Icons (Google) + Lucide para componentes</p>
+
+<!-- ============================================================
+     SECCIÓN 1: Biblioteca principal — Material Icons
+     ============================================================ -->
+<div class="section">
+  <div class="section-eyebrow">Biblioteca principal</div>
+  <div class="section-title">Material Icons — Google</div>
+  <div class="section-desc">iconos.svg: 2 127 iconos · 18 categorías · fill: #373737 (currentColor)</div>
+
+  <div class="two-col">
+    <div>
+      <h2 style="margin-bottom:8px;">Carga por CDN</h2>
+      <pre><span class="c">&lt;!-- Filled (por defecto) --&gt;</span>
+<span class="k">&lt;link</span> href=<span class="s">"https://fonts.googleapis.com/icon?family=Material+Icons"</span> rel=<span class="s">"stylesheet"</span><span class="k">&gt;</span>
+<span class="c">&lt;!-- Outlined (preferido para UI institucional) --&gt;</span>
+<span class="k">&lt;link</span> href=<span class="s">"https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"</span> rel=<span class="s">"stylesheet"</span><span class="k">&gt;</span></pre>
+
+      <h2 style="margin-bottom:8px;">Uso en HTML</h2>
+      <pre><span class="c">&lt;!-- Filled --&gt;</span>
+<span class="k">&lt;span</span> class=<span class="s">"material-icons"</span><span class="k">&gt;</span>school<span class="k">&lt;/span&gt;</span>
+
+<span class="c">&lt;!-- Outlined --&gt;</span>
+<span class="k">&lt;span</span> class=<span class="s">"material-icons-outlined"</span><span class="k">&gt;</span>school<span class="k">&lt;/span&gt;</span>
+
+<span class="c">&lt;!-- Con tamaño explícito (tokens del SVG: 18/24/36/48px) --&gt;</span>
+<span class="k">&lt;span</span> class=<span class="s">"material-icons size-24"</span> style=<span class="s">"font-size:24px"</span><span class="k">&gt;</span>person<span class="k">&lt;/span&gt;</span>
+
+<span class="c">&lt;!-- Con color SLEP --&gt;</span>
+<span class="k">&lt;span</span> class=<span class="s">"material-icons icon-royal"</span><span class="k">&gt;</span>info<span class="k">&lt;/span&gt;</span></pre>
+    </div>
+    <div>
+      <h2 style="margin-bottom:8px;">CSS de tamaño y color</h2>
+      <pre><span class="c">/* Tamaños del SVG de referencia */</span>
+<span class="k">.material-icons.s18</span> { <span class="v">font-size</span>: <span class="s">18px</span>; }
+<span class="k">.material-icons.s24</span> { <span class="v">font-size</span>: <span class="s">24px</span>; } <span class="c">/* default */</span>
+<span class="k">.material-icons.s36</span> { <span class="v">font-size</span>: <span class="s">36px</span>; }
+<span class="k">.material-icons.s48</span> { <span class="v">font-size</span>: <span class="s">48px</span>; }
+
+<span class="c">/* Colores SLEP */</span>
+<span class="k">.icon-navy</span>    { <span class="v">color</span>: <span class="s">var(--navy-500)</span>; }
+<span class="k">.icon-royal</span>   { <span class="v">color</span>: <span class="s">var(--royal-500)</span>; }
+<span class="k">.icon-coral</span>   { <span class="v">color</span>: <span class="s">var(--coral-500)</span>; }
+<span class="k">.icon-muted</span>   { <span class="v">color</span>: <span class="s">var(--neutral-400)</span>; }
+<span class="k">.icon-success</span> { <span class="v">color</span>: <span class="s">var(--status-success)</span>; }
+<span class="k">.icon-warning</span> { <span class="v">color</span>: <span class="s">var(--status-warning)</span>; }
+<span class="k">.icon-danger</span>  { <span class="v">color</span>: <span class="s">var(--status-danger)</span>; }
+<span class="c">/* Sobre fondo oscuro */</span>
+<span class="k">.icon-white</span>   { <span class="v">color</span>: <span class="s">#fff</span>; }</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 2: Sistema de tamaños
+     ============================================================ -->
+<div class="section">
+  <div class="section-eyebrow">Sistema de tamaños</div>
+  <div class="section-title">4 tamaños del SVG de referencia</div>
+  <div class="section-desc">Del SVG: Size=18px · Size=24px · Size=36px · Size=48px</div>
+
+  <div class="size-row">
+    <div class="size-item">
+      <span class="material-icons size-18 icon-navy">school</span>
+      <div class="sz-label">18px<br>inline / label</div>
+    </div>
+    <div class="size-item">
+      <span class="material-icons size-24 icon-navy">school</span>
+      <div class="sz-label">24px<br>default UI</div>
+    </div>
+    <div class="size-item">
+      <span class="material-icons size-36 icon-navy">school</span>
+      <div class="sz-label">36px<br>feature block</div>
+    </div>
+    <div class="size-item">
+      <span class="material-icons size-48 icon-navy">school</span>
+      <div class="sz-label">48px<br>hero / display</div>
+    </div>
+    <div style="margin-left:auto; font-size:12px; color:var(--neutral-400); max-width:260px; line-height:1.5;">
+      El tamaño por defecto en componentes (botones, inputs, cards) es <strong>24px</strong>.<br>
+      Los iconos en feature blocks decorativos usan <strong>36–48px</strong>.
+    </div>
+  </div>
+
+  <!-- Outlined vs Filled -->
+  <h2 style="margin-bottom:12px;">Filled vs Outlined</h2>
+  <div class="context-row">
+    <div class="size-item" style="gap:8px;">
+      <span class="material-icons size-36 icon-royal">home</span>
+      <div class="sz-label">Filled<br>estado activo</div>
+    </div>
+    <div class="size-item" style="gap:8px;">
+      <span class="material-icons-outlined size-36 icon-royal">home</span>
+      <div class="sz-label">Outlined<br>estado normal</div>
+    </div>
+    <div class="size-item" style="gap:8px;">
+      <span class="material-icons size-36 icon-royal">person</span>
+      <div class="sz-label">Filled</div>
+    </div>
+    <div class="size-item" style="gap:8px;">
+      <span class="material-icons-outlined size-36 icon-royal">person</span>
+      <div class="sz-label">Outlined</div>
+    </div>
+    <div class="size-item" style="gap:8px;">
+      <span class="material-icons size-36 icon-royal">settings</span>
+      <div class="sz-label">Filled</div>
+    </div>
+    <div class="size-item" style="gap:8px;">
+      <span class="material-icons-outlined size-36 icon-royal">settings</span>
+      <div class="sz-label">Outlined</div>
+    </div>
+    <div style="margin-left:auto; font-size:12px; color:var(--neutral-400); max-width:280px; line-height:1.5;">
+      Usar <strong>Outlined</strong> en navegación y UI normal.<br>
+      Usar <strong>Filled</strong> para estado activo/seleccionado.<br>
+      En la nav: nav item activo → filled; inactivo → outlined.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 3: Uso por contexto (reglas de color)
+     ============================================================ -->
+<div class="section">
+  <div class="section-eyebrow">Reglas de color</div>
+  <div class="section-title">Color de iconos por contexto</div>
+  <div class="section-desc">Los iconos heredan currentColor · no hard-codear colores en SVG/ligature</div>
+
+  <div class="two-col">
+    <div>
+      <h2>En botones</h2>
+      <div class="context-row" style="flex-direction:column; align-items:flex-start;">
+        <button class="icon-in-btn btn-primary">
+          <span class="material-icons size-18">send</span>
+          Enviar postulación
+        </button>
+        <button class="icon-in-btn btn-secondary">
+          <span class="material-icons size-18">download</span>
+          Descargar resolución
+        </button>
+        <button class="icon-in-btn btn-ghost">
+          <span class="material-icons size-18">arrow_forward</span>
+          Conocer más
+        </button>
+        <button class="icon-in-btn btn-danger">
+          <span class="material-icons size-18">delete</span>
+          Eliminar postulación
+        </button>
+      </div>
+      <div class="section-desc" style="margin:0;">
+        Primary: icon color #fff (hereda de .btn.primary color:#fff)<br>
+        Secondary/Ghost: icon color var(--navy-500)<br>
+        Danger: icon color #fff
+      </div>
+    </div>
+    <div>
+      <h2>En service cards</h2>
+      <div class="context-row">
+        <div class="icon-in-service">
+          <span class="material-icons size-24">school</span>
+        </div>
+        <div class="icon-in-service">
+          <span class="material-icons size-24">assignment</span>
+        </div>
+        <div class="icon-in-service">
+          <span class="material-icons size-24">groups</span>
+        </div>
+        <div class="icon-in-service">
+          <span class="material-icons size-24">gavel</span>
+        </div>
+        <div class="icon-in-service" style="background:var(--coral-50); color:var(--coral-500);">
+          <span class="material-icons size-24">warning</span>
+        </div>
+      </div>
+      <div class="section-desc" style="margin:0;">
+        Service icon: 44×44px · radius 10px · bg royal-50 · color royal-500<br>
+        Urgente/alerta: bg coral-50 · color coral-500
+      </div>
+
+      <h2 style="margin-top:20px;">En alertas</h2>
+      <div class="context-row">
+        <span class="material-icons size-24 icon-in-alert-info">info</span>
+        <span class="material-icons size-24 icon-in-alert-warn">warning_amber</span>
+        <span class="material-icons size-24 icon-in-alert-ok">check_circle</span>
+        <span class="material-icons size-24 icon-in-alert-err">error</span>
+        <span class="material-icons size-24 icon-navy">info</span>
+        <span class="material-icons size-24 icon-muted">info</span>
+      </div>
+      <div class="section-desc" style="margin:0;">
+        Info=status-info · Warning=status-warning · Success=status-success · Danger=status-danger<br>
+        Dark alert: white · Light alert: navy-500
+      </div>
+
+      <h2 style="margin-top:20px;">En chips</h2>
+      <div class="context-row">
+        <span class="chip-mi chip-info"><span class="material-icons size-18">info</span> Informativo</span>
+        <span class="chip-mi chip-ok"><span class="material-icons size-18">check_circle</span> Publicado</span>
+        <span class="chip-mi chip-warn"><span class="material-icons size-18">schedule</span> En revisión</span>
+        <span class="chip-mi chip-coral"><span class="material-icons size-18">priority_high</span> Urgente</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 4: Iconos recomendados por sección del sitio
+     ============================================================ -->
+<div class="section">
+  <div class="section-eyebrow">Catálogo curado SLEP</div>
+  <div class="section-title">Iconos recomendados por sección institucional</div>
+  <div class="section-desc">Subset del catálogo Material Icons más relevante para SLEP Colchagua</div>
+
+  <!-- Navegación y UI -->
+  <div class="cat-sep">Navegación y UI general</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">home</span><div class="icon-label">home</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">menu</span><div class="icon-label">menu</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">search</span><div class="icon-label">search</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">arrow_forward</span><div class="icon-label">arrow_forward</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">arrow_back</span><div class="icon-label">arrow_back</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">close</span><div class="icon-label">close</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">expand_more</span><div class="icon-label">expand_more</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">chevron_right</span><div class="icon-label">chevron_right</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">more_vert</span><div class="icon-label">more_vert</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">refresh</span><div class="icon-label">refresh</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">filter_list</span><div class="icon-label">filter_list</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">sort</span><div class="icon-label">sort</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">visibility</span><div class="icon-label">visibility</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">visibility_off</span><div class="icon-label">visibility_off</div></div>
+  </div>
+
+  <!-- Educación e institución -->
+  <div class="cat-sep">Educación e institución (Social / Action)</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">school</span><div class="icon-label">school</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">groups</span><div class="icon-label">groups</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">person</span><div class="icon-label">person</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">family_restroom</span><div class="icon-label">family_restroom</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">child_care</span><div class="icon-label">child_care</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">supervisor_account</span><div class="icon-label">supervisor_account</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">engineering</span><div class="icon-label">engineering</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">psychology</span><div class="icon-label">psychology</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">science</span><div class="icon-label">science</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">history_edu</span><div class="icon-label">history_edu</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">health_and_safety</span><div class="icon-label">health_and_safety</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">military_tech</span><div class="icon-label">military_tech</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">workspace_premium</span><div class="icon-label">workspace_premium</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-royal">public</span><div class="icon-label">public</div></div>
+  </div>
+
+  <!-- Trámites y documentos -->
+  <div class="cat-sep">Trámites, documentos y formularios (Action / File / Editor)</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">assignment</span><div class="icon-label">assignment</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">description</span><div class="icon-label">description</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">request_page</span><div class="icon-label">request_page</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">upload_file</span><div class="icon-label">upload_file</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">download</span><div class="icon-label">download</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">print</span><div class="icon-label">print</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">folder</span><div class="icon-label">folder</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">folder_open</span><div class="icon-label">folder_open</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">edit</span><div class="icon-label">edit</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">save</span><div class="icon-label">save</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">fact_check</span><div class="icon-label">fact_check</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">task_alt</span><div class="icon-label">task_alt</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">gavel</span><div class="icon-label">gavel</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">policy</span><div class="icon-label">policy</div></div>
+  </div>
+
+  <!-- Comunicación y contacto -->
+  <div class="cat-sep">Comunicación y contacto (Communication)</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">email</span><div class="icon-label">email</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">phone</span><div class="icon-label">phone</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">chat</span><div class="icon-label">chat</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">forum</span><div class="icon-label">forum</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">notifications</span><div class="icon-label">notifications</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">contact_mail</span><div class="icon-label">contact_mail</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">share</span><div class="icon-label">share</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">campaign</span><div class="icon-label">campaign</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">announcement</span><div class="icon-label">announcement</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">send</span><div class="icon-label">send</div></div>
+  </div>
+
+  <!-- Transparencia y gobierno -->
+  <div class="cat-sep">Transparencia y gobierno (Action)</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">account_balance</span><div class="icon-label">account_balance</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">account_balance_wallet</span><div class="icon-label">account_balance_wallet</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">verified_user</span><div class="icon-label">verified_user</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">admin_panel_settings</span><div class="icon-label">admin_panel_settings</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">lock</span><div class="icon-label">lock</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">privacy_tip</span><div class="icon-label">privacy_tip</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">analytics</span><div class="icon-label">analytics</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">leaderboard</span><div class="icon-label">leaderboard</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">assessment</span><div class="icon-label">assessment</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">timeline</span><div class="icon-label">timeline</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">balance</span><div class="icon-label">balance</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">shield</span><div class="icon-label">shield</div></div>
+  </div>
+
+  <!-- Alertas y estados -->
+  <div class="cat-sep">Alertas y estados (Alert)</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons size-24 icon-in-alert-info">info</span><div class="icon-label">info</div></div>
+    <div class="icon-item"><span class="material-icons size-24 icon-in-alert-warn">warning_amber</span><div class="icon-label">warning_amber</div></div>
+    <div class="icon-item"><span class="material-icons size-24 icon-in-alert-ok">check_circle</span><div class="icon-label">check_circle</div></div>
+    <div class="icon-item"><span class="material-icons size-24 icon-in-alert-err">error</span><div class="icon-label">error</div></div>
+    <div class="icon-item"><span class="material-icons size-24 icon-in-alert-warn">warning</span><div class="icon-label">warning</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-in-alert-info">error_outline</span><div class="icon-label">error_outline</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">notification_important</span><div class="icon-label">notification_important</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-coral">add_alert</span><div class="icon-label">add_alert</div></div>
+  </div>
+
+  <!-- Mapas y ubicación -->
+  <div class="cat-sep">Ubicación y territorio (Maps)</div>
+  <div class="icon-grid">
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">location_on</span><div class="icon-label">location_on</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">map</span><div class="icon-label">map</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">place</span><div class="icon-label">place</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">directions</span><div class="icon-label">directions</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">local_hospital</span><div class="icon-label">local_hospital</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">local_library</span><div class="icon-label">local_library</div></div>
+    <div class="icon-item"><span class="material-icons-outlined size-24 icon-navy">local_police</span><div class="icon-label">local_police</div></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 5: Iconos gubernamentales (sección Gob del SVG)
+     ============================================================ -->
+<div class="section">
+  <div class="section-eyebrow">Sección Gob — SVG referencia</div>
+  <div class="section-title">Iconos institucionales chilenos</div>
+  <div class="section-desc">
+    Del SVG: grupo "Gob" · posición x=529 y=2028 · Incluye ClaveÚnica, ChileAtiende y DocDigital<br>
+    En 4 tamaños: Size=18px · Size=24px · Size=36px · Size=48px
+  </div>
+
+  <div class="gob-grid">
+
+    <!-- ClaveÚnica -->
+    <div class="gob-item">
+      <h4>ClaveÚnica</h4>
+      <div class="gob-sizes">
+        <div class="gob-size-item">
+          <div class="icon-claveunica s18">CU</div>
+          <div class="gob-size-label">18px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-claveunica s24">CU</div>
+          <div class="gob-size-label">24px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-claveunica s36">CU</div>
+          <div class="gob-size-label">36px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-claveunica s48">CU</div>
+          <div class="gob-size-label">48px</div>
+        </div>
+      </div>
+      <div class="section-desc" style="margin:0; font-size:11px;">
+        Color: #E8232A (rojo ClaveÚnica oficial)<br>
+        Forma: circular · texto blanco
+      </div>
+    </div>
+
+    <!-- ChileAtiende -->
+    <div class="gob-item">
+      <h4>ChileAtiende</h4>
+      <div class="gob-sizes">
+        <div class="gob-size-item">
+          <div class="icon-chileatiende s18">CA</div>
+          <div class="gob-size-label">18px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-chileatiende s24">CA</div>
+          <div class="gob-size-label">24px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-chileatiende s36">CA</div>
+          <div class="gob-size-label">36px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-chileatiende s48">CA</div>
+          <div class="gob-size-label">48px</div>
+        </div>
+      </div>
+      <div class="section-desc" style="margin:0; font-size:11px;">
+        Color: #0F69C4 (azul ChileAtiende / royal-500)<br>
+        Forma: cuadrado redondeado · texto blanco
+      </div>
+    </div>
+
+    <!-- DocDigital -->
+    <div class="gob-item">
+      <h4>DocDigital</h4>
+      <div class="gob-sizes">
+        <div class="gob-size-item">
+          <div class="icon-docdigital s18">
+            <span class="material-icons" style="font-size:12px; color:#fff;">article</span>
+          </div>
+          <div class="gob-size-label">18px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-docdigital s24">
+            <span class="material-icons" style="font-size:16px; color:#fff;">article</span>
+          </div>
+          <div class="gob-size-label">24px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-docdigital s36">
+            <span class="material-icons" style="font-size:24px; color:#fff;">article</span>
+          </div>
+          <div class="gob-size-label">36px</div>
+        </div>
+        <div class="gob-size-item">
+          <div class="icon-docdigital s48">
+            <span class="material-icons" style="font-size:32px; color:#fff;">article</span>
+          </div>
+          <div class="gob-size-label">48px</div>
+        </div>
+      </div>
+      <div class="section-desc" style="margin:0; font-size:11px;">
+        Color: var(--navy-500) · icono documento digital<br>
+        Forma: cuadrado pequeño redondeado
+      </div>
+    </div>
+
+  </div>
+
+  <h2 style="margin-top:28px; margin-bottom:12px;">Uso en el footer (gov strip)</h2>
+  <pre><span class="c">&lt;!-- Footer gov strip — iconos de gobierno --&gt;</span>
+<span class="k">&lt;div</span> class=<span class="s">"gov-logos"</span><span class="k">&gt;</span>
+  <span class="c">&lt;!-- ClaveÚnica: usar imagen SVG oficial o recrear con CSS --&gt;</span>
+  <span class="k">&lt;div</span> class=<span class="s">"gov-logo claveunica"</span><span class="k">&gt;</span>CU<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- ChileAtiende --&gt;</span>
+  <span class="k">&lt;div</span> class=<span class="s">"gov-logo chileatiende"</span><span class="k">&gt;</span>CA<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- DocDigital --&gt;</span>
+  <span class="k">&lt;div</span> class=<span class="s">"gov-logo docdigital"</span><span class="k">&gt;</span>
+    <span class="k">&lt;span</span> class=<span class="s">"material-icons"</span><span class="k">&gt;</span>article<span class="k">&lt;/span&gt;</span>
+  <span class="k">&lt;/div&gt;</span>
+<span class="k">&lt;/div&gt;</span></pre>
+</div>
+
+<!-- ============================================================
+     SECCIÓN 6: Lucide (alternativa recomendada en estilo.md)
+     ============================================================ -->
+<div class="section">
+  <div class="section-eyebrow">Alternativa — estilo.md</div>
+  <div class="section-title">Lucide Icons (recomendado en estilo.md para componentes)</div>
+  <div class="section-desc">El SVG de referencia usa Material Icons; estilo.md recomienda Lucide para componentes HTML. Ambos son válidos.</div>
+
+  <div class="two-col">
+    <div>
+      <h2>Carga</h2>
+      <pre><span class="k">&lt;script</span> src=<span class="s">"https://unpkg.com/lucide@latest"</span><span class="k">&gt;&lt;/script&gt;</span>
+<span class="k">&lt;script&gt;</span><span class="v">lucide.createIcons()</span>;<span class="k">&lt;/script&gt;</span></pre>
+
+      <h2>Uso</h2>
+      <pre><span class="k">&lt;i</span> data-lucide=<span class="s">"graduation-cap"</span><span class="k">&gt;&lt;/i&gt;</span>
+<span class="k">&lt;i</span> data-lucide=<span class="s">"arrow-right"</span><span class="k">&gt;&lt;/i&gt;</span>
+<span class="k">&lt;i</span> data-lucide=<span class="s">"check"</span><span class="k">&gt;&lt;/i&gt;</span></pre>
+    </div>
+    <div>
+      <h2>Equivalencias Material → Lucide</h2>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; font-family:var(--font-mono);">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-1); text-align:left;">
+            <th style="padding:6px 8px; color:var(--neutral-500);">Material Icons</th>
+            <th style="padding:6px 8px; color:var(--neutral-500);">Lucide</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">school</td><td style="padding:5px 8px;">graduation-cap</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">person</td><td style="padding:5px 8px;">user</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">groups</td><td style="padding:5px 8px;">users</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">arrow_forward</td><td style="padding:5px 8px;">arrow-right</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">check_circle</td><td style="padding:5px 8px;">circle-check</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">error</td><td style="padding:5px 8px;">circle-x</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">info</td><td style="padding:5px 8px;">info</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">warning_amber</td><td style="padding:5px 8px;">triangle-alert</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">download</td><td style="padding:5px 8px;">download</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">email</td><td style="padding:5px 8px;">mail</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">search</td><td style="padding:5px 8px;">search</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">settings</td><td style="padding:5px 8px;">settings</td></tr>
+          <tr style="border-bottom:1px solid var(--border-1);"><td style="padding:5px 8px;">close</td><td style="padding:5px 8px;">x</td></tr>
+          <tr><td style="padding:5px 8px;">notifications</td><td style="padding:5px 8px;">bell</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Activar Lucide cuando cargue (defer)
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) lucide.createIcons();
+  });
+</script>
+</body>
+</html>

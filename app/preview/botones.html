@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Botones — SLEP Colchagua Design System</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--bg-page); color: var(--fg-1); padding: 40px; }
+h1 { font-size: 28px; font-weight: 900; color: var(--navy-500); margin-bottom: 8px; }
+.subtitle { color: var(--fg-2); font-size: 14px; margin-bottom: 48px; }
+h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+     color: var(--fg-2); margin: 40px 0 16px; padding-bottom: 8px;
+     border-bottom: 1px solid var(--border-subtle); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.label { font-size: 11px; color: var(--fg-3); min-width: 80px; }
+.dark-bg { background: var(--navy-700); padding: 20px 20px; border-radius: 8px; }
+
+/* ── BASE BTN ── */
+.btn {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard),
+              box-shadow var(--dur-fast) var(--ease-standard);
+  outline: none;
+  vertical-align: middle;
+}
+.btn:focus-visible {
+  box-shadow: 0 0 0 3px #FFBE5C;
+}
+.btn:disabled, .btn[aria-disabled="true"] {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* SIZES */
+.btn-sm { font-size: 13px; padding: 10px 18px; }
+.btn-md { font-size: 14px; padding: 12px 22px; }
+.btn-lg { font-size: 15px; padding: 14px 28px; }
+
+/* VARIANTES */
+.btn-primary {
+  background: var(--royal-500);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.btn-primary:hover { background: var(--royal-600); }
+.btn-primary:active { background: var(--royal-700); transform: translateY(1px); }
+
+.btn-secondary {
+  background: #fff;
+  color: var(--navy-500);
+  border-color: var(--navy-500);
+}
+.btn-secondary:hover { background: var(--navy-50); }
+.btn-secondary:active { background: var(--navy-100); transform: translateY(1px); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--navy-500);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.btn-ghost:hover {
+  color: var(--navy-700);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.btn-link {
+  background: transparent;
+  color: var(--royal-500);
+  padding-left: 0;
+  padding-right: 0;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 500;
+}
+.btn-link:hover { color: var(--royal-600); }
+
+/* ICON BUTTON (circular) */
+.btn-icon {
+  border-radius: 50%;
+  padding: 0;
+  justify-content: center;
+}
+.btn-icon.btn-sm  { width: 36px; height: 36px; }
+.btn-icon.btn-md  { width: 44px; height: 44px; }
+.btn-icon.btn-lg  { width: 52px; height: 52px; }
+.btn-icon .material-icons,
+.btn-icon .material-icons-outlined { font-size: 20px; }
+
+/* ON DARK */
+.btn-primary-dark {
+  background: #fff;
+  color: var(--navy-500);
+}
+.btn-primary-dark:hover { background: var(--neutral-100); }
+
+.btn-outline-dark {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255,255,255,0.55);
+}
+.btn-outline-dark:hover { background: rgba(255,255,255,0.08); }
+
+.btn-ghost-dark {
+  background: transparent;
+  color: rgba(255,255,255,0.78);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.btn-ghost-dark:hover {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Icon size helpers */
+.material-icons, .material-icons-outlined {
+  font-size: 18px;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* State demo boxes */
+.state-grid { display: grid; grid-template-columns: repeat(5, auto); gap: 12px 24px;
+              align-items: center; justify-content: start; }
+.state-label { font-size: 11px; color: var(--fg-3); text-align: center; }
+</style>
+<!-- Material Icons CDN (demo) -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+<h1>Sistema de botones</h1>
+<p class="subtitle">Referencia visual extraída de <code>botones.svg</code> — 4 variantes × 3 tamaños × 5 estados</p>
+
+<!-- ───── PRIMARIO ───── -->
+<h2>1. Primario — fondo royal, texto blanco</h2>
+<div class="row">
+  <span class="label">Small</span>
+  <button class="btn btn-primary btn-sm">Ingresar</button>
+  <button class="btn btn-primary btn-sm"><span class="material-icons">send</span> Enviar</button>
+  <button class="btn btn-primary btn-sm">Enviar <span class="material-icons">arrow_forward_ios</span></button>
+</div>
+<div class="row">
+  <span class="label">Medium</span>
+  <button class="btn btn-primary btn-md">Ingresar</button>
+  <button class="btn btn-primary btn-md"><span class="material-icons">send</span> Enviar</button>
+  <button class="btn btn-primary btn-md">Enviar <span class="material-icons">arrow_forward_ios</span></button>
+</div>
+<div class="row">
+  <span class="label">Large</span>
+  <button class="btn btn-primary btn-lg">Ingresar</button>
+  <button class="btn btn-primary btn-lg"><span class="material-icons">send</span> Enviar</button>
+  <button class="btn btn-primary btn-lg">Enviar <span class="material-icons">arrow_forward_ios</span></button>
+</div>
+
+<!-- ───── ESTADOS PRIMARIO ───── -->
+<h2>1b. Primario — estados</h2>
+<div class="state-grid">
+  <div class="state-label">Default</div>
+  <div class="state-label">Hover</div>
+  <div class="state-label">Focus</div>
+  <div class="state-label">Active</div>
+  <div class="state-label">Disabled</div>
+
+  <button class="btn btn-primary btn-md">Solicitar</button>
+  <button class="btn btn-primary btn-md" style="background:var(--royal-600)">Solicitar</button>
+  <button class="btn btn-primary btn-md" style="box-shadow:0 0 0 3px #FFBE5C">Solicitar</button>
+  <button class="btn btn-primary btn-md" style="background:var(--royal-700);transform:translateY(1px)">Solicitar</button>
+  <button class="btn btn-primary btn-md" disabled>Solicitar</button>
+</div>
+
+<!-- ───── SECUNDARIO ───── -->
+<h2>2. Secundario — contorno navy, fondo blanco</h2>
+<div class="row">
+  <span class="label">Small</span>
+  <button class="btn btn-secondary btn-sm">Ver más</button>
+  <button class="btn btn-secondary btn-sm"><span class="material-icons">download</span> Descargar</button>
+</div>
+<div class="row">
+  <span class="label">Medium</span>
+  <button class="btn btn-secondary btn-md">Ver más</button>
+  <button class="btn btn-secondary btn-md"><span class="material-icons">download</span> Descargar</button>
+</div>
+<div class="row">
+  <span class="label">Large</span>
+  <button class="btn btn-secondary btn-lg">Ver más</button>
+  <button class="btn btn-secondary btn-lg"><span class="material-icons">download</span> Descargar</button>
+</div>
+
+<h2>2b. Secundario — estados</h2>
+<div class="state-grid">
+  <div class="state-label">Default</div>
+  <div class="state-label">Hover</div>
+  <div class="state-label">Focus</div>
+  <div class="state-label">Active</div>
+  <div class="state-label">Disabled</div>
+
+  <button class="btn btn-secondary btn-md">Ver más</button>
+  <button class="btn btn-secondary btn-md" style="background:var(--navy-50)">Ver más</button>
+  <button class="btn btn-secondary btn-md" style="box-shadow:0 0 0 3px #FFBE5C">Ver más</button>
+  <button class="btn btn-secondary btn-md" style="background:var(--navy-100);transform:translateY(1px)">Ver más</button>
+  <button class="btn btn-secondary btn-md" disabled>Ver más</button>
+</div>
+
+<!-- ───── GHOST / TERCIARIO ───── -->
+<h2>3. Terciario (ghost) — sin fondo ni borde</h2>
+<div class="row">
+  <button class="btn btn-ghost btn-sm">Cancelar</button>
+  <button class="btn btn-ghost btn-md">Cancelar</button>
+  <button class="btn btn-ghost btn-lg">Cancelar</button>
+</div>
+
+<!-- ───── LINK / ENLACE ───── -->
+<h2>4. Enlace — texto subrayado</h2>
+<div class="row">
+  <a href="#" class="btn btn-link btn-sm">Leer más</a>
+  <a href="#" class="btn btn-link btn-md">Ver todos los establecimientos</a>
+  <a href="#" class="btn btn-link btn-md">Más información <span class="material-icons" style="font-size:16px">open_in_new</span></a>
+</div>
+
+<!-- ───── BOTÓN ICONO ───── -->
+<h2>5. Botón icono — circular</h2>
+<div class="row">
+  <span class="label">Primario</span>
+  <button class="btn btn-primary btn-icon btn-sm"><span class="material-icons">add</span></button>
+  <button class="btn btn-primary btn-icon btn-md"><span class="material-icons">add</span></button>
+  <button class="btn btn-primary btn-icon btn-lg"><span class="material-icons">add</span></button>
+</div>
+<div class="row">
+  <span class="label">Secundario</span>
+  <button class="btn btn-secondary btn-icon btn-sm"><span class="material-icons">share</span></button>
+  <button class="btn btn-secondary btn-icon btn-md"><span class="material-icons">share</span></button>
+  <button class="btn btn-secondary btn-icon btn-lg"><span class="material-icons">share</span></button>
+</div>
+<div class="row">
+  <span class="label">Ghost</span>
+  <button class="btn btn-ghost btn-icon btn-sm"><span class="material-icons">more_vert</span></button>
+  <button class="btn btn-ghost btn-icon btn-md"><span class="material-icons">more_vert</span></button>
+  <button class="btn btn-ghost btn-icon btn-lg"><span class="material-icons">more_vert</span></button>
+</div>
+
+<!-- ───── SOBRE FONDO OSCURO ───── -->
+<h2>6. Sobre fondo oscuro (footer / hero navy)</h2>
+<div class="dark-bg">
+  <div class="row" style="margin-bottom:12px;">
+    <button class="btn btn-primary-dark btn-md">Ir al portal</button>
+    <button class="btn btn-outline-dark btn-md">Ver más</button>
+    <button class="btn btn-ghost-dark btn-md">Cancelar</button>
+  </div>
+  <div class="row">
+    <button class="btn btn-primary-dark btn-sm">Ingresar</button>
+    <button class="btn btn-outline-dark btn-sm"><span class="material-icons">download</span> Descargar</button>
+    <button class="btn btn-ghost-dark btn-sm" disabled>Deshabilitado</button>
+  </div>
+</div>
+
+<!-- ───── ESTRUCTURA HTML ───── -->
+<h2>7. HTML de referencia</h2>
+<pre style="background:var(--navy-50);padding:20px;border-radius:8px;font-size:13px;line-height:1.6;overflow:auto;color:var(--navy-700)">
+&lt;!-- Primario MD --&gt;
+&lt;button class="btn btn-primary btn-md"&gt;Ingresar&lt;/button&gt;
+
+&lt;!-- Primario con ícono izquierda --&gt;
+&lt;button class="btn btn-primary btn-md"&gt;
+  &lt;span class="material-icons"&gt;send&lt;/span&gt; Enviar
+&lt;/button&gt;
+
+&lt;!-- Secundario --&gt;
+&lt;button class="btn btn-secondary btn-md"&gt;Ver más&lt;/button&gt;
+
+&lt;!-- Ghost --&gt;
+&lt;button class="btn btn-ghost btn-md"&gt;Cancelar&lt;/button&gt;
+
+&lt;!-- Enlace --&gt;
+&lt;a href="/ruta" class="btn btn-link btn-md"&gt;Leer más&lt;/a&gt;
+
+&lt;!-- Icono circular --&gt;
+&lt;button class="btn btn-primary btn-icon btn-md"&gt;
+  &lt;span class="material-icons"&gt;add&lt;/span&gt;
+&lt;/button&gt;
+
+&lt;!-- Deshabilitado --&gt;
+&lt;button class="btn btn-primary btn-md" disabled&gt;No disponible&lt;/button&gt;
+</pre>
+
+</body>
+</html>

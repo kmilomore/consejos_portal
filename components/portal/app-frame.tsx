@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { toast } from "@/components/ui/toast";
 import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { PortalSnapshotProvider } from "@/lib/supabase/use-portal-snapshot";
@@ -56,12 +57,17 @@ export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) 
         </div>
       ) : !profile || accessError ? (
         <div className="flex min-h-screen items-center justify-center px-6">
-          <div className="max-w-xl rounded-[32px] border border-rose-200 bg-white p-8 shadow-panel">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-700">Acceso</p>
-            <h1 className="mt-3 text-2xl font-semibold text-slate-950">No fue posible abrir el portal de la escuela</h1>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              {accessError ?? "El usuario autenticado no tiene perfil o establecimiento vinculado en Supabase."}
-            </p>
+          <div className="max-w-xl rounded-modal border border-neutral-200 bg-white p-8 shadow-lg">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">Acceso</p>
+            <div className="mt-3">
+              <Alert
+                tone="danger"
+                variant="tinted"
+                title="No fue posible abrir el portal de la escuela"
+              >
+                <p>{accessError ?? "El usuario autenticado no tiene perfil o establecimiento vinculado en Supabase."}</p>
+              </Alert>
+            </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button onClick={() => void signOut()}>Cerrar sesión</Button>
               <Button variant="secondary" onClick={() => router.replace("/")}>Volver al ingreso</Button>

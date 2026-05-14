@@ -13,19 +13,19 @@
 El portal opera como aplicación autenticada por correo institucional usando Supabase Auth, con segmentación por establecimiento escolar y resolución automática de perfil desde la base maestra `BASE DE DATOS ESCUELAS SLEP`.
 
 Experiencia principal:
-1. Pantalla de acceso única (correo institucional vía Supabase)
+1. Pantalla de acceso única (Google OAuth con correo institucional vía Supabase)
 2. Vínculo automático del usuario con su escuela
 3. Acceso a módulos de resumen, programación, actas y métricas según perfil y RBD
 
 ---
 
-## 2. Estado Actual del Producto (2026-04-27)
+## 2. Estado Actual del Producto (2026-05-14)
 
 ### Ya implementado y funcional
 
 - Export estático con Next.js App Router (`output: "export"`)
-- Autenticación por correo con Supabase Auth (magic link + OTP numérico)
-- Callback explícito para magic link en `/auth/login/`
+- Autenticación con Google OAuth vía Supabase Auth para cuentas institucionales
+- Callback OAuth explícito en `/auth/login/` con intercambio PKCE por `exchangeCodeForSession(code)`
 - Bootstrap de perfil desde la base maestra de escuelas
 - Shell autenticado por establecimiento con navegación lateral
 - Selector de escuela para ADMIN (`SchoolSelector`)
@@ -39,6 +39,7 @@ Experiencia principal:
 - Persistencia de escuela seleccionada en navegación admin mediante `localStorage`
 - Corrección de persistencia de `selectedRbd` para evitar que la escuela activa se limpie durante la carga inicial del perfil `ADMIN`
 - Corrección de hidratación en auth para restaurar caché y `selectedRbd` solo después del montaje cliente, evitando React error `418` al entrar con escuela activa persistida
+- Corrección de rehidratación auth para validar el cache persistido contra el `user.id` confirmado por Supabase y evitar loops de retorno al login por estado stale de otro usuario en la misma pestaña
 - Dropdown de escuelas diferenciado entre admin global y representante con alcance acotado por correo autenticado
 - Panel admin agregado también acotado por escuelas y territorios del representante cuando no es admin global
 - Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
@@ -113,7 +114,7 @@ Experiencia principal:
 
 ### Datos y autenticación
 
-- Supabase Auth (magic link + OTP)
+- Supabase Auth (Google OAuth)
 - Supabase Database (PostgreSQL + RLS)
 - Supabase Storage (bucket `actas`)
 - Consumo 100% client-side desde navegador
@@ -172,6 +173,8 @@ Detalle operativo vigente:
 - `selectedRbd` se restaura desde `localStorage` solo para perfiles `ADMIN`
 - esa persistencia no debe limpiarse mientras la sesión y el perfil todavía están resolviéndose
 - si el usuario no es `ADMIN` o cierra sesión, la selección persistida sí se elimina
+- el estado auth persistido en `sessionStorage` no debe aplicarse hasta que `getSession()` confirme el `user.id` actual
+- `landingRoute`, scope y perfil cacheados solo pueden rehidratarse si pertenecen a ese mismo usuario
 
 ### 4.4 Snapshot de datos como contexto único
 
@@ -188,7 +191,7 @@ Hallazgo validado el 2026-05-12:
 
 Patrón correcto vigente:
 - `lib/supabase/client.ts` debe exponer un singleton browser client
-- `lib/supabase/auth-context.tsx` debe hidratar y persistir estado suficiente para no re-bootstrapear acceso en cada remount
+- `lib/supabase/auth-context.tsx` debe hidratar y persistir estado suficiente para no re-bootstrapear acceso en cada remount, pero siempre validándolo contra el usuario autenticado real antes de reutilizarlo
 - `lib/supabase/use-portal-snapshot.tsx` debe reutilizar caché persistido, deduplicar requests en vuelo por `userId + selectedRbd` y revalidar cuando la versión global del snapshot cambie tras una mutación
 - `lib/supabase/use-slep-directorio.ts` debe compartir caché por usuario, deduplicar requests en vuelo y complementar la RPC con `establecimientos` cuando el directorio base no traiga una escuela válida
 - las rutas internas del shell deben mantenerse con slash final consistente (`/resumen/`, `/programacion/`, `/actas/`, `/metricas/`, `/admin/`)
@@ -204,6 +207,7 @@ Regla operativa vigente:
 **No volver a repetir:**
 - no crear clientes Supabase nuevos dentro de hooks, providers o helpers de lectura frecuente
 - no confiar solo en `useState` o variables de módulo en memoria cuando el dato debe sobrevivir a remounts del árbol autenticado
+- no rehidratar estado auth persistido de un usuario previo antes de que Supabase confirme la sesión actual; ese error puede producir redirects inválidos o retorno al login
 - no introducir fetch directo por página para datos base del portal si ya existen `PortalAuthProvider`, `PortalSnapshotProvider` o `useSlepDirectorio`
 - no asumir que `get_slep_directorio()` contiene por sí sola todo el catálogo visible; si una escuela existe en `establecimientos`, el frontend no debe ocultarla del admin o del selector
 - no dejar mutaciones de actas o programación sin invalidar el snapshot compartido; de lo contrario, `/metricas/` puede seguir mostrando cumplimiento viejo aunque el acta ya exista
@@ -1202,6 +1206,54 @@ Sin correspondencia entre correos institucionales y registros en `BASE DE DATOS 
 
 `README.md` mezcla estado antiguo del scaffold público con el portal autenticado actual. Este `context.md` es la fuente más precisa hasta que se alinee el README.
 
+### 14.8 Imports estáticos de librerías browser-only corrompen los payloads RSC en export estático (incidente 2026-05-14)
+
+#### Qué pasó
+
+Después de integrar generación de PDF (`html2canvas` + `jspdf`), navegar entre páginas dejó de funcionar. Las URLs en producción terminaban en `.../index.txt` y el navegador mostraba el contenido crudo del payload RSC en lugar de la página correcta.
+
+#### Causa raíz
+
+Con `output: "export"` + `trailingSlash: true`, Next.js genera dos archivos por ruta:
+- `[ruta]/index.html` — HTML estático para la primera carga
+- `[ruta]/index.txt` — payload RSC para la navegación client-side
+
+Al hacer `import html2canvas from "html2canvas"` e `import jsPDF from "jspdf"` **al nivel del módulo** en un componente `"use client"`, Next.js ejecuta ese código durante el build. Estas librerías son exclusivamente browser (usan `window`, `document`, Canvas API), por lo que su ejecución en el contexto SSG corrompe los archivos `.txt`. Cuando el router de Next.js intenta cargar el payload RSC para navegar, recibe contenido inválido y el navegador cae directamente sobre la URL del `.txt`.
+
+El síntoma confirmatorio es que el hash del chunk de layout cambia entre un build limpio y un build con estos imports estáticos.
+
+#### Causa secundaria
+
+Durante el mismo sprint se cambió `router.replace(landingRoute)` por `window.location.replace(landingRoute)` en `app-frame.tsx`. Ese cambio forzaba una **navegación dura** (recarga completa) después del login, lo que también impedía que el router client-side de Next.js se inicializara correctamente.
+
+#### Fix aplicado
+
+1. Revertido `window.location.replace` → `router.replace` en `app-frame.tsx`
+2. Eliminados `html2canvas` y `jspdf` de `package.json` + `npm install`
+3. Eliminado `components/portal/acta-report-document.tsx`
+4. Restaurado `acta-detail.tsx` al comportamiento de `window.print()` original
+5. Rebuild con `npm run build` → chunk hash limpio confirmado
+
+#### La regla
+
+**Nunca importar librerías browser-only al nivel de módulo en componentes Next.js.**
+Si se necesitan (`html2canvas`, `jspdf`, `canvas`, `dom-to-image`, `pdfmake`, etc.), usar `import()` dinámico dentro de la función que las requiere:
+
+```ts
+// MAL — rompe el build de export estático
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
+// BIEN — solo se cargan cuando el usuario ejecuta la acción
+async function handleExportPdf() {
+  const html2canvas = (await import("html2canvas")).default;
+  const jsPDF = (await import("jspdf")).default;
+  // ...
+}
+```
+
+---
+
 ### 14.7 El objeto `session` de Supabase se reemplaza en cada renovación de JWT
 
 El `useEffect` de carga de acceso en `auth-context.tsx` depende de `userId` (estable) en lugar de `session` (se reemplaza aunque el usuario no cambie). Cambiar esta dependencia causa el flash "Resolviendo sesión…" en cada navegación.
@@ -1271,6 +1323,8 @@ $$;
 - No hacer el N° de sesión editable en UI
 - No mostrar mensajes de "Datos sincronizados" en `DataBanner` — solo errores reales
 - No usar `session` completo como dependencia de `useEffect` en auth — usar `userId`
+- **No importar librerías browser-only al nivel de módulo** (`html2canvas`, `jspdf`, `canvas`, `dom-to-image`, etc.) — en export estático corrompen los payloads RSC y rompen la navegación client-side. Usar siempre `import()` dinámico dentro de la función que los necesita.
+- **No usar `window.location.replace()`** para redirecciones internas — usar siempre `router.replace()` del hook `useRouter` de Next.js. La navegación dura impide que el router client-side se inicialice y rompe las transiciones entre páginas.
 
 ---
 

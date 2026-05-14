@@ -60,6 +60,12 @@ interface AuthStateCache {
   profileLoaded: boolean;
 }
 
+interface StoredAuthState extends Omit<AuthStateCache, "session"> {
+  userId: string;
+  selectedRbd: string | null;
+  allEstablishments: Establishment[];
+}
+
 const authStateCache: AuthStateCache = {
   session: null,
   profile: null,
@@ -84,7 +90,7 @@ function resetAuthStateCache() {
   authStateCache.profileLoaded = false;
 }
 
-function readStoredAuthState(): (AuthStateCache & { selectedRbd: string | null; allEstablishments: Establishment[] }) | null {
+function readStoredAuthState(): StoredAuthState | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -95,13 +101,13 @@ function readStoredAuthState(): (AuthStateCache & { selectedRbd: string | null; 
       return null;
     }
 
-    return JSON.parse(raw) as AuthStateCache & { selectedRbd: string | null; allEstablishments: Establishment[] };
+    return JSON.parse(raw) as StoredAuthState;
   } catch {
     return null;
   }
 }
 
-function writeStoredAuthState(state: AuthStateCache & { selectedRbd: string | null; allEstablishments: Establishment[] }) {
+function writeStoredAuthState(state: StoredAuthState) {
   if (typeof window === "undefined") {
     return;
   }
@@ -113,15 +119,27 @@ function writeStoredAuthState(state: AuthStateCache & { selectedRbd: string | nu
   }
 }
 
+function clearStoredAuthState() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(AUTH_STATE_STORAGE_KEY);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
 function resolveAuthRedirectUrl() {
+  if (typeof window !== "undefined") {
+    return new URL("/auth/login/", window.location.origin).toString();
+  }
+
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
   if (configuredSiteUrl) {
     return new URL("/auth/login/", configuredSiteUrl).toString();
-  }
-
-  if (typeof window !== "undefined") {
-    return new URL("/auth/login/", window.location.origin).toString();
   }
 
   return undefined;
@@ -162,27 +180,12 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   const [allEstablishments, setAllEstablishments] = useState<Establishment[]>([]);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const profileLoaded = useRef(authStateCache.profileLoaded);
+  const storedAuthStateRef = useRef<StoredAuthState | null>(null);
+  const appliedStoredAuthUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const storedAuthState = readStoredAuthState();
-
-    if (storedAuthState) {
-      setSession((current) => current ?? storedAuthState.session ?? null);
-      setProfile((current) => current ?? storedAuthState.profile ?? null);
-      setEstablishment((current) => current ?? storedAuthState.establishment ?? null);
-      setIsGlobalAdmin((current) => current || storedAuthState.isGlobalAdmin || false);
-      setAccessibleRbds((current) => current.length > 0 ? current : (storedAuthState.accessibleRbds ?? []));
-      setCanSelectSchool((current) => current || storedAuthState.canSelectSchool || false);
-      setLandingRoute((current) => current !== "/resumen/" ? current : (storedAuthState.landingRoute ?? "/resumen/"));
-      setAccessError((current) => current ?? storedAuthState.accessError ?? null);
-      setAllEstablishments((current) => current.length > 0 ? current : (storedAuthState.allEstablishments ?? []));
-      setSelectedRbd((current) => current ?? storedAuthState.selectedRbd ?? null);
-
-      if (storedAuthState.profileLoaded) {
-        profileLoaded.current = true;
-        setIsLoading(false);
-      }
-    }
+    storedAuthStateRef.current = storedAuthState;
 
     try {
       const storedRbd = window.localStorage.getItem(SELECTED_RBD_STORAGE_KEY);
@@ -195,6 +198,40 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
     setStorageHydrated(true);
   }, []);
+
+  useEffect(() => {
+    const sessionUserId = session?.user?.id ?? null;
+
+    if (!storageHydrated || !sessionUserId) {
+      return;
+    }
+
+    if (appliedStoredAuthUserIdRef.current === sessionUserId) {
+      return;
+    }
+
+    appliedStoredAuthUserIdRef.current = sessionUserId;
+
+    const storedAuthState = storedAuthStateRef.current;
+    if (!storedAuthState || storedAuthState.userId !== sessionUserId) {
+      return;
+    }
+
+    setProfile((current) => current ?? storedAuthState.profile ?? null);
+    setEstablishment((current) => current ?? storedAuthState.establishment ?? null);
+    setIsGlobalAdmin((current) => current || storedAuthState.isGlobalAdmin || false);
+    setAccessibleRbds((current) => current.length > 0 ? current : (storedAuthState.accessibleRbds ?? []));
+    setCanSelectSchool((current) => current || storedAuthState.canSelectSchool || false);
+    setLandingRoute((current) => current !== "/resumen/" ? current : (storedAuthState.landingRoute ?? "/resumen/"));
+    setAccessError((current) => current ?? storedAuthState.accessError ?? null);
+    setAllEstablishments((current) => current.length > 0 ? current : (storedAuthState.allEstablishments ?? []));
+    setSelectedRbd((current) => current ?? storedAuthState.selectedRbd ?? null);
+
+    if (storedAuthState.profileLoaded) {
+      profileLoaded.current = true;
+      setIsLoading(false);
+    }
+  }, [session, storageHydrated]);
 
   useEffect(() => {
     if (!storageHydrated) {
@@ -211,8 +248,15 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     authStateCache.accessError = accessError;
     authStateCache.profileLoaded = profileLoaded.current;
 
+    const sessionUserId = session?.user?.id ?? null;
+
+    if (!sessionUserId) {
+      clearStoredAuthState();
+      return;
+    }
+
     writeStoredAuthState({
-      session,
+      userId: sessionUserId,
       profile,
       establishment,
       isGlobalAdmin,
@@ -278,6 +322,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         setLandingRoute("/resumen/");
         setAccessError(null);
         setIsLoading(false);
+        clearStoredAuthState();
       }
     });
 
@@ -540,6 +585,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     } catch {
       // localStorage may be unavailable; ignore silently
     }
+
+    clearStoredAuthState();
 
     await supabase.auth.signOut();
   }

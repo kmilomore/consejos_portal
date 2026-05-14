@@ -38,6 +38,24 @@ Si el intercambio resulta exitoso:
 - elimina `code` de la URL;
 - usa `window.history.replaceState(...)` para evitar que el código quede visible en historial o copias de URL.
 
+La sesión efectiva y la resolución de acceso no se cierran en esta página. Después del callback, [lib/supabase/auth-context.tsx](lib/supabase/auth-context.tsx) confirma la sesión real con Supabase, carga `usuarios_perfiles`, resuelve el alcance con `get_current_portal_scope` y recién entonces deja estabilizada la navegación hacia `/admin/` o `/resumen/`.
+
+### 2.1. Rehidratación segura del estado auth
+
+El portal persiste parte del estado autenticado en `sessionStorage` para resistir remounts del árbol autenticado en export estático. Desde la corrección del 2026-05-14, esa restauración quedó restringida al `user.id` confirmado por Supabase.
+
+Esto evita un bug operativo observado en producción:
+
+- un usuario autenticaba correctamente con Google;
+- el callback completaba `exchangeCodeForSession(code)`;
+- la UI rehidrataba un `landingRoute` o un scope cacheado de otro usuario en la misma pestaña;
+- el guard terminaba devolviendo al ingreso o redirigiendo de forma incoherente.
+
+Regla vigente:
+
+- no rehidratar `session`, `landingRoute`, `profile`, `accessibleRbds` ni `selectedRbd` desde `sessionStorage` hasta conocer el usuario real de Supabase;
+- limpiar el estado persistido al cerrar sesión o cuando no exista sesión válida.
+
 ### 3. Interfaz de autenticación
 
 La UI real vive en [components/auth/auth-screen.tsx](components/auth/auth-screen.tsx). Su capacidad principal es:
@@ -51,7 +69,7 @@ La UI real vive en [components/auth/auth-screen.tsx](components/auth/auth-screen
 `signInWithGoogle()`:
 
 - usa Supabase OAuth con proveedor `google`;
-- construye `redirectTo` con `resolveAuthRedirectUrl()`;
+- construye `redirectTo` con `resolveAuthRedirectUrl()`, priorizando el origen actual del navegador para no desviar el callback a otro portal que comparta variables o proyecto Supabase;
 - agrega `queryParams.hd` con el dominio configurado para sugerir cuentas del dominio institucional.
 
 Este es el único flujo activo del login.
@@ -74,6 +92,7 @@ Si falta cualquiera de esas variables, la autenticación queda inoperante en el 
 - estado de sesión;
 - carga de perfil del usuario desde la base;
 - resolución de alcance de acceso;
+- persistencia e hidratación segura del estado auth por usuario;
 - login por Google;
 - cierre de sesión.
 
@@ -85,7 +104,7 @@ Para que esta sección funcione correctamente deben cumplirse estas condiciones:
 
 - Supabase Auth debe tener habilitado Google como proveedor OAuth.
 - La URL de redirección debe incluir la ruta `/auth/login/`.
-- `NEXT_PUBLIC_SITE_URL` debe apuntar al origen público correcto si se quiere un `redirectTo` estable.
+- En cliente, el callback OAuth se arma desde `window.location.origin`; `NEXT_PUBLIC_SITE_URL` queda como respaldo cuando no existe contexto de navegador.
 - El proyecto debe validar y autorizar las cuentas Google autenticadas antes de conceder acceso útil al portal.
 
 ## Auditoría de seguridad
@@ -133,11 +152,11 @@ Mitigación recomendada:
 
 Severidad: baja
 
-Cuando `exchangeCodeForSession` falla dentro de `AuthCallbackHandler`, la página no muestra retroalimentación explícita ni registra telemetría visible.
+Cuando `exchangeCodeForSession` falla dentro de `AuthCallbackHandler`, la página hoy muestra feedback mediante toast, pero no registra telemetría visible ni logging operacional duradero.
 
 Impacto:
 
-- menor trazabilidad operativa;
+- menor trazabilidad operativa centralizada;
 - diagnóstico más difícil de errores de autenticación o redirección.
 
 Mitigación recomendada:

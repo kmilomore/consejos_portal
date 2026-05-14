@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contenido — Cards y Chips — SLEP Colchagua Design System</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--bg-page); color: var(--fg-1); padding: 40px; }
+h1 { font-size: 28px; font-weight: 900; color: var(--navy-500); margin-bottom: 8px; }
+.subtitle { color: var(--fg-2); font-size: 14px; margin-bottom: 48px; }
+h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+     color: var(--fg-2); margin: 40px 0 16px; padding-bottom: 8px;
+     border-bottom: 1px solid var(--border-subtle); }
+.grid { display: grid; gap: 20px; }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+/* ── CARD BASE ── */
+.card {
+  background: #fff;
+  border: 1px solid #E6E6E6;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow var(--dur-fast) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard);
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Thumbnail */
+.card__thumb {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: linear-gradient(135deg, var(--navy-100) 0%, var(--royal-50) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.card__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.card__thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy-200);
+}
+
+/* Icon area (sin imagen) */
+.card__icon-area {
+  padding: 20px 20px 0;
+}
+.card__icon-box {
+  width: 51px;
+  height: 51px;
+  border-radius: 8px;
+  background: #F2F2F2;
+  border: 1px solid #E6E6E6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--royal-500);
+}
+
+/* Body */
+.card__body {
+  padding: 16px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card__overline {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--royal-500);
+}
+.card__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy-500);
+  line-height: 1.3;
+}
+.card__title--sm { font-size: 14px; }
+.card__title--lg { font-size: 18px; }
+.card__desc {
+  font-size: 14px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  flex: 1;
+}
+.card__meta {
+  font-size: 12px;
+  color: var(--fg-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Footer */
+.card__footer {
+  padding: 12px 20px 20px;
+  border-top: 1px solid #E6E6E6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Buttons inline */
+.btn {
+  font-family: var(--font-sans); font-weight: 700; font-size: 13px;
+  padding: 9px 18px; border-radius: var(--radius-control);
+  border: 1px solid transparent; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+}
+.btn-primary { background: var(--royal-500); color: #fff; }
+.btn-primary:hover { background: var(--royal-600); }
+.btn-secondary { background: #fff; color: var(--navy-500); border-color: var(--navy-500); }
+.btn-royal { background: #0F69C4; color: #fff; }
+.btn-royal:hover { background: var(--royal-600); }
+.btn-outline-royal { background: #fff; color: #0F69C4; border-color: #0F69C4; }
+
+/* Material Icons */
+.material-icons, .material-icons-outlined {
+  font-size: 20px; line-height: 1; vertical-align: middle;
+}
+
+/* ── CARD DATA (visualización) ── */
+.card--data .card__body { padding: 24px; }
+.data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #E6E6E6;
+  font-size: 14px;
+}
+.data-row:last-child { border-bottom: none; }
+.data-row__label { color: var(--fg-2); }
+.data-row__value { font-weight: 700; color: var(--navy-500); }
+.data-row__bar { flex: 1; margin: 0 12px; height: 6px; background: #E3F2FD;
+                 border-radius: 99px; overflow: hidden; }
+.data-row__bar-fill { height: 100%; background: var(--royal-500); border-radius: 99px; }
+
+/* ── CHIPS ── */
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--dur-fast) var(--ease-standard);
+}
+/* Tamaño SM (h=29 del SVG) */
+.chip--sm { height: 29px; padding: 0 12px; font-size: 12px; }
+/* Tamaño MD (h=37 del SVG) */
+.chip--md { height: 37px; padding: 0 16px; font-size: 13px; }
+
+/* Outlined royal (default) */
+.chip--outline {
+  background: #fff;
+  border-color: #0F69C4;
+  color: #0F69C4;
+}
+.chip--outline:hover { background: var(--royal-50); }
+.chip--outline.chip--active {
+  background: var(--royal-500);
+  border-color: var(--royal-500);
+  color: #fff;
+}
+
+/* Filled navy */
+.chip--filled {
+  background: var(--royal-500);
+  color: #fff;
+  border-color: var(--royal-500);
+}
+
+/* Neutral */
+.chip--neutral { background: #F2F2F2; color: var(--fg-2); border-color: #E6E6E6; }
+.chip--neutral:hover { background: #E6E6E6; }
+
+/* ── LIST CARD (horizontal) ── */
+.list-card {
+  background: #fff;
+  border: 1px solid #E6E6E6;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
+}
+.list-card:hover { box-shadow: var(--shadow-sm); }
+.list-card__icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  background: #F2F2F2;
+  border: 1px solid #E6E6E6;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--royal-500);
+}
+.list-card__body { flex: 1; min-width: 0; }
+.list-card__title { font-size: 15px; font-weight: 700; color: var(--navy-500); margin-bottom: 2px; }
+.list-card__desc  { font-size: 13px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-card__actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── LIST CARD LARGE ── */
+.list-card--lg {
+  padding: 24px 28px;
+  gap: 20px;
+}
+.list-card--lg .list-card__title { font-size: 17px; }
+
+/* ── PIE CHART simple ── */
+.pie-container { display: flex; align-items: center; gap: 24px; }
+.pie-chart {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--royal-500) 0% 45%,
+    #0F69C4 45% 72%,
+    #A1D2FF 72% 88%,
+    #E3F2FD 88% 100%
+  );
+  flex-shrink: 0;
+}
+.pie-legend { display: flex; flex-direction: column; gap: 8px; }
+.pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.pie-legend-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+</style>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+<h1>Contenido — Cards y Chips</h1>
+<p class="subtitle">Referencia visual extraída de <code>Contenido.svg</code> — cards verticales, horizontales, chips y visualización</p>
+
+<!-- ───── CARDS VERTICALES CON IMAGEN ───── -->
+<h2>1. Cards verticales con imagen — 3 tamaños</h2>
+<div class="grid grid-3">
+
+  <!-- Tamaño grande (h≈354) -->
+  <article class="card">
+    <div class="card__thumb">
+      <div class="card__thumb-placeholder">
+        <span class="material-icons" style="font-size:48px">school</span>
+      </div>
+    </div>
+    <div class="card__body">
+      <div class="card__overline">Noticias</div>
+      <h3 class="card__title card__title--lg">SLEP Colchagua celebra inicio del año escolar 2025</h3>
+      <p class="card__desc">Más de 12 000 estudiantes de la región volvieron a clases en establecimientos de la red SLEP.</p>
+      <div class="card__meta">
+        <span class="material-icons" style="font-size:14px">calendar_today</span>
+        14 de marzo, 2025
+      </div>
+    </div>
+    <div class="card__footer">
+      <a href="#" class="btn btn-primary">Leer más</a>
+    </div>
+  </article>
+
+  <!-- Tamaño medio (h≈279) -->
+  <article class="card">
+    <div class="card__thumb" style="aspect-ratio:16/7;">
+      <div class="card__thumb-placeholder">
+        <span class="material-icons" style="font-size:36px">campaign</span>
+      </div>
+    </div>
+    <div class="card__body">
+      <div class="card__overline">Convocatoria</div>
+      <h3 class="card__title">Concurso docente 2025 — postulaciones abiertas</h3>
+      <p class="card__desc">Abre proceso de selección para profesores de enseñanza básica.</p>
+    </div>
+    <div class="card__footer">
+      <a href="#" class="btn btn-primary">Postular</a>
+      <a href="#" class="btn btn-secondary">Ver bases</a>
+    </div>
+  </article>
+
+  <!-- Tamaño compacto (h≈163) -->
+  <article class="card">
+    <div class="card__body">
+      <div class="card__overline">Aviso</div>
+      <h3 class="card__title card__title--sm">Plazos SAE 2025 — segunda etapa</h3>
+      <div class="card__meta">
+        <span class="material-icons" style="font-size:14px">calendar_today</span>
+        Vence el 30 de abril
+      </div>
+    </div>
+    <div class="card__footer">
+      <a href="#" class="btn btn-primary">Ver cronograma</a>
+    </div>
+  </article>
+
+</div>
+
+<!-- ───── CARDS CON ÍCONO ───── -->
+<h2>2. Cards verticales con ícono (sin imagen)</h2>
+<div class="grid grid-3">
+
+  <article class="card">
+    <div class="card__icon-area">
+      <div class="card__icon-box">
+        <span class="material-icons">assignment</span>
+      </div>
+    </div>
+    <div class="card__body">
+      <div class="card__overline">Trámite</div>
+      <h3 class="card__title">Certificado de matrícula</h3>
+      <p class="card__desc">Obtén el certificado oficial de matrícula vigente de tu hijo/a.</p>
+    </div>
+    <div class="card__footer">
+      <a href="#" class="btn btn-primary">Solicitar</a>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="card__icon-area">
+      <div class="card__icon-box">
+        <span class="material-icons">description</span>
+      </div>
+    </div>
+    <div class="card__body">
+      <div class="card__overline">Documento</div>
+      <h3 class="card__title">Reglamento interno</h3>
+      <p class="card__desc">Normas de convivencia y procedimientos de los establecimientos.</p>
+    </div>
+    <div class="card__footer">
+      <a href="#" class="btn btn-secondary">
+        <span class="material-icons">download</span> Descargar
+      </a>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="card__icon-area">
+      <div class="card__icon-box" style="background: var(--royal-50);">
+        <span class="material-icons" style="color:var(--royal-500)">poll</span>
+      </div>
+    </div>
+    <div class="card__body">
+      <div class="card__overline">Resultados</div>
+      <h3 class="card__title">Indicadores de gestión 2024</h3>
+      <p class="card__desc">Informe anual de indicadores de calidad y cobertura educativa.</p>
+    </div>
+    <div class="card__footer">
+      <a href="#" class="btn btn-primary">Ver informe</a>
+    </div>
+  </article>
+
+</div>
+
+<!-- ───── CHIPS ───── -->
+<h2>3. Chips — filtros y etiquetas</h2>
+
+<p style="font-size:13px;color:var(--fg-2);margin-bottom:12px;">Tamaño SM (h=29px) — outlined</p>
+<div class="chip-group" style="margin-bottom:24px;">
+  <button class="chip chip--sm chip--outline chip--active">Todos</button>
+  <button class="chip chip--sm chip--outline">Noticias</button>
+  <button class="chip chip--sm chip--outline">Convocatorias</button>
+  <button class="chip chip--sm chip--outline">Trámites</button>
+  <button class="chip chip--sm chip--outline">Documentos</button>
+  <button class="chip chip--sm chip--outline">Transparencia</button>
+</div>
+
+<p style="font-size:13px;color:var(--fg-2);margin-bottom:12px;">Tamaño MD (h=37px) — outlined</p>
+<div class="chip-group" style="margin-bottom:24px;">
+  <button class="chip chip--md chip--outline chip--active">
+    <span class="material-icons" style="font-size:16px">filter_list</span> Todos
+  </button>
+  <button class="chip chip--md chip--outline">Enseñanza básica</button>
+  <button class="chip chip--md chip--outline">Enseñanza media</button>
+  <button class="chip chip--md chip--outline">Ed. parvularia</button>
+</div>
+
+<p style="font-size:13px;color:var(--fg-2);margin-bottom:12px;">Chips filled y neutral</p>
+<div class="chip-group">
+  <span class="chip chip--sm chip--filled">Publicado</span>
+  <span class="chip chip--sm chip--filled" style="background:var(--status-success);border-color:var(--status-success)">Vigente</span>
+  <span class="chip chip--sm chip--filled" style="background:var(--status-warning);border-color:var(--status-warning)">Próximo</span>
+  <span class="chip chip--sm chip--neutral">Archivado</span>
+  <span class="chip chip--sm chip--neutral">Sin categoría</span>
+</div>
+
+<!-- ───── LIST CARDS ───── -->
+<h2>4. Cards horizontales (lista de ítems)</h2>
+<div style="display:flex;flex-direction:column;gap:12px;max-width:900px;">
+
+  <div class="list-card list-card--lg">
+    <div class="list-card__icon">
+      <span class="material-icons">school</span>
+    </div>
+    <div class="list-card__body">
+      <div class="list-card__title">Liceo Bicentenario Los Andes</div>
+      <div class="list-card__desc">Santa Cruz · Enseñanza media científico-humanista · 820 estudiantes</div>
+    </div>
+    <div class="list-card__actions">
+      <a href="#" class="btn btn-primary">Ver ficha</a>
+    </div>
+  </div>
+
+  <div class="list-card list-card--lg">
+    <div class="list-card__icon" style="background:var(--royal-50);">
+      <span class="material-icons" style="color:var(--royal-500)">groups</span>
+    </div>
+    <div class="list-card__body">
+      <div class="list-card__title">Escuela Rural Lo Moscoso</div>
+      <div class="list-card__desc">Nancagua · Enseñanza básica · 180 estudiantes</div>
+    </div>
+    <div class="list-card__actions">
+      <a href="#" class="btn btn-secondary">Ver ficha</a>
+    </div>
+  </div>
+
+  <div class="list-card">
+    <div class="list-card__icon">
+      <span class="material-icons">description</span>
+    </div>
+    <div class="list-card__body">
+      <div class="list-card__title">Resolución Exenta N°1847 — Asignación de recursos 2025</div>
+      <div class="list-card__desc">Publicado el 12 de marzo de 2025 · PDF · 2.4 MB</div>
+    </div>
+    <div class="list-card__actions">
+      <a href="#" class="btn btn-secondary"><span class="material-icons">download</span></a>
+    </div>
+  </div>
+
+  <div class="list-card">
+    <div class="list-card__icon">
+      <span class="material-icons">assignment</span>
+    </div>
+    <div class="list-card__body">
+      <div class="list-card__title">Formulario de solicitud de certificado</div>
+      <div class="list-card__desc">Plazo: hasta el 30 de abril de 2025</div>
+    </div>
+    <div class="list-card__actions">
+      <a href="#" class="btn btn-primary">Completar</a>
+      <a href="#" class="btn btn-secondary">Ver detalles</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- ───── DATA VISUALIZATION ───── -->
+<h2>5. Visualización de datos</h2>
+<div class="grid grid-2" style="max-width:900px;">
+
+  <!-- Tabla de datos -->
+  <article class="card card--data">
+    <div class="card__body">
+      <div class="card__overline">Establecimientos por nivel</div>
+      <h3 class="card__title" style="margin-bottom:16px;">Distribución 2025</h3>
+      <div class="data-row">
+        <span class="data-row__label">Básica</span>
+        <div class="data-row__bar"><div class="data-row__bar-fill" style="width:65%"></div></div>
+        <span class="data-row__value">26</span>
+      </div>
+      <div class="data-row">
+        <span class="data-row__label">Media</span>
+        <div class="data-row__bar"><div class="data-row__bar-fill" style="width:40%"></div></div>
+        <span class="data-row__value">16</span>
+      </div>
+      <div class="data-row">
+        <span class="data-row__label">Parvularia</span>
+        <div class="data-row__bar"><div class="data-row__bar-fill" style="width:22%"></div></div>
+        <span class="data-row__value">9</span>
+      </div>
+      <div class="data-row">
+        <span class="data-row__label">Adultos</span>
+        <div class="data-row__bar"><div class="data-row__bar-fill" style="width:10%"></div></div>
+        <span class="data-row__value">4</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- Pie chart -->
+  <article class="card card--data">
+    <div class="card__body">
+      <div class="card__overline">Distribución matrícula</div>
+      <h3 class="card__title" style="margin-bottom:20px;">Por nivel educativo</h3>
+      <div class="pie-container">
+        <div class="pie-chart"></div>
+        <div class="pie-legend">
+          <div class="pie-legend-item">
+            <div class="pie-legend-dot" style="background:var(--royal-500)"></div>
+            <span>Básica — 45%</span>
+          </div>
+          <div class="pie-legend-item">
+            <div class="pie-legend-dot" style="background:#0F69C4"></div>
+            <span>Media — 27%</span>
+          </div>
+          <div class="pie-legend-item">
+            <div class="pie-legend-dot" style="background:#A1D2FF"></div>
+            <span>Parvularia — 16%</span>
+          </div>
+          <div class="pie-legend-item">
+            <div class="pie-legend-dot" style="background:#E3F2FD"></div>
+            <span>Adultos — 12%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</div>
+
+<!-- ───── HTML REFERENCIA ───── -->
+<h2>6. HTML de referencia</h2>
+<pre style="background:var(--navy-50);padding:20px;border-radius:8px;font-size:13px;line-height:1.6;overflow:auto;color:var(--navy-700)">
+&lt;!-- Card vertical --&gt;
+&lt;article class="card"&gt;
+  &lt;div class="card__thumb"&gt;...imagen...&lt;/div&gt;
+  &lt;div class="card__body"&gt;
+    &lt;div class="card__overline"&gt;Noticias&lt;/div&gt;
+    &lt;h3 class="card__title"&gt;Título de la noticia&lt;/h3&gt;
+    &lt;p class="card__desc"&gt;Descripción breve...&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;div class="card__footer"&gt;
+    &lt;a href="/ruta" class="btn btn-primary"&gt;Leer más&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/article&gt;
+
+&lt;!-- Chip outlined --&gt;
+&lt;button class="chip chip--sm chip--outline"&gt;Noticias&lt;/button&gt;
+&lt;button class="chip chip--sm chip--outline chip--active"&gt;Todos&lt;/button&gt;
+
+&lt;!-- List card --&gt;
+&lt;div class="list-card"&gt;
+  &lt;div class="list-card__icon"&gt;
+    &lt;span class="material-icons"&gt;school&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class="list-card__body"&gt;
+    &lt;div class="list-card__title"&gt;Nombre&lt;/div&gt;
+    &lt;div class="list-card__desc"&gt;Descripción&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="list-card__actions"&gt;
+    &lt;a href="#" class="btn btn-primary"&gt;Ver ficha&lt;/a&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+</pre>
+
+<!-- ───── TOKENS ───── -->
+<h2>7. Tokens de color — cards y chips</h2>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:800px;font-size:12px;">
+  <div style="background:#fff;border:1px solid #E6E6E6;border-radius:8px;padding:12px;text-align:center">
+    <div style="font-weight:700;color:var(--fg-2);margin-bottom:4px">Borde card</div>
+    <code style="color:var(--fg-3)">#E6E6E6</code><br>
+    <code style="color:var(--fg-3)">neutral-200</code>
+  </div>
+  <div style="background:#F2F2F2;border-radius:8px;padding:12px;text-align:center">
+    <div style="font-weight:700;color:var(--fg-2);margin-bottom:4px">Fondo ícono</div>
+    <code style="color:var(--fg-3)">#F2F2F2</code><br>
+    <code style="color:var(--fg-3)">neutral-100</code>
+  </div>
+  <div style="background:#0F69C4;border-radius:8px;padding:12px;text-align:center">
+    <div style="font-weight:700;color:#fff;margin-bottom:4px">Chip / Acción sec.</div>
+    <code style="color:rgba(255,255,255,0.8)">#0F69C4</code><br>
+    <code style="color:rgba(255,255,255,0.8)">royal-400</code>
+  </div>
+  <div style="background:#E3F2FD;border-radius:8px;padding:12px;text-align:center">
+    <div style="font-weight:700;color:var(--navy-500);margin-bottom:4px">Fondo info tenue</div>
+    <code style="color:var(--fg-3)">#E3F2FD</code><br>
+    <code style="color:var(--fg-3)">royal-50 ≈</code>
+  </div>
+</div>
+
+</body>
+</html>

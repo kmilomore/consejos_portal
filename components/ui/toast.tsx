@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { X, CheckCircle, AlertCircle, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Alert } from "@/components/ui/alert";
 
 export type ToastTone = "success" | "error" | "info";
 
@@ -19,17 +18,11 @@ export function toast(message: string, tone: ToastTone = "success") {
   _addToast?.(message, tone);
 }
 
-const icons = {
-  success: CheckCircle,
-  error: AlertCircle,
-  info: Info,
-};
-
 const tones = {
-  success: "bg-emerald-600 text-white",
-  error: "bg-rose-600 text-white",
-  info: "bg-slate-800 text-white",
-};
+  success: "success",
+  error: "danger",
+  info: "info",
+} as const;
 
 export function Toaster() {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -54,25 +47,18 @@ export function Toaster() {
   return (
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 print:hidden">
       {toasts.map((t) => {
-        const Icon = icons[t.tone];
         return (
-          <div
+          <Alert
             key={t.id}
-            className={cn(
-              "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium shadow-lg",
-              tones[t.tone],
-            )}
+            tone={tones[t.tone]}
+            variant="tinted"
+            size="sm"
+            floating
+            onClose={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+            className="w-[min(28rem,calc(100vw-3rem))]"
           >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="flex-1">{t.message}</span>
-            <button
-              type="button"
-              onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
-              className="opacity-70 hover:opacity-100"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
+            <p>{t.message}</p>
+          </Alert>
         );
       })}
     </div>

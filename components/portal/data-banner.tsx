@@ -1,3 +1,4 @@
+import { Alert } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import type { PortalDataSource, PortalDiagnostic } from "@/lib/supabase/queries";
 
@@ -32,12 +33,11 @@ export function DataBanner({ source, status, reason, diagnostics = [] }: DataBan
   const detail = reason ?? "No fue posible usar Supabase en este momento y el portal cayó a datos de respaldo.";
 
   return (
-    <div className="rounded-card border border-status-danger bg-status-danger-bg px-4 py-3 text-sm text-status-danger">
-      <p className="font-semibold">{title}</p>
-      <p className="mt-1 leading-6">{detail}</p>
+    <Alert tone="danger" variant="tinted" title={title}>
+      <p>{detail}</p>
       {diagnostics.filter((d) => d.status === "error").length > 0 ? (
         <details className="mt-3 rounded-card bg-white/50 px-3 py-2">
-          <summary className="cursor-pointer font-medium">Ver diagnóstico</summary>
+          <summary className="cursor-pointer font-medium text-status-danger">Ver diagnóstico</summary>
           <div className="mt-3 space-y-2">
             {diagnostics.filter((d) => d.status === "error").map((item) => (
               <div key={`${item.scope}-${item.status}-${item.message}`} className="rounded-card border border-black/5 bg-white/70 px-3 py-2">
@@ -48,6 +48,6 @@ export function DataBanner({ source, status, reason, diagnostics = [] }: DataBan
           </div>
         </details>
       ) : null}
-    </div>
+    </Alert>
   );
 }

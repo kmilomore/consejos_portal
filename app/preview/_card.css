@@ -1,5 +1,5 @@
 /* Shared base for preview cards. Each card is sized to its viewport via the manifest. */
-@import url("../colors_and_type.css");
+@import url("../../tokens/colors_and_type.css");
 
 html, body {
   margin: 0;

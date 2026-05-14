@@ -76,13 +76,20 @@ Sin esa migración, el diagnóstico de producción mostrará tablas vacías aunq
 
 ## Producción autenticada por escuela
 
-Para el flujo OTP por correo y portal por establecimiento, aplica también la migración `supabase/migrations/20260416_consejos_auth_bootstrap_from_base.sql`.
+Para el flujo Google OAuth por correo institucional y portal por establecimiento, aplica también la migración `supabase/migrations/20260416_consejos_auth_bootstrap_from_base.sql`.
 
 Esa migración:
 
 - normaliza filas desde `public."BASE DE DATOS ESCUELAS SLEP"`
 - sincroniza `establecimientos` desde esa base maestra
 - crea o actualiza `usuarios_perfiles` automáticamente para el usuario autenticado según su correo
+
+El callback browser vuelve siempre a `/auth/login/`, donde el portal ejecuta `exchangeCodeForSession(code)` y luego resuelve el acceso real con `usuarios_perfiles` + `get_current_portal_scope`.
+
+Nota operativa vigente:
+
+- el cache persistido de auth en `sessionStorage` debe considerarse válido solo si pertenece al mismo `user.id` confirmado por Supabase;
+- si se reutiliza estado stale de otro usuario, el portal puede redirigir de vuelta al login o aterrizar en una ruta equivocada.
 
 Condición clave: la tabla `BASE DE DATOS ESCUELAS SLEP` debe contener el `RBD` y un correo del director o responsable en alguna variante de columna como `CORREO ELECTRONICO`, `CORREO`, `EMAIL` o equivalente.
 

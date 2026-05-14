@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Footer — SLEP Colchagua · Referencia HTML</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<style>
+  /* ============================================================
+     FOOTER SLEP COLCHAGUA
+     Basado en el SVG de referencia (footer.svg):
+       - Fondo principal: #092039 (navy-900 del sistema)
+       - Franja de logos: #092039 oscurecido
+       - Links: #0F69C4 (royal-500)
+       - Texto: rgba(237,240,245,0.78)
+     ============================================================ */
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Museo Sans", "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: var(--neutral-100);
+  }
+
+  /* ---- Franja superior de logos institucionales (gobierno de Chile) ---- */
+  .footer-gov-strip {
+    background: #051426;  /* más oscuro que el cuerpo — distinción visual */
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .footer-gov-strip-inner {
+    max-width: 1440px; margin: 0 auto;
+    padding: 16px 40px;
+    display: flex; align-items: center; gap: 28px;
+    flex-wrap: wrap;
+  }
+  .gov-label {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(237,240,245,0.50);
+    flex-shrink: 0;
+  }
+  .gov-logos {
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  }
+  .gov-logo-item {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .gov-logo-item .brand-name {
+    font-size: 13px; font-weight: 900;
+    color: rgba(237,240,245,0.90);
+    letter-spacing: -0.01em;
+  }
+  .gov-logo-item .brand-sub {
+    font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    color: rgba(237,240,245,0.45);
+  }
+  .gov-divider {
+    width: 1px; height: 32px;
+    background: rgba(255,255,255,0.12);
+    flex-shrink: 0;
+  }
+  /* Logo ChileAtiende (representado con texto estilizado) */
+  .chile-atiende {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chile-atiende .ca-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: #0F69C4;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900; color: #fff;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+  }
+  .chile-atiende .ca-text { font-size: 13px; font-weight: 700; color: rgba(237,240,245,0.88); }
+
+  /* ---- Cuerpo del footer ---- */
+  .footer {
+    background: #092039;  /* navy-900 del SVG de referencia */
+    color: rgba(237,240,245,0.78);
+  }
+  .footer-inner {
+    max-width: 1440px; margin: 0 auto;
+    padding: 56px 40px 48px;
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr 1.1fr;
+    gap: 32px;
+  }
+
+  /* Columna 1 — logo + wordmark + dirección */
+  .footer-brand { display: flex; flex-direction: column; gap: 16px; }
+  .footer-brand-top { display: flex; gap: 14px; align-items: flex-start; }
+  .footer-badge { width: 52px; height: 52px; flex: 0 0 52px; }
+  .footer-badge img { width: 100%; height: 100%; object-fit: contain; }
+  .footer-wm .ovr {
+    font-size: 9.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: rgba(237,240,245,0.50);
+    font-weight: 700;
+  }
+  .footer-wm .nm {
+    font-size: 17px; font-weight: 900;
+    letter-spacing: -0.005em; color: #fff;
+    line-height: 1.1;
+  }
+  .footer-addr {
+    font-size: 12px; line-height: 1.6;
+    color: rgba(237,240,245,0.55);
+    font-weight: 500;
+  }
+  .footer-contact {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 4px;
+  }
+  .footer-contact-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700;
+    color: rgba(237,240,245,0.72);
+  }
+  .footer-contact-item a {
+    color: #0F69C4; text-decoration: none;
+    font-weight: 700;
+  }
+  .footer-contact-item a:hover { text-decoration: underline; color: #56A6DE; }
+  .footer-schedule {
+    font-size: 11px; color: rgba(237,240,245,0.45);
+    font-weight: 500; line-height: 1.5; margin-top: 2px;
+  }
+
+  /* Columnas de navegación */
+  .footer-col {}
+  .footer-col h5 {
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: #fff; margin: 0 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+  }
+  .footer-col ul {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .footer-col li a {
+    color: rgba(237,240,245,0.72);
+    text-decoration: none;
+    font-size: 13px; font-weight: 500;
+    line-height: 1.3;
+    transition: color 120ms ease;
+  }
+  .footer-col li a:hover { color: #fff; }
+  /* Enlace con badge de estado */
+  .footer-col li a .badge-new {
+    display: inline-block; margin-left: 6px;
+    background: #FF4731; color: #fff;
+    font-size: 9px; font-weight: 900;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 3px;
+    vertical-align: middle;
+  }
+
+  /* ---- Separador ---- */
+  .footer-bottom-sep {
+    border-top: 1px solid rgba(255,255,255,0.08);
+    max-width: 1440px; margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  /* ---- Bottom bar ---- */
+  .footer-bottom {
+    background: #092039;
+    max-width: 1440px; margin: 0 auto;
+    padding: 18px 40px 24px;
+    display: flex; justify-content: space-between; align-items: center; gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-bottom-copy {
+    font-size: 11.5px; color: rgba(237,240,245,0.45); font-weight: 500;
+  }
+  .footer-bottom-links {
+    display: flex; gap: 22px; flex-wrap: wrap;
+  }
+  .footer-bottom-links a {
+    color: rgba(237,240,245,0.50); font-size: 11.5px;
+    text-decoration: none; font-weight: 500;
+    transition: color 120ms ease;
+  }
+  .footer-bottom-links a:hover { color: rgba(237,240,245,0.90); }
+
+  /* ============================================================
+     VERSIÓN MOBILE (max 768px)
+     ============================================================ */
+  @media (max-width: 768px) {
+    .footer-gov-strip-inner { padding: 14px 20px; gap: 16px; }
+    .footer-inner {
+      grid-template-columns: 1fr;
+      padding: 40px 20px 36px;
+      gap: 36px;
+    }
+    .footer-col h5 { margin-bottom: 14px; }
+    .footer-bottom-sep { padding: 0 20px; }
+    .footer-bottom {
+      padding: 16px 20px 20px;
+      flex-direction: column; align-items: flex-start; gap: 12px;
+    }
+    .footer-bottom-links { gap: 16px; }
+  }
+
+  /* ============================================================
+     DEMO PAGE WRAPPER
+     ============================================================ */
+  .demo-label {
+    background: #1E1E1E; color: #9747FF;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; padding: 8px 16px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     VARIANTE DESKTOP — Footer Landing (referencia: footer.svg)
+     Ancho de diseño: 1440px · Fondo: #092039 · Tipografía: Museo Sans
+     ============================================================ -->
+<div class="demo-label">Footer · Variante Landing · Desktop 1440px</div>
+
+<!-- 1. Franja institucional de logos (gobierno de Chile) -->
+<div class="footer-gov-strip">
+  <div class="footer-gov-strip-inner">
+    <div class="gov-label">Perteneciente a</div>
+
+    <div class="gov-logos">
+      <!-- Logo Ministerio de Educación -->
+      <div class="gov-logo-item">
+        <div class="brand-name">MINEDUC</div>
+        <div class="brand-sub">Ministerio de Educación</div>
+      </div>
+
+      <div class="gov-divider"></div>
+
+      <!-- ChileAtiende -->
+      <div class="chile-atiende">
+        <div class="ca-icon">CA</div>
+        <div class="ca-text">ChileAtiende</div>
+      </div>
+
+      <div class="gov-divider"></div>
+
+      <!-- Gobierno de Chile -->
+      <div class="gov-logo-item">
+        <div class="brand-name">Gobierno de Chile</div>
+        <div class="brand-sub">Dirección de Educación Pública · DEP</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Cuerpo principal del footer -->
+<footer class="footer">
+  <div class="footer-inner">
+
+    <!-- Columna 1: Logo + wordmark + dirección + contacto -->
+    <div class="footer-brand">
+      <div class="footer-brand-top">
+        <div class="footer-badge">
+          <img src="../../assets/logo-slep-colchagua.webp" alt="SLEP Colchagua" />
+        </div>
+        <div class="footer-wm">
+          <div class="ovr">Servicio Local de Educación Pública</div>
+          <div class="nm">Colchagua</div>
+        </div>
+      </div>
+
+      <div class="footer-addr">
+        Av. Presidente Salvador Allende 123<br>
+        San Fernando, Región del Libertador<br>
+        Bernardo O'Higgins · Chile
+      </div>
+
+      <div class="footer-contact">
+        <div class="footer-contact-item">
+          Mesa de Ayuda: <a href="tel:+56604397000">600 397 0000</a>
+        </div>
+        <div class="footer-schedule">Lu – Vi / 9:00 – 18:00 hrs</div>
+        <div class="footer-contact-item">
+          <a href="mailto:contacto@slepcolchagua.cl">contacto@slepcolchagua.cl</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna 2: Menú principal -->
+    <div class="footer-col">
+      <h5>El Servicio</h5>
+      <ul>
+        <li><a href="#">Sobre nosotros</a></li>
+        <li><a href="#">Equipo directivo</a></li>
+        <li><a href="#">Plan estratégico</a></li>
+        <li><a href="#">Establecimientos</a></li>
+        <li><a href="#">Historia SLEP</a></li>
+      </ul>
+    </div>
+
+    <!-- Columna 3: Comunidades -->
+    <div class="footer-col">
+      <h5>Comunidades</h5>
+      <ul>
+        <li><a href="#">Familias</a></li>
+        <li><a href="#">Docentes</a></li>
+        <li><a href="#">Estudiantes</a></li>
+        <li><a href="#">Convivencia escolar</a></li>
+        <li><a href="#">Directivos</a></li>
+      </ul>
+    </div>
+
+    <!-- Columna 4: Trámites -->
+    <div class="footer-col">
+      <h5>Trámites</h5>
+      <ul>
+        <li>
+          <a href="#">Postulación SAE
+            <span class="badge-new">Activo</span>
+          </a>
+        </li>
+        <li><a href="#">Certificados</a></li>
+        <li><a href="#">Solicitud de información</a></li>
+        <li><a href="#">Denuncias</a></li>
+        <li><a href="#">Formularios</a></li>
+      </ul>
+    </div>
+
+    <!-- Columna 5: Transparencia + ayuda -->
+    <div class="footer-col">
+      <h5>Transparencia</h5>
+      <ul>
+        <li><a href="#">Transparencia activa</a></li>
+        <li><a href="#">Solicitudes pasivas</a></li>
+        <li><a href="#">Ley del Lobby</a></li>
+        <li><a href="#">Compras públicas</a></li>
+        <li><a href="#">Auditoría interna</a></li>
+      </ul>
+    </div>
+
+  </div><!-- /footer-inner -->
+
+  <!-- Separador -->
+  <div class="footer-bottom-sep"></div>
+
+  <!-- Bottom bar -->
+  <div class="footer-bottom">
+    <div class="footer-bottom-copy">
+      © 2026 SLEP Colchagua · Ley 21.040 de Nueva Educación Pública
+    </div>
+    <nav class="footer-bottom-links" aria-label="Pie de página">
+      <a href="#">Mapa del sitio</a>
+      <a href="#">Accesibilidad</a>
+      <a href="#">Política de privacidad</a>
+      <a href="#">Términos de uso</a>
+    </nav>
+  </div>
+
+</footer>
+
+<!-- ============================================================
+     VARIANTE MOBILE (360px)
+     El mismo HTML — los estilos @media colapsan la grilla
+     ============================================================ -->
+<div class="demo-label" style="margin-top:48px;">Footer · Variante Mobile 360px (resize el navegador)</div>
+
+<style>
+  /* Muestra la versión mobile en contenedor de 360px para demo */
+  .mobile-wrap {
+    max-width: 360px;
+    border: 1px dashed #9747FF;
+    margin: 0 auto;
+  }
+</style>
+
+<div class="mobile-wrap">
+  <!-- Franja institucional -->
+  <div class="footer-gov-strip">
+    <div class="footer-gov-strip-inner" style="flex-direction:column; align-items:flex-start; gap:10px; padding: 14px 20px;">
+      <div class="gov-label">Perteneciente a</div>
+      <div class="gov-logos" style="gap:14px;">
+        <div class="gov-logo-item">
+          <div class="brand-name">MINEDUC</div>
+          <div class="brand-sub">Ministerio de Educación</div>
+        </div>
+        <div class="chile-atiende">
+          <div class="ca-icon">CA</div>
+          <div class="ca-text">ChileAtiende</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div style="padding: 36px 20px 32px; display:flex; flex-direction:column; gap:32px; background:#092039; color:rgba(237,240,245,0.78);">
+
+      <!-- Brand mobile -->
+      <div class="footer-brand">
+        <div class="footer-brand-top">
+          <div class="footer-badge">
+            <img src="../../assets/logo-slep-colchagua.webp" alt="SLEP Colchagua" />
+          </div>
+          <div class="footer-wm">
+            <div class="ovr">Servicio Local de Educación Pública</div>
+            <div class="nm">Colchagua</div>
+          </div>
+        </div>
+        <div class="footer-addr">Av. Presidente Salvador Allende 123<br>San Fernando · O'Higgins</div>
+        <div class="footer-contact">
+          <div class="footer-contact-item">Mesa de Ayuda: <a href="tel:+56604397000">600 397 0000</a></div>
+          <div class="footer-schedule">Lu – Vi / 9:00 – 18:00 hrs</div>
+        </div>
+      </div>
+
+      <!-- Columna El Servicio mobile -->
+      <div class="footer-col">
+        <h5>El Servicio</h5>
+        <ul>
+          <li><a href="#">Sobre nosotros</a></li>
+          <li><a href="#">Equipo directivo</a></li>
+          <li><a href="#">Establecimientos</a></li>
+          <li><a href="#">Plan estratégico</a></li>
+        </ul>
+      </div>
+
+      <!-- Columna Trámites mobile -->
+      <div class="footer-col">
+        <h5>Trámites y Transparencia</h5>
+        <ul>
+          <li><a href="#">Postulación SAE</a></li>
+          <li><a href="#">Denuncias</a></li>
+          <li><a href="#">Transparencia activa</a></li>
+          <li><a href="#">Ley del Lobby</a></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div style="border-top:1px solid rgba(255,255,255,0.08); padding:14px 20px; background:#092039; display:flex; flex-direction:column; gap:10px;">
+      <div style="font-size:11px; color:rgba(237,240,245,0.40); font-weight:500;">
+        © 2026 SLEP Colchagua · Ley 21.040
+      </div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <a href="#" style="color:rgba(237,240,245,0.45); font-size:11px; text-decoration:none;">Accesibilidad</a>
+        <a href="#" style="color:rgba(237,240,245,0.45); font-size:11px; text-decoration:none;">Privacidad</a>
+        <a href="#" style="color:rgba(237,240,245,0.45); font-size:11px; text-decoration:none;">Mapa del sitio</a>
+      </div>
+    </div>
+  </footer>
+</div><!-- /mobile-wrap -->
+
+</body>
+</html>

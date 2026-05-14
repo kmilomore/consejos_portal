@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de Alertas — SLEP Colchagua · Referencia HTML</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<style>
+  /* ============================================================
+     SLEP Colchagua · Alert System
+     Basado en alerta.svg — 3 paneles / 12 variantes base
+     Medidas del SVG de referencia:
+       - Single-line desktop:  min-height 76px, border 2px, radius 4px
+       - Multiline desktop:    min-height 93px
+       - Single-line mobile:   min-height 56px
+       - Multiline mobile:     min-height 141px
+       - Banner full-width:    min-height 76px + botón acción
+     ============================================================ */
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--neutral-100);
+    font-family: var(--font-sans);
+    font-weight: var(--weight-regular);
+    color: var(--fg-1);
+  }
+
+  /* ============================================================
+     BASE DE LA ALERTA
+     ============================================================ */
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 4px;               /* --radius-sm — igual al SVG */
+    border: 2px solid transparent;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    width: 100%;
+  }
+
+  /* Icono izquierdo */
+  .alert-icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  .alert-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Cuerpo de texto */
+  .alert-body { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .alert-title { font-weight: 700; font-size: 14px; display: block; }
+  .alert-desc  { font-size: 13px; font-weight: 500; line-height: 1.5; margin: 0; }
+
+  /* Botón cerrar (×) */
+  .alert-close {
+    flex-shrink: 0;
+    background: transparent; border: none; cursor: pointer;
+    color: currentColor; opacity: 0.55;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px; padding: 0; margin-top: -1px;
+    transition: opacity 120ms ease;
+  }
+  .alert-close:hover { opacity: 1; }
+  .alert-close svg { width: 16px; height: 16px; stroke: currentColor; fill: none;
+    stroke-width: 2.5; stroke-linecap: round; }
+
+  /* Botón de acción (banners) */
+  .alert-action {
+    flex-shrink: 0;
+    font-family: var(--font-sans); font-weight: 700; font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 6px; border: none; cursor: pointer;
+    background: var(--royal-500); color: #fff;
+    transition: background 120ms ease;
+    white-space: nowrap;
+    align-self: center;
+  }
+  .alert-action:hover { background: var(--royal-600); }
+
+  /* ============================================================
+     VARIANTES SEMÁNTICAS — outlined (border 2px, fondo blanco)
+     Colores del SVG → mapeados a tokens SLEP
+       SVG #2196F3 → --status-info    (#006BB9 / royal-500)
+       SVG #FF5722 → --status-warning (#C77A00)
+       SVG #4CAF50 → --status-success (#1F8A5B)
+       SVG #FB3B3B → --status-danger  (coral-600)
+     ============================================================ */
+  .alert--info {
+    background: #fff;
+    border-color: var(--status-info);   /* #006BB9 */
+    color: var(--navy-500);
+  }
+  .alert--info .alert-icon { color: var(--status-info); }
+
+  .alert--warning {
+    background: #fff;
+    border-color: var(--status-warning); /* #C77A00 */
+    color: var(--navy-500);
+  }
+  .alert--warning .alert-icon { color: var(--status-warning); }
+
+  .alert--success {
+    background: #fff;
+    border-color: var(--status-success); /* #1F8A5B */
+    color: var(--navy-500);
+  }
+  .alert--success .alert-icon { color: var(--status-success); }
+
+  .alert--danger {
+    background: #fff;
+    border-color: var(--status-danger);  /* coral-600 */
+    color: var(--navy-500);
+  }
+  .alert--danger .alert-icon { color: var(--status-danger); }
+
+  /* ============================================================
+     VARIANTES NEUTRAS — solid fill (sin border)
+     SVG #4D4D4D → --navy-700 / SVG #F2F2F2 → --neutral-100
+     ============================================================ */
+  .alert--dark {
+    background: var(--navy-700);         /* #182250 */
+    border-color: transparent;
+    color: var(--fg-on-dark-2);          /* #EDF0F5 */
+  }
+  .alert--dark .alert-icon { color: var(--fg-on-dark-1); }
+  .alert--dark .alert-title { color: var(--fg-on-dark-1); }
+  .alert--dark .alert-desc  { color: rgba(237,240,245,0.78); }
+
+  .alert--light {
+    background: var(--neutral-100);      /* #EDF0F5 */
+    border-color: transparent;
+    color: var(--fg-1);
+  }
+  .alert--light .alert-icon { color: var(--navy-500); }
+
+  /* ============================================================
+     VARIANTES TINTED — fondo semántico (bg tokens)
+     Uso: alertas con mayor énfasis visual dentro de un formulario
+     ============================================================ */
+  .alert--info.alert--tinted {
+    background: var(--status-info-bg);
+    border-color: var(--status-info);
+  }
+  .alert--warning.alert--tinted {
+    background: var(--status-warning-bg);
+    border-color: var(--status-warning);
+  }
+  .alert--success.alert--tinted {
+    background: var(--status-success-bg);
+    border-color: var(--status-success);
+  }
+  .alert--danger.alert--tinted {
+    background: var(--status-danger-bg);
+    border-color: var(--status-danger);
+  }
+
+  /* ============================================================
+     VARIANTE BANNER — barra de ancho completo con acción
+     SVG: y=404, w=829, h=76 + botón 89×44 fill=#0F69C4
+     ============================================================ */
+  .alert--banner {
+    border-radius: 4px;
+    align-items: center;
+    padding: 14px 20px;
+  }
+  .alert--banner .alert-body { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .alert--banner .alert-title { font-size: 14px; }
+  .alert--banner .alert-desc { font-size: 13px; }
+
+  /* ============================================================
+     VARIANTE TOAST / SNACKBAR — flotante, ancho parcial
+     SVG: y=312, w=459, h=68 y y=721, w=332, h=68
+     ============================================================ */
+  .toast-container {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 999;
+    max-width: 480px;
+    width: calc(100% - 48px);
+  }
+  .toast {
+    box-shadow: var(--shadow-lg);
+    border-radius: 6px;
+    animation: toast-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes toast-in {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+  }
+  /* Toast compacto — sin descripción */
+  .toast.alert { align-items: center; }
+
+  /* ============================================================
+     TAMAÑOS
+     ============================================================ */
+  /* Single-line (desktop, h≈76px del SVG) */
+  .alert--sm { padding: 10px 14px; min-height: 56px; }    /* mobile */
+  .alert--md { padding: 14px 16px; min-height: 76px; }    /* desktop default */
+  /* Multiline: el alto crece con el contenido — mínimo 93px */
+
+  /* ============================================================
+     DEMO LAYOUT
+     ============================================================ */
+  .demo-page { max-width: 1100px; margin: 0 auto; padding: 48px 32px; }
+  .demo-section { margin-bottom: 56px; }
+  .demo-section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--neutral-500);
+    margin: 0 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-1);
+  }
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .demo-col { display: flex; flex-direction: column; gap: 10px; }
+  .demo-row { display: flex; flex-direction: column; gap: 10px; }
+  .demo-label-sm {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--neutral-400); margin-top: 4px; margin-bottom: 2px;
+  }
+
+  .mobile-frame {
+    max-width: 375px;
+    border: 1px dashed #9747FF;
+    border-radius: 8px;
+    padding: 20px 16px;
+    background: var(--neutral-50);
+  }
+  .mobile-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #9747FF;
+    margin: 0 0 16px;
+  }
+</style>
+</head>
+<body>
+<div class="demo-page">
+
+  <h1 style="font-size:32px; font-weight:900; letter-spacing:-0.02em; margin:0 0 6px;">Sistema de Alertas</h1>
+  <p style="color:var(--fg-3); font-size:14px; margin:0 0 48px;">SLEP Colchagua · Referencia HTML — basado en <code>alerta.svg</code></p>
+
+  <!-- ============================================================
+       PANEL 1: Variantes semánticas outlined — single-line
+       SVG referencia: panel derecho, y=225–650, height=76
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Variantes outlined · Single-line · Desktop (h≈76px)</div>
+    <div class="demo-row">
+
+      <!-- Info -->
+      <div class="demo-label-sm">info · border var(--status-info) #006BB9 ← SVG #2196F3</div>
+      <div class="alert alert--info alert--md">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Plazo de admisión 2026</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Warning -->
+      <div class="demo-label-sm">warning · border var(--status-warning) #C77A00 ← SVG #FF5722</div>
+      <div class="alert alert--warning alert--md">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">El período de matrícula finaliza el 30 de noviembre</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Success -->
+      <div class="demo-label-sm">success · border var(--status-success) #1F8A5B ← SVG #4CAF50</div>
+      <div class="alert alert--success alert--md">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Postulación enviada correctamente</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Danger -->
+      <div class="demo-label-sm">danger · border var(--status-danger) coral-600 ← SVG #FB3B3B</div>
+      <div class="alert alert--danger alert--md">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Error al enviar el formulario</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Dark -->
+      <div class="demo-label-sm">dark · fill var(--navy-700) ← SVG #4D4D4D</div>
+      <div class="alert alert--dark alert--md">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">El sistema realizará mantención el sábado 17 de mayo</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Light -->
+      <div class="demo-label-sm">light · fill var(--neutral-100) ← SVG #F2F2F2</div>
+      <div class="alert alert--light alert--md">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Recuerde completar todos los campos obligatorios</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL 2: Variantes outlined — MULTILINE
+       SVG referencia: panel derecho, y=839–1500, height=93
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Variantes outlined · Multiline · Desktop (h≈93px)</div>
+    <div class="demo-grid">
+      <div class="demo-col">
+
+        <div class="demo-label-sm">info multiline</div>
+        <div class="alert alert--info">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Plazo de admisión 2026</span>
+            <p class="alert-desc">Las postulaciones se reciben hasta el 30 de octubre a través del Sistema de Admisión Escolar (SAE).</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="demo-label-sm">warning multiline</div>
+        <div class="alert alert--warning">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Período de matrícula próximo a vencer</span>
+            <p class="alert-desc">Tiene hasta el 30 de noviembre para completar la matrícula de su hijo o hija.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="demo-label-sm">dark multiline</div>
+        <div class="alert alert--dark">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Mantención programada</span>
+            <p class="alert-desc">El sistema estará en mantención el sábado 17 de mayo entre las 22:00 y las 02:00 hrs.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+      </div>
+      <div class="demo-col">
+
+        <div class="demo-label-sm">success multiline</div>
+        <div class="alert alert--success">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Postulación enviada correctamente</span>
+            <p class="alert-desc">Su postulación fue registrada en el SAE. Recibirá confirmación en el correo electrónico registrado.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="demo-label-sm">danger multiline</div>
+        <div class="alert alert--danger">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Error al enviar el formulario</span>
+            <p class="alert-desc">El RUT ingresado no es válido. Revise el formato 12.345.678-9 e intente nuevamente.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="demo-label-sm">light multiline</div>
+        <div class="alert alert--light">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Instrucciones del proceso</span>
+            <p class="alert-desc">Complete todos los campos del formulario. Los campos marcados con (*) son obligatorios para continuar.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL 3: Variantes TINTED — fondo semántico
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Variantes tinted · Fondo semántico (bg tokens)</div>
+    <div class="demo-col">
+
+      <div class="demo-label-sm">info tinted · bg var(--status-info-bg) = royal-50</div>
+      <div class="alert alert--info alert--tinted">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Plazo de admisión 2026</span>
+          <p class="alert-desc">Las postulaciones se reciben hasta el 30 de octubre a través del SAE.</p>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="demo-label-sm">success tinted · bg var(--status-success-bg) = #E3F5EB</div>
+      <div class="alert alert--success alert--tinted">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Postulación enviada correctamente</span>
+          <p class="alert-desc">Su postulación fue registrada en el SAE. Recibirá confirmación en el correo registrado.</p>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="demo-label-sm">warning tinted · bg var(--status-warning-bg) = #FFF1D6</div>
+      <div class="alert alert--warning alert--tinted">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Período de matrícula próximo a vencer</span>
+          <p class="alert-desc">Tiene hasta el 30 de noviembre para completar la matrícula de su hijo o hija.</p>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="demo-label-sm">danger tinted · bg var(--status-danger-bg) = coral-50</div>
+      <div class="alert alert--danger alert--tinted">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Suspensión de clases</span>
+          <p class="alert-desc">La Escuela G-32 suspende actividades el viernes 16 de mayo por motivos sanitarios.</p>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL 4: Banners de ancho completo con acción
+       SVG referencia: panel izquierdo, y=404, w=829, h=76
+       Botón acción: 89×44px, fill=#0F69C4 (royal-500)
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Banners de página · Con botón de acción (SVG panel izquierdo, h=76px)</div>
+    <div class="demo-col">
+
+      <div class="demo-label-sm">banner info · full-width · con acción</div>
+      <div class="alert alert--info alert--banner">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">El proceso de admisión escolar 2026 está abierto.</span>
+          <span class="alert-desc">Las postulaciones se reciben hasta el 30 de octubre por el SAE.</span>
+        </div>
+        <button class="alert-action">Iniciar postulación</button>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="demo-label-sm">banner danger · full-width · urgente</div>
+      <div class="alert alert--danger alert--banner">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Suspensión de clases — Escuela G-32, viernes 16 de mayo.</span>
+        </div>
+        <button class="alert-action" style="background:var(--coral-600);">Ver comunicado</button>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="demo-label-sm">banner dark · sin botón</div>
+      <div class="alert alert--dark alert--banner">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="alert-body">
+          <span class="alert-title">Mantención programada el sábado 17 de mayo entre las 22:00 y las 02:00 hrs.</span>
+        </div>
+        <button class="alert-close" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL 5: Alertas inline (formularios)
+       SVG referencia: panel izquierdo, y=1239+, h=56-141
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Alertas inline · Contexto de formulario (SVG panel izquierdo, h=56–141px)</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start;">
+
+      <div class="demo-col">
+        <div class="demo-label-sm">inline success · compacto (h≈56px, sin ícono cerrar)</div>
+        <div class="alert alert--success alert--sm" style="width:fit-content;">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">RUT válido</span>
+          </div>
+        </div>
+
+        <div class="demo-label-sm">inline success · medium (h≈56px)</div>
+        <div class="alert alert--success alert--sm">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Postulación registrada correctamente</span>
+          </div>
+        </div>
+
+        <div class="demo-label-sm">inline dark · multiline (h≈93px)</div>
+        <div class="alert alert--dark">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Instrucciones del proceso</span>
+            <p class="alert-desc">Complete todos los datos del apoderado antes de continuar.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-col">
+        <div class="demo-label-sm">inline danger · compacto</div>
+        <div class="alert alert--danger alert--sm" style="width:fit-content;">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">RUT inválido</span>
+          </div>
+        </div>
+
+        <div class="demo-label-sm">inline info · medium</div>
+        <div class="alert alert--info alert--sm">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Recuerde ingresar el RUT sin puntos ni guión</span>
+          </div>
+        </div>
+
+        <div class="demo-label-sm">inline light · multiline largo (h≈141px)</div>
+        <div class="alert alert--light">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="alert-body">
+            <span class="alert-title">Antes de comenzar</span>
+            <p class="alert-desc">Para postular necesita el RUT del apoderado, el RUT del estudiante y el certificado de nacimiento. El proceso es 100 % en línea y gratuito.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PANEL 6: Mobile (375px)
+       SVG referencia: panel derecho mobile, w=303–383, h=56–141
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Versión Mobile · 375px (SVG mobile panel)</div>
+    <div class="mobile-frame">
+      <div class="mobile-label">Mobile 375px</div>
+
+      <div class="demo-col">
+        <div class="alert alert--success alert--sm">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Postulación enviada</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="alert alert--danger alert--sm">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Error al enviar el formulario</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="alert alert--info alert--sm">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Plazo de admisión 2026</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="alert alert--dark alert--sm">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Mantención sábado 17 de mayo</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="alert alert--light alert--sm">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Complete los campos obligatorios</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <!-- multiline mobile -->
+        <div class="alert alert--dark">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+          <div class="alert-body">
+            <span class="alert-title">Mantención programada</span>
+            <p class="alert-desc">El sistema estará en mantención el sábado 17 de mayo entre las 22:00 y las 02:00 hrs.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="alert alert--light">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+          <div class="alert-body">
+            <span class="alert-title">Antes de comenzar</span>
+            <p class="alert-desc">Para postular necesita el RUT del apoderado, el RUT del estudiante y el certificado de nacimiento.</p>
+          </div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       TOAST — demostración estática (posicionado en la esquina)
+       SVG referencia: panel izquierdo, y=312, w=459, h=68
+       ============================================================ -->
+  <div class="demo-section">
+    <div class="demo-section-title">Toast / Snackbar · Flotante (SVG panel izquierdo, w=459, h=68)</div>
+    <div style="position:relative; height:160px; background:var(--neutral-50); border-radius:8px; border:1px solid var(--border-1);">
+      <!-- Simulación estática de toast en esquina inferior derecha -->
+      <div style="position:absolute; bottom:16px; right:16px; max-width:420px; display:flex; flex-direction:column; gap:8px;">
+        <div class="alert alert--success toast" style="background:#fff;">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Postulación enviada correctamente</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div class="alert alert--info toast" style="background:#fff; max-width:300px;">
+          <div class="alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
+          <div class="alert-body"><span class="alert-title">Datos guardados</span></div>
+          <button class="alert-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+      </div>
+      <div style="padding:16px; font-size:12px; color:var(--neutral-400); font-family:var(--font-mono);">Contenido de la página (área de fondo para referencia de contexto)</div>
+    </div>
+  </div>
+
+</div><!-- /demo-page -->
+</body>
+</html>

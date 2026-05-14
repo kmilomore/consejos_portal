@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasos / Stepper — SLEP Colchagua Design System</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--bg-page); color: var(--fg-1); padding: 40px; }
+h1 { font-size: 28px; font-weight: 900; color: var(--navy-500); margin-bottom: 8px; }
+.subtitle { color: var(--fg-2); font-size: 14px; margin-bottom: 48px; }
+h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+     color: var(--fg-2); margin: 40px 0 16px; padding-bottom: 8px;
+     border-bottom: 1px solid var(--border-subtle); }
+.demo-card { background: #fff; border: 1px solid var(--border-subtle); border-radius: 8px;
+             padding: 32px; margin-bottom: 24px; }
+.demo-label { font-size: 11px; color: var(--fg-3); margin-bottom: 20px; }
+
+/* ── STEPPER HORIZONTAL ── */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  position: relative;
+}
+.stepper__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+/* Línea conectora */
+.stepper__step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 20px; /* mitad del círculo md */
+  left: 50%;
+  width: 100%;
+  height: 5px;
+  background: #A1D2FF; /* pendiente */
+  z-index: 0;
+}
+.stepper__step.completed:not(:last-child)::after,
+.stepper__step.active:not(:last-child)::after {
+  background: var(--royal-500);
+}
+.stepper__step.completed:not(:last-child)::after {
+  background: var(--royal-500);
+}
+.stepper__step.active:not(:last-child)::after {
+  background: linear-gradient(to right, var(--royal-500) 0%, #A1D2FF 100%);
+}
+
+/* Círculo indicador */
+.stepper__bubble {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  position: relative;
+  z-index: 1;
+  transition: all var(--dur-fast) var(--ease-standard);
+}
+
+.stepper__step.pending .stepper__bubble {
+  background: #fff;
+  border: 2px solid #A1D2FF;
+  color: var(--fg-3);
+}
+.stepper__step.active .stepper__bubble {
+  background: var(--royal-500);
+  border: 2px solid var(--royal-500);
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(0,107,185,0.15);
+}
+.stepper__step.completed .stepper__bubble {
+  background: var(--royal-500);
+  border: 2px solid var(--royal-500);
+  color: #fff;
+}
+.stepper__step.completed .stepper__bubble::after {
+  content: '✓';
+  font-size: 16px;
+}
+
+/* Texto del paso */
+.stepper__label {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--fg-2);
+  max-width: 100px;
+  line-height: 1.3;
+}
+.stepper__step.active .stepper__label { color: var(--navy-500); }
+.stepper__step.completed .stepper__label { color: var(--royal-500); }
+.stepper__sublabel {
+  font-size: 11px;
+  color: var(--fg-3);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* ── TAMAÑOS ── */
+/* Large (48px) */
+.stepper--lg .stepper__bubble { width: 48px; height: 48px; font-size: 16px; }
+.stepper--lg .stepper__step:not(:last-child)::after { top: 24px; }
+
+/* Medium (40px) — default */
+
+/* Small (32px) */
+.stepper--sm .stepper__bubble { width: 32px; height: 32px; font-size: 12px; }
+.stepper--sm .stepper__step:not(:last-child)::after { top: 16px; }
+.stepper--sm .stepper__label { font-size: 11px; }
+
+/* ── STEPPER VERTICAL ── */
+.stepper--vertical {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+.stepper--vertical .stepper__step {
+  flex-direction: row;
+  align-items: flex-start;
+  flex: none;
+  width: 100%;
+  padding-bottom: 24px;
+  gap: 16px;
+}
+.stepper--vertical .stepper__step:last-child { padding-bottom: 0; }
+.stepper--vertical .stepper__step::after {
+  top: 40px;
+  left: 20px;
+  width: 5px;
+  height: 100%;
+}
+.stepper--vertical.stepper--sm .stepper__step::after { left: 16px; }
+.stepper--vertical .stepper__label {
+  text-align: left;
+  margin-top: 0;
+  padding-top: 8px;
+}
+.stepper--vertical .stepper__sublabel { text-align: left; }
+
+/* ── RESPONSIVE (mobile) ── */
+.stepper--responsive {
+  flex-direction: column;
+  gap: 0;
+}
+.stepper--responsive .stepper__step {
+  flex-direction: row;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  width: 100%;
+}
+.stepper--responsive .stepper__step:last-child { border-bottom: none; }
+.stepper--responsive .stepper__step::after { display: none; }
+.stepper--responsive .stepper__label {
+  text-align: left;
+  margin-top: 0;
+  max-width: none;
+}
+
+/* ── CONTENT AREA ── */
+.step-content {
+  margin-top: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 24px;
+}
+.step-content h3 { font-size: 16px; font-weight: 700; color: var(--navy-500); margin-bottom: 8px; }
+.step-content p  { font-size: 14px; color: var(--fg-2); margin-bottom: 20px; }
+.step-actions { display: flex; gap: 12px; }
+
+/* BOTONES (inline) */
+.btn { font-family: var(--font-sans); font-weight: 700; font-size: 14px;
+       padding: 10px 20px; border-radius: var(--radius-control); border: 1px solid transparent;
+       cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+.btn-primary { background: var(--royal-500); color: #fff; }
+.btn-primary:hover { background: var(--royal-600); }
+.btn-secondary { background: #fff; color: var(--navy-500); border-color: var(--navy-500); }
+.btn-secondary:hover { background: var(--navy-50); }
+
+/* PROGRESS BAR variant */
+.progress-bar { height: 5px; background: #A1D2FF; border-radius: 99px; overflow: hidden; margin-bottom: 8px; }
+.progress-bar__fill { height: 100%; background: var(--royal-500); border-radius: 99px;
+                       transition: width var(--dur-slow) var(--ease-standard); }
+.progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--fg-3); }
+
+/* Material Icons */
+.material-icons { font-size: 18px; line-height: 1; }
+</style>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+<h1>Pasos / Stepper</h1>
+<p class="subtitle">Referencia visual extraída de <code>pasos.svg</code> — estados × tamaños × orientaciones</p>
+
+<!-- ───── HORIZONTAL MD (default) ───── -->
+<h2>1. Horizontal — tamaño medium (40px) — estado en paso 2</h2>
+<div class="demo-card">
+  <p class="demo-label">4 pasos — Paso 1 completado, Paso 2 activo</p>
+  <nav class="stepper" aria-label="Progreso del trámite">
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div class="stepper__label">Solicitud</div>
+    </div>
+    <div class="stepper__step active">
+      <div class="stepper__bubble">2</div>
+      <div class="stepper__label">Documentos</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">3</div>
+      <div class="stepper__label">Revisión</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">4</div>
+      <div class="stepper__label">Confirmación</div>
+    </div>
+  </nav>
+
+  <div class="step-content">
+    <h3>Paso 2 — Adjunta tus documentos</h3>
+    <p>Sube los archivos requeridos para continuar con tu solicitud. Formatos aceptados: PDF, JPG, PNG.</p>
+    <div class="step-actions">
+      <button class="btn btn-primary">Continuar <span class="material-icons">arrow_forward_ios</span></button>
+      <button class="btn btn-secondary">Atrás</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───── HORIZONTAL LG ───── -->
+<h2>2. Horizontal — tamaño large (48px) — 5 pasos</h2>
+<div class="demo-card">
+  <nav class="stepper stepper--lg" aria-label="Progreso">
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div class="stepper__label">Identidad</div>
+      <div class="stepper__sublabel">Completado</div>
+    </div>
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div class="stepper__label">Datos personales</div>
+      <div class="stepper__sublabel">Completado</div>
+    </div>
+    <div class="stepper__step active">
+      <div class="stepper__bubble">3</div>
+      <div class="stepper__label">Postulación</div>
+      <div class="stepper__sublabel">En curso</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">4</div>
+      <div class="stepper__label">Documentos</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">5</div>
+      <div class="stepper__label">Confirmación</div>
+    </div>
+  </nav>
+</div>
+
+<!-- ───── HORIZONTAL SM ───── -->
+<h2>3. Horizontal — tamaño small (32px)</h2>
+<div class="demo-card">
+  <nav class="stepper stepper--sm" aria-label="Progreso">
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div class="stepper__label">Paso 1</div>
+    </div>
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div class="stepper__label">Paso 2</div>
+    </div>
+    <div class="stepper__step active">
+      <div class="stepper__bubble">3</div>
+      <div class="stepper__label">Paso 3</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">4</div>
+      <div class="stepper__label">Paso 4</div>
+    </div>
+  </nav>
+</div>
+
+<!-- ───── VERTICAL ───── -->
+<h2>4. Vertical — orientación para sidebar o mobile</h2>
+<div class="demo-card" style="max-width: 360px;">
+  <nav class="stepper stepper--vertical" aria-label="Progreso vertical">
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div>
+        <div class="stepper__label">Identificación</div>
+        <div class="stepper__sublabel">RUT y datos básicos</div>
+      </div>
+    </div>
+    <div class="stepper__step active">
+      <div class="stepper__bubble">2</div>
+      <div>
+        <div class="stepper__label">Datos del postulante</div>
+        <div class="stepper__sublabel">Información escolar</div>
+      </div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">3</div>
+      <div>
+        <div class="stepper__label">Preferencias</div>
+        <div class="stepper__sublabel">Establecimientos SAE</div>
+      </div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">4</div>
+      <div>
+        <div class="stepper__label">Confirmación</div>
+        <div class="stepper__sublabel">Revisar y enviar</div>
+      </div>
+    </div>
+  </nav>
+</div>
+
+<!-- ───── RESPONSIVE (mobile) ───── -->
+<h2>5. Responsive — versión móvil (max-width 480px)</h2>
+<div class="demo-card" style="max-width: 400px;">
+  <nav class="stepper stepper--responsive stepper--sm" aria-label="Progreso">
+    <div class="stepper__step completed">
+      <div class="stepper__bubble"></div>
+      <div class="stepper__label">Solicitud enviada</div>
+    </div>
+    <div class="stepper__step active">
+      <div class="stepper__bubble">2</div>
+      <div class="stepper__label">Documentos requeridos</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">3</div>
+      <div class="stepper__label">Revisión SLEP</div>
+    </div>
+    <div class="stepper__step pending">
+      <div class="stepper__bubble">4</div>
+      <div class="stepper__label">Resultado</div>
+    </div>
+  </nav>
+</div>
+
+<!-- ───── PROGRESS BAR VARIANT ───── -->
+<h2>6. Variante barra de progreso (paso 3 de 5)</h2>
+<div class="demo-card">
+  <div class="progress-bar">
+    <div class="progress-bar__fill" style="width: 60%"></div>
+  </div>
+  <div class="progress-meta">
+    <span>Paso 3 de 5 — Documentos</span>
+    <span>60%</span>
+  </div>
+</div>
+
+<!-- ───── HTML REFERENCIA ───── -->
+<h2>7. HTML de referencia</h2>
+<pre style="background:var(--navy-50);padding:20px;border-radius:8px;font-size:13px;line-height:1.6;overflow:auto;color:var(--navy-700)">
+&lt;!-- Stepper horizontal (clases de estado en cada step) --&gt;
+&lt;nav class="stepper" aria-label="Progreso"&gt;
+
+  &lt;!-- Completado --&gt;
+  &lt;div class="stepper__step completed"&gt;
+    &lt;div class="stepper__bubble"&gt;&lt;/div&gt;
+    &lt;div class="stepper__label"&gt;Solicitud&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;!-- Activo --&gt;
+  &lt;div class="stepper__step active" aria-current="step"&gt;
+    &lt;div class="stepper__bubble"&gt;2&lt;/div&gt;
+    &lt;div class="stepper__label"&gt;Documentos&lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;!-- Pendiente --&gt;
+  &lt;div class="stepper__step pending"&gt;
+    &lt;div class="stepper__bubble"&gt;3&lt;/div&gt;
+    &lt;div class="stepper__label"&gt;Revisión&lt;/div&gt;
+  &lt;/div&gt;
+
+&lt;/nav&gt;
+
+&lt;!-- Modificadores --&gt;
+&lt;!-- .stepper--lg   → 48px indicators --&gt;
+&lt;!-- .stepper--sm   → 32px indicators --&gt;
+&lt;!-- .stepper--vertical   → columna --&gt;
+&lt;!-- .stepper--responsive → lista mobile --&gt;
+</pre>
+
+<!-- ───── TOKENS ───── -->
+<h2>8. Tokens de color del stepper</h2>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:600px;">
+  <div style="background:#fff;border:2px solid #A1D2FF;border-radius:8px;padding:12px;text-align:center">
+    <div style="font-size:12px;font-weight:700;color:var(--fg-2)">Pendiente</div>
+    <code style="font-size:11px;color:var(--fg-3)">#A1D2FF</code>
+  </div>
+  <div style="background:var(--royal-500);border-radius:8px;padding:12px;text-align:center">
+    <div style="font-size:12px;font-weight:700;color:#fff">Activo / Completado</div>
+    <code style="font-size:11px;color:rgba(255,255,255,0.7)">var(--royal-500)</code>
+  </div>
+  <div style="background:var(--royal-50);border:1px solid var(--border-subtle);border-radius:8px;padding:12px;text-align:center">
+    <div style="font-size:12px;font-weight:700;color:var(--navy-500)">Foco activo</div>
+    <code style="font-size:11px;color:var(--fg-3)">0 0 0 4px rgba(0,107,185,0.15)</code>
+  </div>
+</div>
+
+</body>
+</html>
