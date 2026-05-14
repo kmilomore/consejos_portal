@@ -30,13 +30,15 @@ Experiencia principal:
 - Shell autenticado por establecimiento con navegación lateral
 - Selector de escuela para ADMIN (`SchoolSelector`)
 - Selector de escuela con búsqueda tipeable en la navegación lateral
-- Acceso por representante de consejo escolar usando `CORREO REPRESENTANTE`
-- Alcance por RBD para representantes: ven solo escuelas asociadas a su correo
-- Acceso global adicional para correos presentes en `admin_user_roles`
+- Acceso resuelto desde una tabla única `usuario_establecimiento_roles` por `email_normalizado + rbd + rol`
+- Perfil de director derivado desde `DIRECTOR/A` + `CORREO ELECTRÓNICO` de `BASE DE DATOS ESCUELAS SLEP`
+- Cobertura de representantes derivada desde `CORREO REPRESENTANTE` por RBD en la misma base maestra
+- Admin global resuelto también desde `usuario_establecimiento_roles` con `rol = 'ADMIN'` y `rbd = null`
 - Shell principal adaptado a ancho completo de pantalla y navegación con logo institucional `SLEPCOLCHAGUA.webp`
 - Rediseño parcial del shell y módulos compartidos para mejorar jerarquía, tablas, botones, carga y lectura operativa
 - Persistencia de escuela seleccionada en navegación admin mediante `localStorage`
 - Corrección de persistencia de `selectedRbd` para evitar que la escuela activa se limpie durante la carga inicial del perfil `ADMIN`
+- Corrección de hidratación en auth para restaurar caché y `selectedRbd` solo después del montaje cliente, evitando React error `418` al entrar con escuela activa persistida
 - Dropdown de escuelas diferenciado entre admin global y representante con alcance acotado por correo autenticado
 - Panel admin agregado también acotado por escuelas y territorios del representante cuando no es admin global
 - Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
@@ -95,7 +97,7 @@ Experiencia principal:
 - Aplicar en Supabase la migración `20260424_consejos_actas_registro_documental.sql` si aún no está corrida
 - Cierre de redirect si Supabase Auth sigue apuntando al portal antiguo
 - Endurecimiento de métricas según reglas de negocio finales
-- Aplicar en Supabase la migración `20260424_consejos_representante_scope.sql` si aún no está corrida
+- Aplicar en Supabase la migración `20260514_consejos_usuario_establecimiento_roles.sql` si aún no está corrida
 
 ---
 
@@ -315,8 +317,8 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 | Botones, badges, toasts | `components/ui/button.tsx` | `components/ui/badge.tsx`, `components/ui/toast.tsx` |
 | Fetch de snapshot portal | `lib/supabase/use-portal-snapshot.tsx` | `lib/supabase/queries.ts` |
 | Consultas, mutaciones y uploads Supabase | `lib/supabase/queries.ts` | `lib/supabase/client.ts` |
-| Directorio filtrado de escuelas | `lib/supabase/use-slep-directorio.ts` | `supabase/migrations/20260424_consejos_representante_scope.sql`, `establecimientos` |
-| Roles, RLS, bootstrap y permisos | `supabase/migrations/20260424_consejos_representante_scope.sql` | `supabase/migrations/20260416_consejos_fix_rls_recursion.sql` |
+| Directorio filtrado de escuelas | `lib/supabase/use-slep-directorio.ts` | `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql`, `establecimientos` |
+| Roles, RLS, bootstrap y permisos | `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql` | `supabase/migrations/20260416_consejos_fix_rls_recursion.sql` |
 
 ### Mapa por carpetas
 
@@ -341,6 +343,7 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 
 `supabase/migrations/`
 - fuente de verdad del comportamiento de permisos, bootstrap y RPC SQL
+- la definición efectiva vigente de acceso por correo/RBD/rol está en `20260514_consejos_usuario_establecimiento_roles.sql`
 - cualquier mejora de acceso o filtrado debe documentarse aquí y en este `context.md`
 
 `types/`
@@ -375,7 +378,7 @@ Ruta 4 — mejorar actas:
 - `lib/supabase/queries.ts`
 
 Ruta 5 — mejorar permisos o acceso por correo:
-- `supabase/migrations/20260424_consejos_representante_scope.sql`
+- `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql`
 - `lib/supabase/auth-context.tsx`
 - `lib/supabase/use-slep-directorio.ts`
 
@@ -391,7 +394,8 @@ Ruta 5 — mejorar permisos o acceso por correo:
 | `20260417_sync_establecimientos_full.sql` | Sincronización completa de establecimientos |
 | `20260418_save_acta_atomic.sql` | RPC `save_acta_complete` (transacción atómica) |
 | `20260424_consejos_actas_registro_documental.sql` | Extiende `actas` para modo híbrido documental y horarios nullable |
-| `20260424_consejos_representante_scope.sql` | Acceso por representante + alcance por RBD + directorio SLEP filtrado |
+| `20260424_consejos_representante_scope.sql` | Primera versión del alcance por representante; reemplazada operacionalmente por `20260514_consejos_usuario_establecimiento_roles.sql` |
+| `20260514_consejos_usuario_establecimiento_roles.sql` | Tabla única `usuario_establecimiento_roles`, sync desde base maestra, bootstrap y RLS por alcance |
 
 ---
 
@@ -439,10 +443,10 @@ Luego limpia los parámetros con `history.replaceState`.
 3. Si `profile.rbd` existe, consulta `establecimientos`
 4. `useEffect` depende de `userId` (no de `session` completa) para evitar re-renders por renovación de JWT
 
-Desde 2026-04-24 el bootstrap admite tres casos:
-- correo en `admin_correos` o `admin_user_roles` → `ADMIN` global
-- correo presente en `CORREO REPRESENTANTE` → `ADMIN` con alcance limitado por RBD
-- correo de director en base maestra → `DIRECTOR` con un solo RBD
+Desde 2026-05-14 el bootstrap admite tres casos sobre la tabla única `usuario_establecimiento_roles`:
+- correo con fila `rol = 'ADMIN'` y `rbd = null` → `ADMIN` global
+- correo presente en `CORREO REPRESENTANTE` sincronizado a `rol = 'REPRESENTANTE'` por RBD → navegación administrativa con alcance limitado a sus escuelas
+- correo de director en `CORREO ELECTRÓNICO` sincronizado a `rol = 'DIRECTOR'` por RBD → `DIRECTOR` con un solo RBD
 
 ### 7.5 Redirecciones en AppFrame
 
@@ -475,13 +479,14 @@ Comportamiento actual:
 - limpiar la selección redirige a `/admin/`
 - el listado visible ya no depende de un catálogo global en cliente, sino del alcance entregado por Supabase
 
-### Avance 2 — Acceso por representante de consejo escolar
+### Avance 2 — Acceso unificado por correo, rol y RBD
 
-Se agregó la migración `20260424_consejos_representante_scope.sql` con este objetivo:
-- permitir acceso a correos presentes en `CORREO REPRESENTANTE`
-- permitir acceso global a correos presentes en `admin_user_roles`
-- construir un perfil autenticado aun cuando el usuario no sea director
-- limitar la visibilidad a las escuelas asociadas a ese correo
+La definición efectiva vigente quedó en `20260514_consejos_usuario_establecimiento_roles.sql` con este objetivo:
+- centralizar el acceso en la tabla única `usuario_establecimiento_roles`
+- usar `RBD` como identificador único para cruzar datos operativos y de escuela
+- sincronizar directores desde `DIRECTOR/A` + `CORREO ELECTRÓNICO`
+- sincronizar representantes desde `REPRESENTANTE CONSEJO ESCOLAR` + `CORREO REPRESENTANTE`
+- permitir admins globales desde filas `rol = 'ADMIN'` sin `rbd`
 
 Funciones nuevas o redefinidas:
 - `is_global_admin()`
@@ -490,10 +495,10 @@ Funciones nuevas o redefinidas:
 - `is_admin()` ahora equivale a admin global, no a representante con alcance parcial
 - `bootstrap_current_user_profile_from_base_escuelas()` ahora contempla admin global, representante y director
 
-Detalle adicional del criterio de admin global:
-- primero se revisa `admin_correos`
-- luego se revisa `admin_user_roles` si la tabla existe en la base
-- la búsqueda en `admin_user_roles` tolera columnas `correo_electronico`, `email` o `correo`
+Detalle adicional del criterio vigente:
+- `is_global_admin()` ya no depende de `usuarios_perfiles`; lee `usuario_establecimiento_roles`
+- `current_accessible_rbds()` devuelve todos los `RBD` para admin global y solo los `RBD` asignados para representante/director
+- `bootstrap_current_user_profile_from_base_escuelas()` crea `usuarios_perfiles` como proyección de la tabla única, no como fuente de verdad del alcance
 
 ### Avance 3 — Endurecimiento de RLS por alcance
 
@@ -511,6 +516,7 @@ Tablas y superficies endurecidas:
 Resultado esperado:
 - un representante puede entrar con perfil administrativo de navegación
 - pero solo puede ver o mutar datos de sus escuelas asociadas
+- admin global puede además seleccionar cualquier escuela activa y entrar a su perfil y datos operativos
 
 ### Avance 4 — Validación técnica realizada
 
@@ -876,12 +882,13 @@ Resultado:
 ## 9. Riesgos y Observaciones Actuales
 
 - La migración `bootstrap_current_user_profile_from_base_escuelas()` se redefine varias veces en el historial; la definición efectiva es la última aplicada.
-- Si la migración `20260424_consejos_representante_scope.sql` no se ejecuta en la base real, el frontend seguirá mostrando el comportamiento anterior.
-- El rol persistido para representantes es `ADMIN`, pero la seguridad real ya no depende solo del rol sino de `has_school_scope_access(...)`.
-- `usuarios_perfiles` sigue permitiendo lectura completa solo a admins globales; el representante solo puede leer su propio perfil.
-- `admin_user_roles` no está definido en este repo; la migración quedó defensiva y solo lo consulta si la tabla existe en la base real.
+- Si la migración `20260514_consejos_usuario_establecimiento_roles.sql` no se ejecuta en la base real, el frontend seguirá mostrando el comportamiento anterior.
+- La seguridad real ya no depende del texto en `usuarios_perfiles.rol`; depende de `usuario_establecimiento_roles`, `is_global_admin()` y `current_accessible_rbds()`.
+- `usuarios_perfiles` ahora permite lectura por alcance: admin global ve todo y representantes pueden leer perfiles de escuelas dentro de su cobertura RBD.
+- El admin sembrado en la migración debe usar el correo real de login; si se deja una variante incorrecta del dominio, el bootstrap no lo tratará como global.
 - El shell principal ya no depende de un ancho máximo fijo; futuras vistas deben respetar esa expansión y evitar wrappers internos demasiado angostos.
 - La escuela activa en contexto ya es una dependencia funcional del flujo de actas; cualquier cambio en `selectedRbd` debe validarse también abriendo `Nueva acta`.
+- La restauración de `selectedRbd` y caché de auth no debe volver a ejecutarse durante el render inicial; hacerlo reintroduce hydration mismatch en producción.
 - Si una mejora toca experiencia y permisos al mismo tiempo, actualizar siempre este `context.md` además del archivo funcional y la migración SQL correspondiente.
 - Si la migración `20260424_consejos_actas_registro_documental.sql` no está aplicada, el frontend híbrido quedará desalineado con la base y fallarán `modo_registro`, `observacion_documental` o los horarios nullable.
 - `lib/supabase/queries.ts` es el punto canónico del snapshot y de las mutaciones de actas; no debe reemplazarse con implementaciones externas ni imports a `@/utils/...`.
@@ -900,6 +907,7 @@ Resultado:
 | Tabla | Descripción |
 |---|---|
 | `establecimientos` | Escuelas del SLEP (derivada de la base maestra) |
+| `usuario_establecimiento_roles` | Fuente de verdad del acceso por `correo + rol + RBD` |
 | `usuarios_perfiles` | Perfil extendido del usuario autenticado |
 | `programacion` | Planificación de sesiones de Consejo |
 | `actas` | Actas oficiales de sesiones |
@@ -910,7 +918,7 @@ Resultado:
 ### Tipos funcionales expuestos al frontend (`types/domain.ts`)
 
 ```ts
-type UserRole      = "ADMIN" | "DIRECTOR"
+type UserRole      = "ADMIN" | "DIRECTOR" | string
 type SessionType   = "Ordinaria" | "Extraordinaria"
 type SessionFormat = "Presencial" | "Online" | "Híbrido"
 type PlanningStatus = "PROGRAMADA" | "REALIZADA" | "CANCELADA"
@@ -920,7 +928,9 @@ type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL"
 ### Reglas de negocio modeladas
 
 - La identidad del establecimiento gira alrededor del `RBD`
+- El acceso real se decide por `usuario_establecimiento_roles`, no por el texto de `usuarios_perfiles.rol`
 - El rol `DIRECTOR` queda acotado a su propio RBD en toda escritura
+- El representante puede navegar con perfil administrativo, pero su alcance efectivo sigue limitado a los `RBD` asignados
 - El rol `ADMIN` puede ver y gestionar datos de cualquier establecimiento
 - El N° de sesión se calcula del servidor (`count(actas por rbd+tipo) + 1`) — nunca editable en UI
 - Los PDFs de evidencia viven en el bucket `actas` con path `{rbd}/{año}/{actaId}.pdf`
@@ -939,8 +949,10 @@ La autenticación depende operativamente de `public."BASE DE DATOS ESCUELAS SLEP
 | Función | Propósito |
 |---|---|
 | `normalize_portal_email(raw_email)` | Normaliza correo para matching |
+| `base_escuelas_access_rows()` | Proyección normalizada de acceso desde la base maestra |
 | `base_escuelas_normalized_rows()` | Lee filas normalizadas de la base maestra |
 | `sync_establecimientos_from_base_escuelas()` | Sincroniza tabla `establecimientos` |
+| `sync_usuario_establecimiento_roles_from_base_escuelas()` | Sincroniza `usuario_establecimiento_roles` desde la base maestra |
 | `bootstrap_current_user_profile_from_base_escuelas()` | Crea/actualiza `usuarios_perfiles` |
 | `get_slep_directorio()` | RPC para el selector de establecimientos en formularios |
 
@@ -948,8 +960,11 @@ La autenticación depende operativamente de `public."BASE DE DATOS ESCUELAS SLEP
 
 Columnas necesarias para matching:
 - `RBD`
-- Nombre del establecimiento
-- Correo del director/responsable (variantes aceptadas: `CORREO ELECTRONICO`, `CORREO`, `EMAIL`)
+- `NOMBRE ESTABLECIMIENTO`
+- `DIRECTOR/A`
+- `CORREO ELECTRÓNICO`
+- `REPRESENTANTE CONSEJO ESCOLAR`
+- `CORREO REPRESENTANTE`
 
 Si la base real difiere del esquema inferido, el bootstrap puede vincular mal usuarios.
 
@@ -984,14 +999,19 @@ El snapshot incluye diagnósticos por scope (`ok`, `empty`, `error`, `info`). `D
 
 ```sql
 -- SIEMPRE con SECURITY DEFINER — ver lección crítica §18
-CREATE OR REPLACE FUNCTION public.is_admin() RETURNS boolean
+CREATE OR REPLACE FUNCTION public.is_global_admin() RETURNS boolean
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-    SELECT EXISTS (SELECT 1 FROM public.usuarios_perfiles WHERE id = auth.uid() AND rol = 'ADMIN');
+    -- consulta usuario_establecimiento_roles por correo autenticado
 $$;
 
-CREATE OR REPLACE FUNCTION public.current_user_rbd() RETURNS text
+CREATE OR REPLACE FUNCTION public.current_accessible_rbds() RETURNS TABLE (rbd text)
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-    SELECT rbd FROM public.usuarios_perfiles WHERE id = auth.uid();
+    -- devuelve todos los RBD si el correo tiene rol ADMIN; en otro caso, solo sus RBD asignados
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_school_scope_access(target_rbd text) RETURNS boolean
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    -- resuelve lectura/escritura por RBD a partir del alcance efectivo del correo autenticado
 $$;
 ```
 
@@ -1000,7 +1020,7 @@ $$;
 | Tabla | Lectura | Escritura |
 |---|---|---|
 | `establecimientos` | Admin o RBD propio | Admin |
-| `usuarios_perfiles` | Perfil propio o admin | Perfil propio (bootstrap via función) |
+| `usuarios_perfiles` | Perfil propio, admin global o perfiles dentro de RBD accesible | Perfil propio (bootstrap via función) |
 | `programacion` | Por RBD o admin | Por RBD o admin |
 | `actas` | Por RBD o admin | Por RBD o admin |
 | `actas_invitados` | Ligado al acta visible | Ligado al acta del RBD |

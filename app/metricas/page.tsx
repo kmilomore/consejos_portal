@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
 import { StatCard } from "@/components/portal/stat-card";
+import { usePortalAuth } from "@/lib/supabase/auth-context";
 import { usePortalSnapshot } from "@/lib/supabase/use-portal-snapshot";
 import { cn, formatDate, formatPercent } from "@/lib/utils";
 
@@ -68,8 +69,11 @@ function buildSessionMetricRows(
 }
 
 export default function MetricasPage() {
+  const { isGlobalAdmin, landingRoute } = usePortalAuth();
   const { snapshot, status } = usePortalSnapshot();
   const [selectedSessionNumber, setSelectedSessionNumber] = useState<number | null>(null);
+  const isDirectorView = !isGlobalAdmin && landingRoute === "/resumen/";
+  const isRepresentativeView = !isGlobalAdmin && landingRoute === "/admin/";
   const sessionRows = buildSessionMetricRows(snapshot.actas, snapshot.programaciones, snapshot.establishments);
   const establishmentByRbd = new Map(snapshot.establishments.map((item) => [item.rbd, item]));
   const totalSesionesRealizadas = snapshot.actas.length;
@@ -89,6 +93,23 @@ export default function MetricasPage() {
     ? 0
     : Math.min(sesionesOrdinariasRegistradas / metaSesionesOrdinarias, 1);
   const porcentajeCompletas = totalActas === 0 ? 0 : Math.round((actasCompletas / totalActas) * 100);
+  const metricasDescription = isDirectorView
+    ? "Indicadores de tu establecimiento, con foco en el cumplimiento normativo anual de las 4 sesiones ordinarias."
+    : isRepresentativeView
+      ? "Indicadores consolidados de tus establecimientos asignados, incluyendo avance normativo y paneles asociados a su cobertura."
+      : "Indicadores globales de sesiones realizadas, avance normativo y distribución territorial del año en curso.";
+  const sesionesRealizadasDetail = isDirectorView
+    ? `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas por tu establecimiento durante el año.`
+    : isRepresentativeView
+      ? `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro de tus escuelas asignadas.`
+      : `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro del alcance actual.`;
+  const sesionesOrdinariasDetail = isDirectorView
+    ? "Meta normativa anual: 4 sesiones ordinarias para tu establecimiento."
+    : `Meta normativa anual: ${metaSesionesOrdinarias} sesiones ordinarias para ${establecimientosEnScope} establecimiento${establecimientosEnScope === 1 ? "" : "s"}.`;
+  const avanceDescription = isDirectorView
+    ? "Cada bloque muestra si tu establecimiento ya cerró cada una de las 4 sesiones ordinarias exigidas por la normativa anual."
+    : "Cada bloque muestra cuántos establecimientos ya cerraron esa sesión ordinaria, cuánto falta para completar la meta anual y permite revisar las escuelas pendientes al hacer click.";
+  const faltantesLabel = isDirectorView ? "sesión ordinaria" : "establecimiento";
   const sesionesOrdinariasPorNumero = [1, 2, 3, 4].map((numeroSesion) => {
     const rbdsCumplidos = new Set(
       snapshot.actas
@@ -180,7 +201,7 @@ export default function MetricasPage() {
         <p className="text-xs font-bold uppercase tracking-[0.34em] text-ocean">Análisis</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Métricas</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Indicadores globales de sesiones realizadas, avance normativo y distribución territorial del año en curso.
+          {metricasDescription}
         </p>
       </div>
 
@@ -188,12 +209,12 @@ export default function MetricasPage() {
         <StatCard
           label="Sesiones realizadas"
           value={String(totalSesionesRealizadas)}
-          detail={`Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro del alcance actual.`}
+          detail={sesionesRealizadasDetail}
         />
         <StatCard
           label="Sesiones ordinarias"
           value={String(sesionesOrdinariasRealizadas)}
-          detail={`Meta normativa anual: ${metaSesionesOrdinarias} sesiones ordinarias para ${establecimientosEnScope} establecimiento${establecimientosEnScope === 1 ? "" : "s"}.`}
+          detail={sesionesOrdinariasDetail}
         />
         <StatCard
           label="Sesiones extraordinarias"
@@ -219,7 +240,7 @@ export default function MetricasPage() {
         <SectionCard
           eyebrow="Cumplimiento"
           title="Avance de sesiones ordinarias 1 a 4"
-          description="Cada bloque muestra cuántos establecimientos ya cerraron esa sesión ordinaria, cuánto falta para completar la meta anual y permite revisar las escuelas pendientes al hacer click."
+          description={avanceDescription}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             {sesionesOrdinariasPorNumero.map((item) => (
@@ -249,10 +270,10 @@ export default function MetricasPage() {
                   />
                 </div>
                 <p className="mt-3 text-sm text-neutral-600">
-                  Faltan {item.faltantes} establecimiento{item.faltantes === 1 ? "" : "s"} por cerrar esta sesión ordinaria.
+                  Faltan {item.faltantes} {faltantesLabel}{item.faltantes === 1 ? "" : "es"} por cerrar esta sesión ordinaria.
                 </p>
                 <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-ocean">
-                  {selectedSessionNumber === item.numeroSesion ? "Ocultar pendientes" : "Ver escuelas faltantes"}
+                  {selectedSessionNumber === item.numeroSesion ? "Ocultar pendientes" : isDirectorView ? "Ver detalle" : "Ver escuelas faltantes"}
                 </p>
               </button>
             ))}
@@ -269,11 +290,15 @@ export default function MetricasPage() {
                   </h3>
                 </div>
                 <p className="text-sm text-neutral-600">
-                  {selectedSession.escuelasFaltantes.length} establecimiento{selectedSession.escuelasFaltantes.length === 1 ? "" : "s"} aún no registra{selectedSession.escuelasFaltantes.length === 1 ? "" : "n"} esta sesión.
+                  {isDirectorView
+                    ? (selectedSession.escuelasFaltantes.length === 0
+                        ? "Tu establecimiento ya registra esta sesión."
+                        : "Tu establecimiento aún no registra esta sesión.")
+                    : `${selectedSession.escuelasFaltantes.length} establecimiento${selectedSession.escuelasFaltantes.length === 1 ? "" : "s"} aún no registra${selectedSession.escuelasFaltantes.length === 1 ? "" : "n"} esta sesión.`}
                 </p>
               </div>
               {selectedSession.escuelasFaltantes.length === 0 ? (
-                <p className="mt-4 text-sm text-status-success">Todos los establecimientos en alcance ya cumplieron esta sesión ordinaria.</p>
+                <p className="mt-4 text-sm text-status-success">{isDirectorView ? "Tu establecimiento ya cumplió esta sesión ordinaria." : "Todos los establecimientos en alcance ya cumplieron esta sesión ordinaria."}</p>
               ) : (
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   {selectedSession.escuelasFaltantes.map((item) => (
@@ -291,75 +316,77 @@ export default function MetricasPage() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <SectionCard
-          eyebrow="Territorio"
-          title="Sesiones realizadas por comuna"
-          description="Desglose total con separación entre sesiones ordinarias y extraordinarias registradas en actas."
-        >
-          {sesionesPorComuna.length === 0 ? (
-            <p className="text-sm text-neutral-400">Sin sesiones registradas aún.</p>
-          ) : (
-            <div className="overflow-hidden rounded-card border border-neutral-200">
-              <table className="w-full text-sm">
-                <thead className="bg-neutral-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Comuna</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Ordinarias</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Extraordinarias</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Total</th>
-                    <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 md:table-cell">Peso</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {sesionesPorComuna.map((item) => (
-                    <tr key={item.comuna} className="transition-colors hover:bg-mist/60">
-                      <td className="px-4 py-3.5 font-semibold text-ink">{item.comuna}</td>
-                      <td className="px-4 py-3.5 text-right text-neutral-600">{item.ordinarias}</td>
-                      <td className="px-4 py-3.5 text-right text-neutral-600">{item.extraordinarias}</td>
-                      <td className="px-4 py-3.5 text-right font-semibold text-ocean">{item.total}</td>
-                      <td className="hidden px-4 py-3.5 text-right text-neutral-500 md:table-cell">{formatPercent(item.porcentaje)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SectionCard>
-
-        <SectionCard
-          eyebrow="Ranking"
-          title="Top 3 escuelas con más sesiones"
-          description="Se consideran las sesiones efectivamente realizadas y registradas durante el año."
-        >
-          <div className="space-y-4">
-            {topEscuelas.length === 0 ? (
+      {isDirectorView ? null : (
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <SectionCard
+            eyebrow="Territorio"
+            title="Sesiones realizadas por comuna"
+            description="Desglose total con separación entre sesiones ordinarias y extraordinarias registradas en actas."
+          >
+            {sesionesPorComuna.length === 0 ? (
               <p className="text-sm text-neutral-400">Sin sesiones registradas aún.</p>
             ) : (
-              topEscuelas.map((item, index) => (
-                <div key={item.rbd} className="rounded-card bg-mist p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">Top {index + 1}</p>
-                      <p className="mt-1 font-semibold text-ink">{item.nombre}</p>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                        {item.comuna} · RBD {item.rbd}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-semibold text-ocean">{item.total}</p>
-                      <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">sesiones</p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm text-neutral-600">
-                    {item.ordinarias} ordinaria{item.ordinarias === 1 ? "" : "s"} y {item.extraordinarias} extraordinaria{item.extraordinarias === 1 ? "" : "s"}.
-                  </p>
-                </div>
-              ))
+              <div className="overflow-hidden rounded-card border border-neutral-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-neutral-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Comuna</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Ordinarias</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Extraordinarias</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Total</th>
+                      <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 md:table-cell">Peso</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {sesionesPorComuna.map((item) => (
+                      <tr key={item.comuna} className="transition-colors hover:bg-mist/60">
+                        <td className="px-4 py-3.5 font-semibold text-ink">{item.comuna}</td>
+                        <td className="px-4 py-3.5 text-right text-neutral-600">{item.ordinarias}</td>
+                        <td className="px-4 py-3.5 text-right text-neutral-600">{item.extraordinarias}</td>
+                        <td className="px-4 py-3.5 text-right font-semibold text-ocean">{item.total}</td>
+                        <td className="hidden px-4 py-3.5 text-right text-neutral-500 md:table-cell">{formatPercent(item.porcentaje)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
-        </SectionCard>
-      </div>
+          </SectionCard>
+
+          <SectionCard
+            eyebrow="Ranking"
+            title="Top 3 escuelas con más sesiones"
+            description="Se consideran las sesiones efectivamente realizadas y registradas durante el año."
+          >
+            <div className="space-y-4">
+              {topEscuelas.length === 0 ? (
+                <p className="text-sm text-neutral-400">Sin sesiones registradas aún.</p>
+              ) : (
+                topEscuelas.map((item, index) => (
+                  <div key={item.rbd} className="rounded-card bg-mist p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-500">Top {index + 1}</p>
+                        <p className="mt-1 font-semibold text-ink">{item.nombre}</p>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                          {item.comuna} · RBD {item.rbd}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-3xl font-semibold text-ocean">{item.total}</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">sesiones</p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-neutral-600">
+                      {item.ordinarias} ordinaria{item.ordinarias === 1 ? "" : "s"} y {item.extraordinarias} extraordinaria{item.extraordinarias === 1 ? "" : "s"}.
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </SectionCard>
+        </div>
+      )}
 
       <SectionCard
         eyebrow="Trazabilidad"

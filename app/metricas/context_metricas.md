@@ -1,6 +1,6 @@
 # Contexto del modulo /metricas
 
-> Ultima actualizacion: 2026-05-12
+> Ultima actualizacion: 2026-05-14
 
 ## Objetivo
 
@@ -54,12 +54,18 @@ Patron correcto vigente para consistencia:
 
 ### 1. KPIs superiores
 
-La cabecera de metricas muestra cuatro indicadores globales basados en `snapshot.actas`:
+La cabecera de metricas muestra cuatro indicadores basados en `snapshot.actas` del alcance actual:
 
 - `Sesiones realizadas`: total de actas registradas dentro del alcance actual.
 - `Sesiones ordinarias`: conteo de actas del tipo `Ordinaria`.
 - `Sesiones extraordinarias`: conteo de actas del tipo `Extraordinaria`.
 - `Cumplimiento de ordinarias`: porcentaje de sesiones ordinarias registradas contra la meta anual.
+
+Regla de alcance vigente:
+
+- director: ve solo metricas de su establecimiento; el cruce normativo siempre se hace contra `4` sesiones ordinarias al ano
+- representante con alcance parcial: ve metricas agregadas solo sobre sus establecimientos asignados
+- admin global: ve la agregacion completa del alcance total disponible
 
 ### 2. Asistencia por estamento
 
@@ -76,6 +82,12 @@ Para cada numero de sesion muestra:
 - cantidad de establecimientos pendientes para cerrar esa sesion
 - accion de click para desplegar el listado de escuelas que aun no cumplen esa sesion
 
+Excepcion para director:
+
+- la lectura sigue usando la misma formula normativa, pero el universo es un unico establecimiento
+- por eso cada tarjeta representa avance sobre una meta anual fija de `4` sesiones ordinarias para su escuela
+- el detalle no debe presentarse como panel global ni territorial
+
 ### 4. Sesiones realizadas por comuna
 
 La pagina calcula la distribucion territorial en base a `snapshot.actas` y muestra:
@@ -83,6 +95,8 @@ La pagina calcula la distribucion territorial en base a `snapshot.actas` y muest
 - total de sesiones por comuna
 - separacion entre ordinarias y extraordinarias
 - porcentaje relativo sobre el total de sesiones realizadas
+
+Este bloque no se muestra en vista director.
 
 ### 5. Top de establecimientos
 
@@ -95,6 +109,8 @@ Para cada establecimiento muestra:
 - comuna
 - total de sesiones
 - desglose entre ordinarias y extraordinarias
+
+Este bloque no se muestra en vista director.
 
 ### 6. Trazabilidad y acceso al registro
 
@@ -143,6 +159,8 @@ La formula aplicada es:
 - `sesiones_ordinarias_registradas` se calcula con `snapshot.actas` del alcance actual.
 - `establecimientos_en_scope` toma `snapshot.establishments` y, como respaldo, los RBD presentes en las sesiones consolidadas.
 - El valor se limita a `100%` para evitar sobrepasar la meta visual.
+- Para director, `establecimientos_en_scope` debe resolver efectivamente a `1`; si la UI muestra un denominador mayor, el problema esta en el scope del snapshot o del auth bootstrap.
+- Para representante parcial, el denominador debe ser `4 * establecimientos_asignados_en_scope`.
 
 ## Regla para avance por sesion 1 a 4
 
@@ -183,6 +201,8 @@ Esto permite navegar desde metricas al registro exacto sin duplicar UI ni estado
 - No agregar estados de carga globales dentro de la pagina si el snapshot ya esta disponible.
 - No limpiar ni invalidar el snapshot compartido por cambios de filtro, tabs o navegacion secundaria.
 - No asumir que un faltante en metricas implica ausencia real de acta; confirmar siempre contra `actas` y version del snapshot.
+- No volver a mostrar paneles `Territorio` ni `Top 3 escuelas` en vista director.
+- No presentar texto de “indicadores globales” cuando el usuario esta en alcance director o representante parcial.
 
 ## Archivos involucrados
 

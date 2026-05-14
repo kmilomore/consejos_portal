@@ -84,7 +84,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - persistencia de correo de invitados en BD
 - selector UI para `programacion_origen_id`
 - definición final de KPIs que cuentan solo `ACTA_COMPLETA` vs ambos modos
-- confirmación en entorno real de que `20260424_consejos_representante_scope.sql` está aplicada; sin esa migración el alcance por comuna/escuela/representante no queda garantizado
+- confirmación en entorno real de que `20260514_consejos_usuario_establecimiento_roles.sql` está aplicada; sin esa migración el alcance por correo/RBD/rol no queda garantizado
 
 ---
 
@@ -430,7 +430,7 @@ No tocar sin revisar primero:
 ## 8. Problemas, Riesgos y Fragilidades Actuales
 
 - si no está aplicada `20260424_consejos_actas_registro_documental.sql`, el frontend híbrido queda desalineado con la base
-- si no está aplicada `20260424_consejos_representante_scope.sql`, los representantes pueden terminar viendo un comportamiento incoherente con la cobertura esperada
+- si no está aplicada `20260514_consejos_usuario_establecimiento_roles.sql`, los representantes pueden terminar viendo un comportamiento incoherente con la cobertura esperada
 - si no está aplicada `20260505_consejos_storage_evidencias_50mb.sql`, la UI puede aceptar hasta 50 MB pero Supabase Storage seguirá rechazando archivos sobre 10 MB
 - si se rompe `queries.ts`, el módulo puede compilar pero cargar semántica equivocada
 - el flujo cliente-side todavía no es transaccional entre acta e invitados
@@ -442,7 +442,7 @@ No tocar sin revisar primero:
 - un archivo rechazado por tamaño máximo debe también resetear `uploadStatus`; de lo contrario el banner de error previo convive con el nuevo mensaje de validación
 
 - el límite vigente de carga para documentos de acta es 50 MB y debe mantenerse alineado entre UI y bucket `evidencias_actas`
-- el texto del perfil en `usuarios_perfiles.rol` no basta para inferir alcance: hoy el verdadero permiso global está en `is_global_admin()` y el scope territorial en `current_accessible_rbds()`
+- el texto del perfil en `usuarios_perfiles.rol` no basta para inferir alcance: hoy el verdadero permiso global está en `usuario_establecimiento_roles` vía `is_global_admin()` y el scope territorial en `current_accessible_rbds()`
 - si se añade un rol nuevo que no sea `DIRECTOR` ni `ADMIN` pero tenga scope parcial, el guard `isGlobalAdmin + accessibleRbds` lo cubre automáticamente siempre que `get_current_portal_scope()` devuelva sus RBDs correctamente
 - drafts creados antes de 2026-05-11 están en formato `FormState` plano (sin `savedAt`); `parseSavedDraft` los descarta automáticamente al no encontrar `savedAt` — ningún dato queda huérfano
 - `getAttendeesSuggestions` depende de que `actas` tenga datos de asistentes del mismo RBD; si el usuario crea su primer acta para un establecimiento, no habrá sugerencias — el campo funciona igual sin datalist
@@ -509,7 +509,7 @@ Razón:
 8. `queries.ts` sigue siendo el loader y mutador canónico del módulo.
 9. los asistentes presentes requieren trazabilidad mínima: nombre, RUT, correo, modalidad.
 10. la operación híbrida debe seguir funcionando para las 4 comunas sin flags separados en frontend.
-11. el representante del sostenedor puede navegar con perfil tipo admin, pero su visibilidad efectiva debe seguir limitada por RBD/comuna autorizados en Supabase.
+11. el representante del sostenedor puede navegar con perfil tipo admin, pero su visibilidad efectiva debe seguir limitada por los RBD autorizados en `usuario_establecimiento_roles`.
 12. `validate(draft)` debe proteger todas las reglas que son invariantes de BD aunque el guardado sea parcial.
 13. el guard de RBD en `handleSubmit` usa `isGlobalAdmin + accessibleRbds`, no el rol textual; no reemplazar.
 14. los drafts en localStorage tienen formato `{ form, savedAt }` y TTL de 24 horas; `parseSavedDraft` es la única función que los lee.
@@ -530,7 +530,7 @@ Antes de editar:
 
 1. Revisar `context.md` y este archivo.
 2. Verificar si están aplicadas `20260424_consejos_storage_evidencias_public_any_file.sql` y `20260505_consejos_storage_evidencias_50mb.sql` cuando haya cambios de storage, tipos de archivo o tamaño máximo.
-3. Verificar si está aplicada `20260424_consejos_representante_scope.sql` antes de concluir que un problema de visibilidad es “solo frontend”.
+3. Verificar si está aplicada `20260514_consejos_usuario_establecimiento_roles.sql` antes de concluir que un problema de visibilidad es “solo frontend”.
 2. Confirmar si el cambio afecta `ACTA_COMPLETA`, `REGISTRO_DOCUMENTAL` o ambos.
 3. Verificar si toca contrato de dominio, snapshot o migración.
 
