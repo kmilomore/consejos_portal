@@ -96,6 +96,12 @@ Si falta cualquiera de esas variables, la autenticación queda inoperante en el 
 - login por Google;
 - cierre de sesión.
 
+Regla operativa vigente de acceso:
+
+- el equipo interno del portal mantiene su lógica principal desde `usuarios_perfiles`;
+- los directores deben poder resolver acceso desde `usuario_establecimiento_roles` cuando el correo autenticado coincide con `email_normalizado` o `correo_electronico`;
+- ese fallback no debe convertir al equipo en directores ni reemplazar la lógica actual de representantes con cobertura parcial.
+
 Esto implica que la página de login es una capa delgada: la lógica crítica de autenticación vive principalmente en el contexto.
 
 ## Supuestos operativos

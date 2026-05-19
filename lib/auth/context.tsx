@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { STORAGE_KEYS } from "@/lib/constants";
+import type { Database } from "@/types/database.types";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
 
 const LOAD_ACCESS_TIMEOUT_MS = 15_000;
@@ -11,6 +12,8 @@ const LOAD_ACCESS_TIMEOUT_MS = 15_000;
 interface AuthResult {
   error?: string;
 }
+
+type AccessRoleRow = Database["public"]["Tables"]["usuario_establecimiento_roles"]["Row"];
 
 function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
   const message = (rawMessage ?? "").trim();
@@ -134,6 +137,22 @@ function clearStoredAuthState() {
   } catch {
     // Ignore storage cleanup failures.
   }
+}
+
+function normalizePortalEmail(rawEmail: string | null | undefined) {
+  const email = rawEmail?.trim().toLowerCase() ?? "";
+  return email.length > 0 ? email : null;
+}
+
+function readRoleMetadata(metadata: AccessRoleRow["metadata"]) {
+  const metadataRecord = typeof metadata === "object" && metadata !== null
+    ? metadata as Record<string, unknown>
+    : null;
+
+  return {
+    comuna: typeof metadataRecord?.comuna === "string" ? metadataRecord.comuna : null,
+    director: typeof metadataRecord?.director === "string" ? metadataRecord.director : null,
+  };
 }
 
 function resolveAuthRedirectUrl() {
@@ -346,6 +365,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   }, [supabase]);
 
   const userId = session?.user?.id ?? null;
+  const userEmail = session?.user?.email ?? null;
 
   useEffect(() => {
     if (!supabase) {
@@ -371,6 +391,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     // Capture the narrowed string before entering async closures — TypeScript cannot
     // propagate narrowing of outer-scope variables through async functions.
     const uid = userId;
+    const normalizedEmail = normalizePortalEmail(userEmail);
 
     // Abort the load after 15s to avoid an infinite spinner on network issues.
     const timeoutId = setTimeout(() => {
@@ -384,6 +405,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
     async function loadAccess() {
       let bootstrapErrorMessage: string | null = null;
+      let fallbackDirectorRole: AccessRoleRow | null = null;
 
       // Fetch profile, with one bootstrap+retry if the first query finds no row.
       // Extracted into a const-returning helper so TypeScript can narrow the
@@ -416,6 +438,29 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           .single();
       }
 
+      async function fetchDirectorFallbackRole() {
+        if (!normalizedEmail) {
+          return null;
+        }
+
+        const { data, error } = await client
+          .from("usuario_establecimiento_roles")
+          .select("id, correo_electronico, email_normalizado, rbd, rol, equipo, origen, metadata, activo, created_at, updated_at, scope_rbd_key")
+          .eq("activo", true)
+          .eq("rol", "DIRECTOR")
+          .eq("equipo", "DIRECCION")
+          .or(`email_normalizado.eq.${normalizedEmail},correo_electronico.eq.${normalizedEmail}`)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error || !data) {
+          return null;
+        }
+
+        return data as AccessRoleRow;
+      }
+
       const profileResult = await fetchProfileData();
 
       if (cancelled) {
@@ -428,20 +473,35 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const profileData = profileResult.data as Profile | null;
       const profileError = profileResult.error;
 
-      if (profileError || !profileData) {
-        setProfile(null);
-        setEstablishment(null);
-        setAccessError(normalizeAccessErrorMessage(
-          bootstrapErrorMessage
-            ?? profileError?.message
-            ?? "No existe un perfil portal vinculado a este usuario.",
-        ));
-        profileLoaded.current = true;
-        setIsLoading(false);
-        return;
+      let nextProfile = profileData;
+
+      if (profileError || !nextProfile) {
+        fallbackDirectorRole = await fetchDirectorFallbackRole();
+
+        if (!fallbackDirectorRole) {
+          setProfile(null);
+          setEstablishment(null);
+          setAccessError(normalizeAccessErrorMessage(
+            bootstrapErrorMessage
+              ?? profileError?.message
+              ?? "No existe un perfil portal vinculado a este usuario.",
+          ));
+          profileLoaded.current = true;
+          setIsLoading(false);
+          return;
+        }
+
+        const fallbackMetadata = readRoleMetadata(fallbackDirectorRole.metadata);
+        nextProfile = {
+          id: uid,
+          correo_electronico: fallbackDirectorRole.correo_electronico,
+          rol: "DIRECTOR",
+          rbd: fallbackDirectorRole.rbd,
+          comuna: fallbackMetadata.comuna,
+          nombre_director: fallbackMetadata.director,
+        };
       }
 
-      const nextProfile = profileData;
       let resolvedScope: PortalScope = {
         role_text: nextProfile.rol,
         is_global_admin: false,
@@ -536,7 +596,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [establishment, profile, supabase, userId]);
+  }, [establishment, profile, supabase, userEmail, userId]);
 
   useEffect(() => {
     if (!session || isLoading) {

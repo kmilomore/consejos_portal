@@ -742,7 +742,7 @@ export default function ProgramacionPage() {
                     <tr key={row.id} className={index % 2 === 0 ? "bg-white" : "bg-neutral-50/45"}>
                       <td className="px-4 py-4">
                         <p className="font-medium text-ink">{row.tipo_sesion} #{String(row.numero_sesion).padStart(2, "0")}</p>
-                        <p className="text-xs text-neutral-500">RBD {row.rbd}</p>
+                        <p className="text-xs text-neutral-500">{snapshot.establishments.find(e => e.rbd === row.rbd)?.nombre ?? `RBD ${row.rbd}`}</p>
                       </td>
                       <td className="px-4 py-4">{formatDate(row.fecha_programada)} · {row.hora_programada}</td>
                       <td className="px-4 py-4">{row.formato_planeado}</td>

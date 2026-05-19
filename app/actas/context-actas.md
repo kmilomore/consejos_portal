@@ -116,6 +116,12 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 | `supabase/migrations/20260424_consejos_actas_registro_documental.sql` | migración que habilita `modo_registro`, `observacion_documental` y horarios nullable |
 | `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql` | sube el límite del bucket `evidencias_actas` a 50 MB para alinearlo con la UI |
 
+Nota auth vigente:
+
+- el módulo no debe asumir que todo acceso válido nace en `usuarios_perfiles`;
+- para directores, el alcance puede resolverse desde `usuario_establecimiento_roles` por correo autenticado;
+- para el equipo interno y representantes parciales se mantiene la lógica actual basada en `usuarios_perfiles` más flags de scope derivados.
+
 ### Hallazgo operativo 2026-05-12
 
 El problema de “volver a cargar actas al cambiar de página” no estaba en este módulo de forma aislada. La causa real fue transversal:
