@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { STORAGE_KEYS } from "@/lib/constants";
-import type { Database } from "@/types/database.types";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
 
 const LOAD_ACCESS_TIMEOUT_MS = 15_000;
@@ -12,8 +11,6 @@ const LOAD_ACCESS_TIMEOUT_MS = 15_000;
 interface AuthResult {
   error?: string;
 }
-
-type AccessRoleRow = Database["public"]["Tables"]["usuario_establecimiento_roles"]["Row"];
 
 function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
   const message = (rawMessage ?? "").trim();
@@ -137,22 +134,6 @@ function clearStoredAuthState() {
   } catch {
     // Ignore storage cleanup failures.
   }
-}
-
-function normalizePortalEmail(rawEmail: string | null | undefined) {
-  const email = rawEmail?.trim().toLowerCase() ?? "";
-  return email.length > 0 ? email : null;
-}
-
-function readRoleMetadata(metadata: AccessRoleRow["metadata"]) {
-  const metadataRecord = typeof metadata === "object" && metadata !== null
-    ? metadata as Record<string, unknown>
-    : null;
-
-  return {
-    comuna: typeof metadataRecord?.comuna === "string" ? metadataRecord.comuna : null,
-    director: typeof metadataRecord?.director === "string" ? metadataRecord.director : null,
-  };
 }
 
 function resolveAuthRedirectUrl() {
@@ -391,7 +372,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     // Capture the narrowed string before entering async closures — TypeScript cannot
     // propagate narrowing of outer-scope variables through async functions.
     const uid = userId;
-    const normalizedEmail = normalizePortalEmail(userEmail);
 
     // Abort the load after 15s to avoid an infinite spinner on network issues.
     const timeoutId = setTimeout(() => {
@@ -405,7 +385,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
     async function loadAccess() {
       let bootstrapErrorMessage: string | null = null;
-      let fallbackDirectorRole: AccessRoleRow | null = null;
 
       // Fetch profile, with one bootstrap+retry if the first query finds no row.
       // Extracted into a const-returning helper so TypeScript can narrow the
@@ -438,29 +417,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           .single();
       }
 
-      async function fetchDirectorFallbackRole() {
-        if (!normalizedEmail) {
-          return null;
-        }
-
-        const { data, error } = await client
-          .from("usuario_establecimiento_roles")
-          .select("id, correo_electronico, email_normalizado, rbd, rol, equipo, origen, metadata, activo, created_at, updated_at, scope_rbd_key")
-          .eq("activo", true)
-          .eq("rol", "DIRECTOR")
-          .eq("equipo", "DIRECCION")
-          .or(`email_normalizado.eq.${normalizedEmail},correo_electronico.eq.${normalizedEmail}`)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error || !data) {
-          return null;
-        }
-
-        return data as AccessRoleRow;
-      }
-
       const profileResult = await fetchProfileData();
 
       if (cancelled) {
@@ -474,11 +430,41 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const profileError = profileResult.error;
 
       let nextProfile = profileData;
+      let resolvedScope: PortalScope = {
+        role_text: nextProfile?.rol ?? "DIRECTOR",
+        is_global_admin: false,
+        accessible_rbds: nextProfile?.rbd ? [nextProfile.rbd] : [],
+        default_rbd: nextProfile?.rbd ?? null,
+        can_select_school: false,
+        landing_route: nextProfile?.rbd ? "/resumen/" : "/admin/",
+      };
 
       if (profileError || !nextProfile) {
-        fallbackDirectorRole = await fetchDirectorFallbackRole();
+        const scopeResult = await client.rpc("get_current_portal_scope");
 
-        if (!fallbackDirectorRole) {
+        if (cancelled) {
+          return;
+        }
+
+        if (!scopeResult.error) {
+          const rawScope = scopeResult.data as unknown;
+          const scopeRow = (Array.isArray(rawScope) ? rawScope[0] : rawScope) as Record<string, unknown> | null | undefined;
+
+          if (scopeRow) {
+            resolvedScope = {
+              role_text: typeof scopeRow.role_text === "string" ? scopeRow.role_text : "DIRECTOR",
+              is_global_admin: Boolean(scopeRow.is_global_admin),
+              accessible_rbds: Array.isArray(scopeRow.accessible_rbds)
+                ? scopeRow.accessible_rbds.filter((value: unknown): value is string => typeof value === "string")
+                : [],
+              default_rbd: typeof scopeRow.default_rbd === "string" ? scopeRow.default_rbd : null,
+              can_select_school: Boolean(scopeRow.can_select_school),
+              landing_route: scopeRow.landing_route === "/admin" || scopeRow.landing_route === "/admin/" ? "/admin/" : "/resumen/",
+            };
+          }
+        }
+
+        if (resolvedScope.role_text !== "DIRECTOR" || !resolvedScope.default_rbd) {
           setProfile(null);
           setEstablishment(null);
           setAccessError(normalizeAccessErrorMessage(
@@ -491,25 +477,15 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           return;
         }
 
-        const fallbackMetadata = readRoleMetadata(fallbackDirectorRole.metadata);
         nextProfile = {
           id: uid,
-          correo_electronico: fallbackDirectorRole.correo_electronico,
+          correo_electronico: userEmail ?? "",
           rol: "DIRECTOR",
-          rbd: fallbackDirectorRole.rbd,
-          comuna: fallbackMetadata.comuna,
-          nombre_director: fallbackMetadata.director,
+          rbd: resolvedScope.default_rbd,
+          comuna: null,
+          nombre_director: null,
         };
       }
-
-      let resolvedScope: PortalScope = {
-        role_text: nextProfile.rol,
-        is_global_admin: false,
-        accessible_rbds: nextProfile.rbd ? [nextProfile.rbd] : [],
-        default_rbd: nextProfile.rbd,
-        can_select_school: false,
-        landing_route: nextProfile.rbd ? "/resumen/" : "/admin/",
-      };
 
       // Run scope resolution and establishment fetch in parallel when the rbd
       // is already known from the profile (covers all director-role users).
