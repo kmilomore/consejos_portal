@@ -158,12 +158,47 @@ export function ActaDetail({ acta, onClose, establishments = [], siblingActas, o
               <Row label="Establecimiento" value={escuela?.nombre ?? "—"} />
               <Row label="Fecha" value={formatDate(acta.fecha)} />
               <Row label="Horario" value={horario} />
+              {acta.tipo_sesion === "Extraordinaria" && (
+                <Row label="Motivo extraordinario" value={acta.motivo_extraordinaria || "—"} />
+              )}
               <Row label="Formato" value={acta.formato} />
               <Row label="Lugar" value={acta.lugar || "—"} />
               <Row label="Comuna" value={acta.comuna} />
               <Row label="Dirección" value={acta.direccion || "—"} />
             </div>
           </section>
+
+          {!isDocumentalMode && acta.motivo_extraordinaria === "Suspensión de clases" && acta.suspension_clases_detalle.length > 0 && (
+            <section>
+              <SectionLabel>Suspensión de clases</SectionLabel>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Fecha de suspensión
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Fecha de recuperación
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Tipo
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {acta.suspension_clases_detalle.map((item) => (
+                      <tr key={`${item.fecha_suspension}-${item.fecha_recuperacion}-${item.tipo_jornada}`}>
+                        <td className="px-4 py-3 text-slate-600">{formatDate(item.fecha_suspension)}</td>
+                        <td className="px-4 py-3 text-slate-600">{formatDate(item.fecha_recuperacion)}</td>
+                        <td className="px-4 py-3 text-slate-600">{item.tipo_jornada}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           {isDocumentalMode ? (
             <section>

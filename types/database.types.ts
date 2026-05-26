@@ -30,11 +30,14 @@ export type Database = {
           link_acta: string | null
           lugar: string
           modo_registro: string
+          motivo_extraordinaria: string | null
+          motivo_extraordinaria_id: string | null
           observacion_documental: string
           programacion_origen_id: string | null
           proxima_sesion: string | null
           rbd: string
           sesion: number
+          suspension_clases_detalle: Json | null
           tabla_temas: string
           tipo_sesion: Database["public"]["Enums"]["session_type"]
           updated_at: string
@@ -55,11 +58,14 @@ export type Database = {
           link_acta?: string | null
           lugar: string
           modo_registro?: string
+          motivo_extraordinaria?: string | null
+          motivo_extraordinaria_id?: string | null
           observacion_documental?: string
           programacion_origen_id?: string | null
           proxima_sesion?: string | null
           rbd: string
           sesion: number
+          suspension_clases_detalle?: Json | null
           tabla_temas: string
           tipo_sesion: Database["public"]["Enums"]["session_type"]
           updated_at?: string
@@ -80,11 +86,14 @@ export type Database = {
           link_acta?: string | null
           lugar?: string
           modo_registro?: string
+          motivo_extraordinaria?: string | null
+          motivo_extraordinaria_id?: string | null
           observacion_documental?: string
           programacion_origen_id?: string | null
           proxima_sesion?: string | null
           rbd?: string
           sesion?: number
+          suspension_clases_detalle?: Json | null
           tabla_temas?: string
           tipo_sesion?: Database["public"]["Enums"]["session_type"]
           updated_at?: string
@@ -96,6 +105,13 @@ export type Database = {
             columns: ["programacion_origen_id"]
             isOneToOne: false
             referencedRelation: "programacion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actas_motivo_extraordinaria_id_fkey"
+            columns: ["motivo_extraordinaria_id"]
+            isOneToOne: false
+            referencedRelation: "motivos_sesion_extraordinaria"
             referencedColumns: ["id"]
           },
           {
@@ -1163,6 +1179,27 @@ export type Database = {
           seguimiento?: string | null
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      motivos_sesion_extraordinaria: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
         }
         Relationships: []
       }

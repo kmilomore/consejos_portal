@@ -82,6 +82,9 @@ export const actas: Acta[] = [
     acuerdos: "Actualizar protocolo de derivación, calendarizar jornadas con apoderados y reportar avance mensual al sostenedor.",
     varios: "Se solicitó apoyo para reparación de portón principal.",
     observacion_documental: "",
+    motivo_extraordinaria_id: null,
+    motivo_extraordinaria: null,
+    suspension_clases_detalle: [],
     proxima_sesion: "2026-04-24",
     link_acta: null,
     asistentes: [
@@ -114,6 +117,9 @@ export const actas: Acta[] = [
     acuerdos: "Levantar informe técnico, citar comité de seguridad y formalizar revisión de reglamento.",
     varios: "Sin puntos adicionales.",
     observacion_documental: "",
+    motivo_extraordinaria_id: null,
+    motivo_extraordinaria: null,
+    suspension_clases_detalle: [],
     proxima_sesion: "2026-05-03",
     link_acta: null,
     asistentes: [

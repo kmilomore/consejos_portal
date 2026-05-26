@@ -15,6 +15,7 @@ const EMPTY_SNAPSHOT: PortalSnapshot = {
   establishments: [],
   programaciones: [],
   actas: [],
+  extraordinarySessionReasons: [],
   attendanceByRole: [],
   planningByComuna: [],
   actasByMode: { completas: 0, documentales: 0 },

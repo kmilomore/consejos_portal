@@ -24,7 +24,7 @@ import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
 import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import { usePortalAuth } from "@/lib/auth/context";
-import type { Acta, ActaRecordMode, AttendeeSlot, Establishment, Programacion, SessionFormat, SessionType } from "@/types/domain";
+import { DEFAULT_EXTRAORDINARY_SESSION_REASON_LABELS, type Acta, type ActaRecordMode, type AttendeeSlot, type Establishment, type ExtraordinarySessionReason, type Programacion, type SessionFormat, type SessionType, type SuspensionClassDetail, type SuspensionRecoveryType } from "@/types/domain";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,6 +40,9 @@ const ESTAMENTOS = [
 const SESSION_FORMATS: SessionFormat[] = ["Presencial", "Online", "Híbrido"];
 const QUORUM_MIN = 4;
 const DRAFT_KEY_PREFIX = "acta-draft";
+const OTHER_EXTRAORDINARY_REASON_VALUE = "__OTHER__";
+const SUSPENSION_REASON_LABEL = "Suspensión de clases";
+const SUSPENSION_RECOVERY_TYPES: SuspensionRecoveryType[] = ["Con JEC", "Sin JEC", "Educación de adulto"];
 // Minimum ms between consecutive saves (client-side rate limit) — #4
 const SAVE_COOLDOWN_MS = 3000;
 const MAX_FILE_SIZE_MB = 50;
@@ -121,6 +124,10 @@ interface GuestRow {
   correo: string;
 }
 
+interface SuspensionClassRow extends SuspensionClassDetail {
+  localId: string;
+}
+
 interface FormState {
   id: string | null;
   id_programacion_origen: string | null;
@@ -144,12 +151,16 @@ interface FormState {
   acuerdos: string;
   varios: string;
   observacion_documental: string;
+  motivo_extraordinaria: string;
+  motivo_extraordinaria_custom: string;
+  motivo_extraordinaria_es_otro: boolean;
+  suspension_clases_detalle: SuspensionClassRow[];
   proxima_sesion: string;
   link_acta: string;
 }
 
 type FormErrors = Partial<Record<
-  "rbd" | "fecha" | "hora_inicio" | "hora_termino" | "tabla_temas" | "acuerdos" | "link_acta",
+  "rbd" | "fecha" | "hora_inicio" | "hora_termino" | "tabla_temas" | "acuerdos" | "link_acta" | "motivo_extraordinaria" | "motivo_extraordinaria_custom" | "suspension_clases_detalle",
   string
 >>;
 
@@ -158,6 +169,7 @@ export interface ActaFormProps {
   onClose: () => void;
   establishments: Establishment[];
   actas: Acta[];
+  extraordinarySessionReasons: ExtraordinarySessionReason[];
   editActa?: Acta | null;
   initialProgramacion?: Programacion | null;
   onSaved: () => void;
@@ -209,12 +221,50 @@ function makeEmptyForm(): FormState {
     acuerdos: "",
     varios: "",
     observacion_documental: "",
+    motivo_extraordinaria: "",
+    motivo_extraordinaria_custom: "",
+    motivo_extraordinaria_es_otro: false,
+    suspension_clases_detalle: [],
     proxima_sesion: "",
     link_acta: "",
   };
 }
 
-function actaToForm(acta: Acta): FormState {
+function makeEmptySuspensionClassRow(): SuspensionClassRow {
+  return {
+    localId: crypto.randomUUID(),
+    fecha_suspension: "",
+    fecha_recuperacion: "",
+    tipo_jornada: "Con JEC",
+  };
+}
+
+function buildExtraordinaryReasonOptions(reasons: ExtraordinarySessionReason[]): string[] {
+  const seen = new Set<string>();
+
+  return [...DEFAULT_EXTRAORDINARY_SESSION_REASON_LABELS, ...reasons.map((reason) => reason.nombre.trim())].filter((name) => {
+    const cleaned = name.trim();
+    if (!cleaned) {
+      return false;
+    }
+
+    const key = cleaned.toLocaleLowerCase("es-CL");
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function actaToForm(acta: Acta, extraordinarySessionReasons: ExtraordinarySessionReason[]): FormState {
+  const reasonOptions = buildExtraordinaryReasonOptions(extraordinarySessionReasons);
+  const storedReason = acta.motivo_extraordinaria?.trim() ?? "";
+  const hasCatalogReason = storedReason && reasonOptions.some(
+    (option) => option.localeCompare(storedReason, "es", { sensitivity: "base" }) === 0,
+  );
+
   return {
     id: acta.id,
     id_programacion_origen: null,
@@ -243,6 +293,15 @@ function actaToForm(acta: Acta): FormState {
     acuerdos: acta.acuerdos,
     varios: acta.varios,
     observacion_documental: acta.observacion_documental,
+    motivo_extraordinaria: hasCatalogReason ? storedReason : "",
+    motivo_extraordinaria_custom: !hasCatalogReason ? storedReason : "",
+    motivo_extraordinaria_es_otro: Boolean(storedReason) && !hasCatalogReason,
+    suspension_clases_detalle: acta.suspension_clases_detalle.map((item) => ({
+      localId: crypto.randomUUID(),
+      fecha_suspension: item.fecha_suspension,
+      fecha_recuperacion: item.fecha_recuperacion,
+      tipo_jornada: item.tipo_jornada,
+    })),
     proxima_sesion: acta.proxima_sesion ?? "",
     link_acta: acta.link_acta ?? "",
   };
@@ -282,7 +341,7 @@ function isFormDirty(a: FormState, b: FormState): boolean {
   const keys: (keyof FormState)[] = [
     "rbd", "modo_registro", "tipo_sesion", "formato", "lugar", "fecha",
     "hora_inicio", "hora_termino", "tabla_temas", "desarrollo",
-    "acuerdos", "varios", "observacion_documental", "proxima_sesion", "link_acta",
+    "acuerdos", "varios", "observacion_documental", "motivo_extraordinaria", "motivo_extraordinaria_custom", "motivo_extraordinaria_es_otro", "proxima_sesion", "link_acta",
   ];
   for (const key of keys) {
     if (a[key] !== b[key]) return true;
@@ -295,6 +354,16 @@ function isFormDirty(a: FormState, b: FormState): boolean {
   }
   // Check guests
   if (a.guests.length !== b.guests.length) return true;
+  if (a.suspension_clases_detalle.length !== b.suspension_clases_detalle.length) return true;
+  for (let index = 0; index < a.suspension_clases_detalle.length; index += 1) {
+    const left = a.suspension_clases_detalle[index];
+    const right = b.suspension_clases_detalle[index];
+    if (
+      left.fecha_suspension !== right.fecha_suspension
+      || left.fecha_recuperacion !== right.fecha_recuperacion
+      || left.tipo_jornada !== right.tipo_jornada
+    ) return true;
+  }
   return false;
 }
 
@@ -305,7 +374,14 @@ function parseSavedDraft(raw: string): FormState | null {
     const parsed = JSON.parse(raw) as { form?: FormState; savedAt?: number };
     if (!parsed || typeof parsed.savedAt !== "number") return null;
     if (Date.now() - parsed.savedAt > DRAFT_TTL_MS) return null;
-    return parsed.form ?? null;
+    if (!parsed.form) return null;
+
+    return {
+      ...makeEmptyForm(),
+      ...parsed.form,
+      estamentos: parsed.form.estamentos ?? buildEstamentos(),
+      guests: parsed.form.guests ?? [],
+    };
   } catch {
     return null;
   }
@@ -645,6 +721,7 @@ export function ActaForm({
   onClose,
   establishments,
   actas,
+  extraordinarySessionReasons,
   editActa,
   initialProgramacion,
   onSaved,
@@ -672,6 +749,7 @@ export function ActaForm({
   const fileReadyTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeRbd = selectedRbd ?? profile?.rbd ?? null;
   const draftStorageKey = getDraftStorageKey(editActa?.id);
+  const extraordinaryReasonOptions = buildExtraordinaryReasonOptions(extraordinarySessionReasons);
 
   function clearFileReadyFeedback() {
     if (fileReadyTimerRef.current) {
@@ -718,7 +796,7 @@ export function ActaForm({
     let foundDraft = false;
 
     if (editActa) {
-      initial = actaToForm(editActa);
+      initial = actaToForm(editActa, extraordinarySessionReasons);
       try {
         const saved = localStorage.getItem(draftStorageKey);
         if (saved) {
@@ -729,7 +807,7 @@ export function ActaForm({
           }
         }
       } catch {
-        initial = actaToForm(editActa);
+        initial = actaToForm(editActa, extraordinarySessionReasons);
       }
     } else if (initialProgramacion) {
       initial = programacionToForm(
@@ -776,7 +854,7 @@ export function ActaForm({
     setSaveError(null);
     setEstablishmentQuery(initial.nombre_establecimiento ? buildEstablishmentDisplayValue(initial) : "");
     pendingFile.current = null;
-  }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, initialProgramacion, isOpen]);
+  }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, extraordinarySessionReasons, initialProgramacion, isOpen]);
 
   useEffect(() => {
     if (!isOpen || editActa || initialProgramacion || form.rbd || !activeRbd) {
@@ -848,7 +926,7 @@ export function ActaForm({
 
   function discardDraft() {
     try { localStorage.removeItem(draftStorageKey); } catch { /* ignore */ }
-    const fresh = editActa ? actaToForm(editActa) : makeEmptyForm();
+    const fresh = editActa ? actaToForm(editActa, extraordinarySessionReasons) : makeEmptyForm();
     const patched = !editActa && activeRbd
       ? { ...fresh, ...buildActiveSchoolFormPatch(activeRbd), sesion: String(nextSessionNumber(actas, activeRbd, fresh.tipo_sesion)) }
       : fresh;
@@ -912,10 +990,22 @@ export function ActaForm({
     setForm((prev) => ({
       ...prev,
       tipo_sesion: tipo,
+      motivo_extraordinaria: tipo === "Extraordinaria" ? prev.motivo_extraordinaria : "",
+      motivo_extraordinaria_custom: tipo === "Extraordinaria" ? prev.motivo_extraordinaria_custom : "",
+      motivo_extraordinaria_es_otro: tipo === "Extraordinaria" ? prev.motivo_extraordinaria_es_otro : false,
+      suspension_clases_detalle: tipo === "Extraordinaria" ? prev.suspension_clases_detalle : [],
       sesion:
         !prev.id && prev.rbd
           ? String(nextSessionNumber(actas, prev.rbd, tipo))
           : prev.sesion,
+    }));
+  }
+
+  function handleRecordModeChange(mode: ActaRecordMode) {
+    setForm((prev) => ({
+      ...prev,
+      modo_registro: mode,
+      suspension_clases_detalle: mode === "ACTA_COMPLETA" ? prev.suspension_clases_detalle : [],
     }));
   }
 
@@ -971,6 +1061,29 @@ export function ActaForm({
     }));
   }
 
+  function addSuspensionClassRow() {
+    setForm((prev) => ({
+      ...prev,
+      suspension_clases_detalle: [...prev.suspension_clases_detalle, makeEmptySuspensionClassRow()],
+    }));
+  }
+
+  function removeSuspensionClassRow(localId: string) {
+    setForm((prev) => ({
+      ...prev,
+      suspension_clases_detalle: prev.suspension_clases_detalle.filter((row) => row.localId !== localId),
+    }));
+  }
+
+  function updateSuspensionClassRow(localId: string, field: keyof SuspensionClassDetail, value: string) {
+    setForm((prev) => ({
+      ...prev,
+      suspension_clases_detalle: prev.suspension_clases_detalle.map((row) =>
+        row.localId === localId ? { ...row, [field]: value } : row,
+      ),
+    }));
+  }
+
   // ── File handling ────────────────────────────────────────────────────────
 
   function handleFileDrop(e: DragEvent<HTMLDivElement>) {
@@ -1012,6 +1125,26 @@ export function ActaForm({
 
   const presentCount = form.estamentos.filter((e) => e.asistio === true).length;
   const isDocumentalMode = form.modo_registro === "REGISTRO_DOCUMENTAL";
+  const isExtraordinarySession = form.tipo_sesion === "Extraordinaria";
+  const shouldShowSuspensionClassesDetail = !isDocumentalMode && isExtraordinarySession && !form.motivo_extraordinaria_es_otro && form.motivo_extraordinaria === SUSPENSION_REASON_LABEL;
+  const selectedExtraordinaryReasonValue = form.motivo_extraordinaria_es_otro
+    ? OTHER_EXTRAORDINARY_REASON_VALUE
+    : form.motivo_extraordinaria;
+
+  useEffect(() => {
+    if (shouldShowSuspensionClassesDetail) {
+      return;
+    }
+
+    if (form.suspension_clases_detalle.length === 0 && !errors.suspension_clases_detalle) {
+      return;
+    }
+
+    setForm((prev) => prev.suspension_clases_detalle.length > 0
+      ? { ...prev, suspension_clases_detalle: [] }
+      : prev);
+    setErrors((prev) => ({ ...prev, suspension_clases_detalle: undefined }));
+  }, [errors.suspension_clases_detalle, form.suspension_clases_detalle.length, shouldShowSuspensionClassesDetail]);
 
   const formSteps = isDocumentalMode
     ? [
@@ -1047,6 +1180,35 @@ export function ActaForm({
 
     if (!form.rbd) next.rbd = "Selecciona un establecimiento.";
     if (!form.fecha) next.fecha = "La fecha es obligatoria.";
+    if (isExtraordinarySession) {
+      if (form.motivo_extraordinaria_es_otro) {
+        if (!form.motivo_extraordinaria_custom.trim()) {
+          next.motivo_extraordinaria_custom = "Describe el motivo extraordinario.";
+        }
+      } else if (!form.motivo_extraordinaria.trim()) {
+        next.motivo_extraordinaria = "Selecciona el motivo de la sesión extraordinaria.";
+      }
+    }
+    if (shouldShowSuspensionClassesDetail) {
+      if (form.suspension_clases_detalle.length === 0) {
+        next.suspension_clases_detalle = "Agrega al menos una fila para registrar la suspensión de clases.";
+      } else {
+        const invalidRow = form.suspension_clases_detalle.findIndex((row) => {
+          if (!row.fecha_suspension || !row.fecha_recuperacion || !row.tipo_jornada) {
+            return true;
+          }
+
+          return row.fecha_recuperacion < row.fecha_suspension;
+        });
+
+        if (invalidRow >= 0) {
+          const row = form.suspension_clases_detalle[invalidRow];
+          next.suspension_clases_detalle = !row.fecha_suspension || !row.fecha_recuperacion || !row.tipo_jornada
+            ? `Completa todos los campos de la fila ${invalidRow + 1} en suspensión de clases.`
+            : `La fecha de recuperación de la fila ${invalidRow + 1} no puede ser anterior a la suspensión.`;
+        }
+      }
+    }
     if (!isDocumentalMode) {
       if (!form.hora_inicio) next.hora_inicio = "La hora de inicio es obligatoria.";
       if (!form.hora_termino) next.hora_termino = "La hora de término es obligatoria.";
@@ -1083,7 +1245,7 @@ export function ActaForm({
     setSubmitting(true);
     setSaveError(null);
 
-    const { upsertActa, replaceActaInvitados, uploadActaDocument, updateActaLink, deleteActaDocument } = await import(
+    const { upsertActa, replaceActaInvitados, uploadActaDocument, updateActaLink, deleteActaDocument, ensureExtraordinarySessionReason } = await import(
       "@/lib/supabase/queries"
     );
 
@@ -1133,6 +1295,32 @@ export function ActaForm({
         modalidad: e.modalidad ?? undefined,
       }));
 
+    let motivoExtraordinariaId: string | null = null;
+    let motivoExtraordinaria: string | null = null;
+    const suspensionClasesDetalle = shouldShowSuspensionClassesDetail
+      ? form.suspension_clases_detalle.map((row) => ({
+          fecha_suspension: row.fecha_suspension,
+          fecha_recuperacion: row.fecha_recuperacion,
+          tipo_jornada: row.tipo_jornada,
+        }))
+      : null;
+
+    if (form.tipo_sesion === "Extraordinaria") {
+      const reasonName = form.motivo_extraordinaria_es_otro
+        ? sanitizeText(form.motivo_extraordinaria_custom)
+        : sanitizeText(form.motivo_extraordinaria);
+
+      const reasonResult = await ensureExtraordinarySessionReason(reasonName);
+      if (!reasonResult.reason) {
+        setSaveError(reasonResult.errorMessage ?? "No se pudo registrar el motivo de la sesión extraordinaria.");
+        setSubmitting(false);
+        return;
+      }
+
+      motivoExtraordinariaId = reasonResult.reason.id;
+      motivoExtraordinaria = reasonResult.reason.nombre;
+    }
+
     const { id: savedId, errorMessage } = await upsertActa({
       id: form.id ?? generatedActaId ?? undefined,
       programacion_origen_id: form.id_programacion_origen ?? undefined,
@@ -1152,6 +1340,9 @@ export function ActaForm({
       acuerdos: sanitizeText(form.acuerdos),
       varios: sanitizeText(form.varios),
       observacion_documental: sanitizeText(form.observacion_documental),
+      motivo_extraordinaria_id: motivoExtraordinariaId,
+      motivo_extraordinaria: motivoExtraordinaria,
+      suspension_clases_detalle: suspensionClasesDetalle,
       proxima_sesion: form.proxima_sesion || null,
       link_acta: documentUrl,
       asistentes: isDocumentalMode ? [] : asistentes,
@@ -1362,7 +1553,7 @@ export function ActaForm({
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
                     <button
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, modo_registro: "ACTA_COMPLETA" }))}
+                      onClick={() => handleRecordModeChange("ACTA_COMPLETA")}
                       className={cn(
                         "rounded-card border px-4 py-3 text-left transition",
                         form.modo_registro === "ACTA_COMPLETA"
@@ -1377,7 +1568,7 @@ export function ActaForm({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, modo_registro: "REGISTRO_DOCUMENTAL" }))}
+                      onClick={() => handleRecordModeChange("REGISTRO_DOCUMENTAL")}
                       className={cn(
                         "rounded-card border px-4 py-3 text-left transition",
                         form.modo_registro === "REGISTRO_DOCUMENTAL"
@@ -1406,6 +1597,149 @@ export function ActaForm({
                     <option value="Extraordinaria">Extraordinaria</option>
                   </FormSelect>
                 </div>
+
+                {isExtraordinarySession && (
+                  <div>
+                    <FormLabel required>Motivo de sesión extraordinaria</FormLabel>
+                    <FormSelect
+                      value={selectedExtraordinaryReasonValue}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === OTHER_EXTRAORDINARY_REASON_VALUE) {
+                          setForm((prev) => ({
+                            ...prev,
+                            motivo_extraordinaria: "",
+                            motivo_extraordinaria_custom: prev.motivo_extraordinaria_custom,
+                            motivo_extraordinaria_es_otro: true,
+                            suspension_clases_detalle: [],
+                          }));
+                          return;
+                        }
+
+                        setForm((prev) => ({
+                          ...prev,
+                          motivo_extraordinaria: value,
+                          motivo_extraordinaria_custom: "",
+                          motivo_extraordinaria_es_otro: false,
+                          suspension_clases_detalle: value === SUSPENSION_REASON_LABEL ? prev.suspension_clases_detalle : [],
+                        }));
+                      }}
+                    >
+                      <option value="">Selecciona un motivo</option>
+                      {extraordinaryReasonOptions.map((reason) => (
+                        <option key={reason} value={reason}>
+                          {reason}
+                        </option>
+                      ))}
+                      <option value={OTHER_EXTRAORDINARY_REASON_VALUE}>Otros</option>
+                    </FormSelect>
+                    {errors.motivo_extraordinaria && (
+                      <p className="mt-1 text-xs text-ember">{errors.motivo_extraordinaria}</p>
+                    )}
+                  </div>
+                )}
+
+                {isExtraordinarySession && form.motivo_extraordinaria_es_otro && (
+                  <div className="sm:col-span-2">
+                    <FormLabel required>Especifica el motivo extraordinario</FormLabel>
+                    <FormInput
+                      value={form.motivo_extraordinaria_custom}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          motivo_extraordinaria_custom: e.target.value,
+                        }))
+                      }
+                      placeholder="Describe el motivo extraordinario"
+                    />
+                    {errors.motivo_extraordinaria_custom && (
+                      <p className="mt-1 text-xs text-ember">{errors.motivo_extraordinaria_custom}</p>
+                    )}
+                  </div>
+                )}
+
+                {shouldShowSuspensionClassesDetail && (
+                  <div className="sm:col-span-2 space-y-3 rounded-card border border-neutral-200 bg-neutral-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <FormLabel required>Suspensión de clases</FormLabel>
+                        <p className="mt-1 text-sm text-neutral-600">
+                          Registra cada día suspendido, su recuperación y el tipo de jornada asociado.
+                        </p>
+                      </div>
+                      <Button type="button" variant="secondary" className="gap-2" onClick={addSuspensionClassRow}>
+                        <Plus className="h-4 w-4" />
+                        Agregar fila
+                      </Button>
+                    </div>
+
+                    <div className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+                      <table className="w-full text-sm">
+                        <thead className="bg-neutral-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">Día / fecha de suspensión</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">Día de recuperación</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">Tipo</th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">Acción</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                          {form.suspension_clases_detalle.length > 0 ? form.suspension_clases_detalle.map((row) => (
+                            <tr key={row.localId}>
+                              <td className="px-4 py-3 align-top">
+                                <FormInput
+                                  type="date"
+                                  value={row.fecha_suspension}
+                                  onChange={(e) => updateSuspensionClassRow(row.localId, "fecha_suspension", e.target.value)}
+                                  className="mt-0"
+                                />
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <FormInput
+                                  type="date"
+                                  value={row.fecha_recuperacion}
+                                  onChange={(e) => updateSuspensionClassRow(row.localId, "fecha_recuperacion", e.target.value)}
+                                  className="mt-0"
+                                />
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <FormSelect
+                                  value={row.tipo_jornada}
+                                  onChange={(e) => updateSuspensionClassRow(row.localId, "tipo_jornada", e.target.value)}
+                                  className="mt-0"
+                                >
+                                  {SUSPENSION_RECOVERY_TYPES.map((type) => (
+                                    <option key={type} value={type}>{type}</option>
+                                  ))}
+                                </FormSelect>
+                              </td>
+                              <td className="px-4 py-3 align-top text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => removeSuspensionClassRow(row.localId)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-ember transition hover:bg-ember/10"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Eliminar
+                                </button>
+                              </td>
+                            </tr>
+                          )) : (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-6 text-center text-sm text-neutral-500">
+                                Agrega al menos una fila para registrar la suspensión.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {errors.suspension_clases_detalle && (
+                      <p className="text-xs text-ember">{errors.suspension_clases_detalle}</p>
+                    )}
+                  </div>
+                )}
 
                 {/* N° sesión — auto-calculado, sólo lectura */}
                 <div>

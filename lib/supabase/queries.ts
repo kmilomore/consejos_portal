@@ -7,9 +7,11 @@ import type {
   ActaRecordMode,
   AttendeeSlot,
   Establishment,
+  ExtraordinarySessionReason,
   InvitedGuest,
   Programacion,
   SessionFormat,
+  SuspensionClassDetail,
   SessionType,
 } from "@/types/domain";
 
@@ -25,6 +27,7 @@ export interface PortalSnapshot {
   establishments: Establishment[];
   programaciones: Programacion[];
   actas: Acta[];
+  extraordinarySessionReasons: ExtraordinarySessionReason[];
   attendanceByRole: Array<{ rol: string; ratio: number }>;
   planningByComuna: Array<{ comuna: string; total: number }>;
   actasByMode: { completas: number; documentales: number };
@@ -56,8 +59,14 @@ export interface ProgramacionUpsertInput {
   estado?: Programacion["estado"];
 }
 
-type ActaRow = Omit<Acta, "asistentes" | "invitados"> & {
+type ActaRow = Omit<Acta, "asistentes" | "invitados" | "suspension_clases_detalle"> & {
   asistentes: unknown;
+  suspension_clases_detalle: unknown;
+};
+
+type ExtraordinarySessionReasonRow = {
+  id: string;
+  nombre: string;
 };
 
 type InvitadoRow = {
@@ -102,6 +111,35 @@ function normalizeAsistentes(value: unknown): AttendeeSlot[] {
     }
 
     return [{ rol, nombre, rut, correo, asistio, modalidad }];
+  });
+}
+
+function normalizeSuspensionClassesDetail(value: unknown): SuspensionClassDetail[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const fechaSuspension = typeof item.fecha_suspension === "string" ? item.fecha_suspension : "";
+    const fechaRecuperacion = typeof item.fecha_recuperacion === "string" ? item.fecha_recuperacion : "";
+    const tipoJornada =
+      item.tipo_jornada === "Con JEC" || item.tipo_jornada === "Sin JEC" || item.tipo_jornada === "Educación de adulto"
+        ? item.tipo_jornada
+        : null;
+
+    if (!fechaSuspension || !fechaRecuperacion || !tipoJornada) {
+      return [];
+    }
+
+    return [{
+      fecha_suspension: fechaSuspension,
+      fecha_recuperacion: fechaRecuperacion,
+      tipo_jornada: tipoJornada,
+    }];
   });
 }
 
@@ -175,6 +213,7 @@ function getMockPortalSnapshot(reason?: string, diagnostics: PortalDiagnostic[] 
     establishments: [],
     programaciones: [],
     actas: [],
+    extraordinarySessionReasons: [],
     attendanceByRole: [],
     planningByComuna: [],
     actasByMode: { completas: 0, documentales: 0 },
@@ -374,6 +413,9 @@ export interface ActaUpsertInput {
   acuerdos: string;
   varios: string;
   observacion_documental: string;
+  motivo_extraordinaria_id: string | null;
+  motivo_extraordinaria: string | null;
+  suspension_clases_detalle: SuspensionClassDetail[] | null;
   proxima_sesion: string | null;
   link_acta: string | null;
   asistentes: AttendeeSlot[];
@@ -407,6 +449,9 @@ export async function upsertActa(input: ActaUpsertInput): Promise<ActaMutationRe
     acuerdos: input.acuerdos,
     varios: input.varios,
     observacion_documental: input.observacion_documental,
+    motivo_extraordinaria_id: input.tipo_sesion === "Extraordinaria" ? input.motivo_extraordinaria_id : null,
+    motivo_extraordinaria: input.tipo_sesion === "Extraordinaria" ? input.motivo_extraordinaria : null,
+    suspension_clases_detalle: input.suspension_clases_detalle as unknown as Json,
     proxima_sesion: input.proxima_sesion,
     link_acta: input.link_acta,
     asistentes: input.asistentes as unknown as Json,
@@ -548,6 +593,69 @@ export async function deleteActa(actaId: string): Promise<boolean> {
   return true;
 }
 
+export async function ensureExtraordinarySessionReason(
+  name: string,
+): Promise<{ reason: ExtraordinarySessionReason | null; errorMessage?: string }> {
+  const supabase = createClient();
+  if (!supabase) return { reason: null, errorMessage: "Cliente Supabase no disponible." };
+
+  const cleanedName = name.trim();
+  if (!cleanedName) {
+    return { reason: null, errorMessage: "Debes indicar el motivo de la sesión extraordinaria." };
+  }
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from("motivos_sesion_extraordinaria")
+    .select("id, nombre")
+    .ilike("nombre", cleanedName);
+
+  if (existingError) {
+    logger.error("ensureExtraordinarySessionReason (select)", existingError.message);
+    return { reason: null, errorMessage: existingError.message };
+  }
+
+  const existing = ((existingRows ?? []) as ExtraordinarySessionReasonRow[]).find(
+    (row) => row.nombre.trim().localeCompare(cleanedName, "es", { sensitivity: "base" }) === 0,
+  );
+
+  if (existing) {
+    return { reason: existing };
+  }
+
+  const { data: insertedRow, error: insertError } = await supabase
+    .from("motivos_sesion_extraordinaria")
+    .insert({ nombre: cleanedName })
+    .select("id, nombre")
+    .single();
+
+  if (insertError) {
+    const { data: retryRows, error: retryError } = await supabase
+      .from("motivos_sesion_extraordinaria")
+      .select("id, nombre")
+      .ilike("nombre", cleanedName);
+
+    if (retryError) {
+      logger.error("ensureExtraordinarySessionReason (insert)", insertError.message);
+      return { reason: null, errorMessage: insertError.message };
+    }
+
+    const retried = ((retryRows ?? []) as ExtraordinarySessionReasonRow[]).find(
+      (row) => row.nombre.trim().localeCompare(cleanedName, "es", { sensitivity: "base" }) === 0,
+    );
+
+    if (!retried) {
+      logger.error("ensureExtraordinarySessionReason (insert)", insertError.message);
+      return { reason: null, errorMessage: insertError.message };
+    }
+
+    return { reason: retried };
+  }
+
+  bumpPortalSnapshotVersion();
+
+  return { reason: insertedRow as ExtraordinarySessionReason };
+}
+
 export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSnapshot> {
   const supabase = createClient();
 
@@ -566,13 +674,19 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
 
     const actasQuery = supabase
       .from("actas")
-      .select("id, rbd, sesion, modo_registro, tipo_sesion, formato, fecha, hora_inicio, hora_termino, lugar, comuna, direccion, tabla_temas, desarrollo, acuerdos, varios, observacion_documental, proxima_sesion, link_acta, asistentes")
+      .select("id, rbd, sesion, modo_registro, tipo_sesion, formato, fecha, hora_inicio, hora_termino, lugar, comuna, direccion, tabla_temas, desarrollo, acuerdos, varios, observacion_documental, motivo_extraordinaria_id, motivo_extraordinaria, suspension_clases_detalle, proxima_sesion, link_acta, asistentes")
       .order("fecha", { ascending: false });
 
-    const [establishmentsResult, programacionesResult, actasResult] = await Promise.all([
+    const extraordinarySessionReasonsQuery = supabase
+      .from("motivos_sesion_extraordinaria")
+      .select("id, nombre")
+      .order("nombre", { ascending: true });
+
+    const [establishmentsResult, programacionesResult, actasResult, extraordinarySessionReasonsResult] = await Promise.all([
       supabase.from("establecimientos").select("rbd, nombre, direccion, comuna").order("nombre", { ascending: true }),
       rbdFilter ? programacionQuery.eq("rbd", rbdFilter) : programacionQuery,
       rbdFilter ? actasQuery.eq("rbd", rbdFilter) : actasQuery,
+      extraordinarySessionReasonsQuery,
     ]);
 
     const actaIds = (actasResult.data ?? []).map((a: { id: string }) => a.id);
@@ -604,6 +718,11 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
       buildQueryDiagnostic("programacion", programacionesResult.data?.length ?? 0, programacionesResult.error?.message),
       buildQueryDiagnostic("actas", actasResult.data?.length ?? 0, actasResult.error?.message),
       buildQueryDiagnostic("actas_invitados", invitadosResult.data?.length ?? 0, invitadosResult.error?.message),
+      buildQueryDiagnostic(
+        "motivos_sesion_extraordinaria",
+        extraordinarySessionReasonsResult.data?.length ?? 0,
+        extraordinarySessionReasonsResult.error?.message,
+      ),
     ];
 
     if (firstError) {
@@ -639,6 +758,9 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
         acuerdos: typeof item.acuerdos === "string" ? item.acuerdos : "",
         varios: typeof item.varios === "string" ? item.varios : "",
         observacion_documental: typeof item.observacion_documental === "string" ? item.observacion_documental : "",
+        motivo_extraordinaria_id: typeof item.motivo_extraordinaria_id === "string" ? item.motivo_extraordinaria_id : null,
+        motivo_extraordinaria: typeof item.motivo_extraordinaria === "string" ? item.motivo_extraordinaria : null,
+        suspension_clases_detalle: normalizeSuspensionClassesDetail(item.suspension_clases_detalle),
         proxima_sesion: item.proxima_sesion,
         link_acta: item.link_acta,
         asistentes: normalizeAsistentes(item.asistentes),
@@ -646,10 +768,15 @@ export async function fetchPortalSnapshot(rbdFilter?: string): Promise<PortalSna
       })),
     );
 
+    const extraordinarySessionReasons = ((extraordinarySessionReasonsResult.data ?? []) as ExtraordinarySessionReasonRow[])
+      .map((item) => ({ id: item.id, nombre: item.nombre }))
+      .sort((left, right) => left.nombre.localeCompare(right.nombre, "es", { sensitivity: "base" }));
+
     return {
       establishments,
       programaciones,
       actas,
+      extraordinarySessionReasons,
       attendanceByRole: buildAttendanceByRole(actas),
       planningByComuna: buildPlanningByComuna(programaciones, establishments),
       actasByMode: buildActasByMode(actas),

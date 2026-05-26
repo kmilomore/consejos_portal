@@ -893,6 +893,7 @@ export default function ProgramacionPage() {
         onClose={() => setActaProgramacion(null)}
         establishments={snapshot.establishments}
         actas={snapshot.actas}
+        extraordinarySessionReasons={snapshot.extraordinarySessionReasons}
         initialProgramacion={actaProgramacion}
         onSaved={() => {
           setActaProgramacion(null);

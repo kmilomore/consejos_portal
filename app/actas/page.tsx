@@ -186,9 +186,6 @@ export default function ActasPage() {
       comuna: acta.comuna,
       formato: acta.formato,
       lugar: acta.lugar,
-      tablaTemas: acta.tabla_temas,
-      acuerdos: acta.acuerdos,
-      observacionDocumental: acta.observacion_documental,
       linkActa: acta.link_acta ?? "",
     }));
   }, [filteredRows, establishmentMap]);
@@ -255,9 +252,6 @@ export default function ActasPage() {
       "Comuna",
       "Formato",
       "Lugar",
-      "Tabla de temas",
-      "Acuerdos",
-      "Observacion documental",
       "Hipervinculo acta",
     ];
 
@@ -273,9 +267,6 @@ export default function ActasPage() {
         row.comuna,
         row.formato,
         row.lugar,
-        row.tablaTemas,
-        row.acuerdos,
-        row.observacionDocumental,
         row.linkActa,
       ].map((value) => escapeCsvValue(value)).join(",")
     ));
@@ -300,9 +291,6 @@ export default function ActasPage() {
         escapeHtml(row.comuna),
         escapeHtml(row.formato),
         escapeHtml(row.lugar),
-        escapeHtml(row.tablaTemas),
-        escapeHtml(row.acuerdos),
-        escapeHtml(row.observacionDocumental),
         row.linkActa
           ? `<a href="${escapeHtml(row.linkActa)}" target="_blank" rel="noopener noreferrer">Abrir acta</a>`
           : "",
@@ -336,9 +324,6 @@ export default function ActasPage() {
           <th>Comuna</th>
           <th>Formato</th>
           <th>Lugar</th>
-          <th>Tabla de temas</th>
-          <th>Acuerdos</th>
-          <th>Observacion documental</th>
           <th>Hipervinculo acta</th>
         </tr>
       </thead>
@@ -591,6 +576,7 @@ export default function ActasPage() {
         onClose={() => setFormOpen(false)}
         establishments={snapshot.establishments}
         actas={rows}
+        extraordinarySessionReasons={snapshot.extraordinarySessionReasons}
         editActa={editActa}
         onSaved={() => refresh()}
       />

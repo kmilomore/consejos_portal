@@ -186,6 +186,9 @@ actas (
   acuerdos               text not null,
   varios                 text not null,
   observacion_documental text not null default '',
+  motivo_extraordinaria_id uuid null,
+  motivo_extraordinaria  text null,
+  suspension_clases_detalle jsonb null,
   proxima_sesion         date null,
   link_acta              text null,
   asistentes             jsonb not null default '[]'
@@ -198,7 +201,24 @@ actas (
 - ambas modalidades comparten correlativo por `rbd + tipo_sesion`.
 - `REGISTRO_DOCUMENTAL` debe tener `link_acta`.
 - `REGISTRO_DOCUMENTAL` puede omitir horario detallado y contenido estructurado.
+- si `tipo_sesion = 'Ordinaria'`, `motivo_extraordinaria_id` y `motivo_extraordinaria` deben quedar en `null`.
+- si `tipo_sesion = 'Extraordinaria'`, el motivo es obligatorio en UI.
+- `suspension_clases_detalle` solo aplica cuando la acta es `ACTA_COMPLETA` y el motivo extraordinario es `Suspensión de clases`.
 - los asistentes ahora pueden incluir `rut` además de `nombre`, `correo`, `asistio` y `modalidad`.
+
+### Tabla `motivos_sesion_extraordinaria`
+
+```sql
+motivos_sesion_extraordinaria (
+  id      uuid primary key,
+  nombre  text not null unique,
+  ...
+)
+```
+
+Observación vigente:
+
+- el catálogo carga motivos base y admite nuevas opciones creadas desde `Otros`.
 
 ### Tabla `actas_invitados`
 
@@ -258,6 +278,8 @@ Comportamiento actual:
 - recalcula `sesion` automáticamente según `rbd + tipo_sesion`
 - restaura borrador local si existe una clave de draft para nueva acta
 - el usuario decide si está creando una `ACTA_COMPLETA` o un `REGISTRO_DOCUMENTAL`
+- si `tipo_sesion = Extraordinaria`, aparece selector de motivo; si elige `Otros`, se habilita un texto libre y el valor queda persistente como nueva opción
+- si el usuario vuelve a `Ordinaria`, el bloque de motivos desaparece y el formulario limpia esos valores antes del guardado
 
 ### Flujo C — Editar acta existente
 
@@ -278,6 +300,7 @@ Validaciones obligatorias:
 - `hora_termino`
 - `tabla_temas`
 - `acuerdos`
+- si `tipo_sesion = Extraordinaria`: motivo obligatorio; si elige `Otros`, texto libre obligatorio
 - para todo estamento con `asistio === true`: nombre, RUT válido, correo válido y modalidad
 
 Persistencia:
@@ -298,6 +321,7 @@ Validaciones obligatorias:
 - `rbd`
 - `fecha`
 - `link_acta` o archivo pendiente
+- si `tipo_sesion = Extraordinaria`: motivo obligatorio; si elige `Otros`, texto libre obligatorio
 
 Comportamiento diferencial:
 

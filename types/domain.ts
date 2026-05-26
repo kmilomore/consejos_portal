@@ -7,6 +7,18 @@ export type SessionFormat = "Presencial" | "Online" | "Híbrido";
 export type PlanningStatus = "PROGRAMADA" | "REALIZADA" | "CANCELADA";
 export type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL";
 
+export const DEFAULT_EXTRAORDINARY_SESSION_REASON_LABELS = [
+  "Suspensión de clases",
+  "Revisión y modificación al reglamento interno",
+  "Actualización de protocolo de actuación",
+  "Subsanación de observaciones de SIE",
+  "Subsanación de observaciones de Salud",
+  "Proyectos de conservación",
+  "Cuenta Pública",
+  "Cierre de año escolar",
+  "Modificación al calendario escolar",
+] as const;
+
 export interface Establishment {
   rbd: string;
   nombre: string;
@@ -61,6 +73,19 @@ export interface InvitedGuest {
   cargo: string;
 }
 
+export interface ExtraordinarySessionReason {
+  id: string;
+  nombre: string;
+}
+
+export type SuspensionRecoveryType = "Con JEC" | "Sin JEC" | "Educación de adulto";
+
+export interface SuspensionClassDetail {
+  fecha_suspension: string;
+  fecha_recuperacion: string;
+  tipo_jornada: SuspensionRecoveryType;
+}
+
 export interface Acta {
   id: string;
   rbd: string;
@@ -79,6 +104,9 @@ export interface Acta {
   acuerdos: string;
   varios: string;
   observacion_documental: string;
+  motivo_extraordinaria_id: string | null;
+  motivo_extraordinaria: string | null;
+  suspension_clases_detalle: SuspensionClassDetail[];
   proxima_sesion: string | null;
   link_acta: string | null;
   asistentes: AttendeeSlot[];
