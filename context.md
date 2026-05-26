@@ -1,6 +1,6 @@
 # Contexto del Proyecto: Consejos
 
-> **Última actualización:** 2026-05-14  
+> **Última actualización:** 2026-05-26  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
 > **Contexto específico de programación:** ver `context_programacion.md` para el detalle operativo completo del módulo `programacion/`, sus invariantes, flujos y criterios para iterar con IA.
 
@@ -77,7 +77,7 @@ Experiencia principal:
   - Vista detalle adaptada para `Registro documental` y horario nullable
   - Eliminación con confirmación
   - Rate limit cliente-side (cooldown 3 s)
-  - Validación de RBD en submit para rol DIRECTOR
+  - Validación de RBD en submit por alcance real (`isGlobalAdmin + accessibleRbds`)
   - Sanitización de texto antes de persistir
 - Métricas separadas entre `actas completas` y `registros documentales`
 - `lib/supabase/queries.ts` restaurado como loader canónico del portal, con soporte para `modo_registro`, `observacion_documental`, `rut` en asistentes y `actasByMode`
@@ -92,7 +92,7 @@ Experiencia principal:
 - Eliminar PDF en storage al borrar acta (el DELETE en BD sí funciona)
 - Eliminación dura de programaciones (hoy existe edición + cancelación lógica, no delete físico)
 - Columna `correo` en `actas_invitados` (capturado en UI, no persiste)
-- Política de storage bucket `evidencias_actas` (escritura autenticada + lectura pública por RBD)
+- Confirmar en entorno real que la migración `20260526_consejos_reassert_storage_evidencias_scope.sql` quedó aplicada; sin ella pueden fallar uploads documentales para usuarios de equipo con scope parcial
 - Validación MIME real del PDF en servidor
 - Activar `save_acta_complete` en el cliente (migración SQL lista)
 - Aplicar en Supabase la migración `20260424_consejos_actas_registro_documental.sql` si aún no está corrida
@@ -116,7 +116,7 @@ Experiencia principal:
 
 - Supabase Auth (Google OAuth)
 - Supabase Database (PostgreSQL + RLS)
-- Supabase Storage (bucket `actas`)
+- Supabase Storage (bucket `evidencias_actas`)
 - Consumo 100% client-side desde navegador
 
 ### Tooling
@@ -400,6 +400,7 @@ Ruta 5 — mejorar permisos o acceso por correo:
 | `20260424_consejos_actas_registro_documental.sql` | Extiende `actas` para modo híbrido documental y horarios nullable |
 | `20260424_consejos_representante_scope.sql` | Primera versión del alcance por representante; reemplazada operacionalmente por `20260514_consejos_usuario_establecimiento_roles.sql` |
 | `20260514_consejos_usuario_establecimiento_roles.sql` | Tabla única `usuario_establecimiento_roles`, sync desde base maestra, bootstrap y RLS por alcance |
+| `20260526_consejos_reassert_storage_evidencias_scope.sql` | Reimpone RLS de `storage.objects` para `evidencias_actas` usando `has_school_scope_access()` |
 
 ---
 
@@ -1019,6 +1020,11 @@ CREATE OR REPLACE FUNCTION public.has_school_scope_access(target_rbd text) RETUR
 $$;
 ```
 
+Nota operativa:
+
+- `usuarios_perfiles.nombre_director` es un campo legacy de presentación/bootstrap; no decide permisos de portal ni acceso a Storage.
+- El permiso efectivo actual sale de `usuario_establecimiento_roles`, `current_accessible_rbds()` y `has_school_scope_access()`.
+
 ### Alcance de las políticas RLS
 
 | Tabla | Lectura | Escritura |
@@ -1041,10 +1047,13 @@ $$;
 
 ### Storage
 
-- Bucket: `actas`
+- Bucket: `evidencias_actas`
 - Path: `{rbd}/{año}/{actaId}.pdf`
 - El primer segmento del path debe ser el RBD del usuario
-- **Política pendiente:** debe crearse en Supabase para escritura autenticada y lectura pública por RBD
+- Escritura restringida por RLS en `storage.objects` usando `public.has_school_scope_access(split_part(name, '/', 1))`
+- Lectura pública resuelta por bucket público compatible con `getPublicUrl()`
+- Si la migración `20260526_consejos_reassert_storage_evidencias_scope.sql` no está aplicada, usuarios con scope parcial pueden guardar el acta pero fallar al subir el PDF con `new row violates row-level security policy`
+- Como el frontend genera el path de upload con el primer segmento normalizado (`/` -> `-`), la migración `20260526_consejos_storage_scope_normalized_rbd.sql` debe estar aplicada para que Storage reconozca RBDS como `6301405/33884-2` frente a claves `6301405-33884-2`
 
 ---
 

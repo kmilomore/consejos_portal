@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { STORAGE_KEYS } from "@/lib/constants";
+import { logger } from "@/lib/logger";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
 
 const LOAD_ACCESS_TIMEOUT_MS = 15_000;
@@ -46,6 +47,31 @@ function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
   }
 
   return `No fue posible abrir el portal: ${message}`;
+}
+
+function maskEmail(email: string | null | undefined) {
+  const normalizedEmail = (email ?? "").trim().toLowerCase();
+
+  if (!normalizedEmail.includes("@")) {
+    return normalizedEmail || null;
+  }
+
+  const [localPart, domain] = normalizedEmail.split("@");
+  const visibleLocal = localPart.slice(0, 2);
+  return `${visibleLocal}${"*".repeat(Math.max(localPart.length - visibleLocal.length, 1))}@${domain}`;
+}
+
+function toAuthDiagnostic(scope: PortalScope, profile: Profile | null) {
+  return {
+    roleText: scope.role_text,
+    isGlobalAdmin: scope.is_global_admin,
+    accessibleRbds: scope.accessible_rbds,
+    defaultRbd: scope.default_rbd,
+    canSelectSchool: scope.can_select_school,
+    landingRoute: scope.landing_route,
+    profileRole: profile?.rol ?? null,
+    profileRbd: profile?.rbd ?? null,
+  };
 }
 
 interface AuthStateCache {
@@ -386,6 +412,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     async function loadAccess() {
       let bootstrapErrorMessage: string | null = null;
 
+      logger.info("auth.bootstrap", "Starting access bootstrap", {
+        userId: uid,
+        email: maskEmail(userEmail),
+      });
+
       // Fetch profile, with one bootstrap+retry if the first query finds no row.
       // Extracted into a const-returning helper so TypeScript can narrow the
       // discriminated union on the result without `let`-reassignment confusion.
@@ -429,6 +460,16 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const profileData = profileResult.data as Profile | null;
       const profileError = profileResult.error;
 
+      logger.info("auth.bootstrap", "Profile lookup finished", {
+        userId: uid,
+        email: maskEmail(userEmail),
+        hasProfile: Boolean(profileData),
+        profileRole: profileData?.rol ?? null,
+        profileRbd: profileData?.rbd ?? null,
+        profileError: profileError?.message ?? null,
+        bootstrapError: bootstrapErrorMessage,
+      });
+
       let nextProfile = profileData;
       let resolvedScope: PortalScope = {
         role_text: nextProfile?.rol ?? "DIRECTOR",
@@ -464,7 +505,25 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           }
         }
 
-        if (resolvedScope.role_text !== "DIRECTOR" || !resolvedScope.default_rbd) {
+        logger.info("auth.bootstrap", "Resolved access scope without persisted profile", {
+          userId: uid,
+          email: maskEmail(userEmail),
+          ...toAuthDiagnostic(resolvedScope, nextProfile),
+          scopeError: scopeResult.error?.message ?? null,
+        });
+
+        const canHydrateSingleSchoolProfile = !resolvedScope.is_global_admin
+          && Boolean(resolvedScope.default_rbd)
+          && resolvedScope.accessible_rbds.length === 1;
+
+        if (!canHydrateSingleSchoolProfile) {
+          logger.error("auth.bootstrap", "Access denied after scope fallback", {
+            userId: uid,
+            email: maskEmail(userEmail),
+            ...toAuthDiagnostic(resolvedScope, nextProfile),
+            profileError: profileError?.message ?? null,
+            bootstrapError: bootstrapErrorMessage,
+          });
           setProfile(null);
           setEstablishment(null);
           setAccessError(normalizeAccessErrorMessage(
@@ -480,11 +539,17 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         nextProfile = {
           id: uid,
           correo_electronico: userEmail ?? "",
-          rol: "DIRECTOR",
+          rol: resolvedScope.role_text,
           rbd: resolvedScope.default_rbd,
           comuna: null,
           nombre_director: null,
         };
+
+        logger.info("auth.bootstrap", "Hydrated synthetic profile from scope", {
+          userId: uid,
+          email: maskEmail(userEmail),
+          ...toAuthDiagnostic(resolvedScope, nextProfile),
+        });
       }
 
       // Run scope resolution and establishment fetch in parallel when the rbd
@@ -521,6 +586,13 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         }
       }
 
+      logger.info("auth.bootstrap", "Resolved profile and scope", {
+        userId: uid,
+        email: maskEmail(userEmail),
+        ...toAuthDiagnostic(resolvedScope, nextProfile),
+        scopeError: scopeResult.error?.message ?? null,
+      });
+
       setProfile(nextProfile);
       setIsGlobalAdmin(resolvedScope.is_global_admin);
       setAccessibleRbds(resolvedScope.accessible_rbds);
@@ -530,6 +602,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const establishmentRbd = profileRbd ?? resolvedScope.default_rbd;
 
       if (!establishmentRbd) {
+        logger.warn("auth.bootstrap", "Resolved scope without establishment RBD", {
+          userId: uid,
+          email: maskEmail(userEmail),
+          ...toAuthDiagnostic(resolvedScope, nextProfile),
+        });
         setEstablishment(null);
         profileLoaded.current = true;
         setIsLoading(false);
@@ -552,6 +629,13 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const estError = (rawEstResult as { error?: { message: string } | null } | null)?.error;
 
       if (!estData) {
+        logger.error("auth.bootstrap", "Failed to load establishment for scoped user", {
+          userId: uid,
+          email: maskEmail(userEmail),
+          establishmentRbd,
+          ...toAuthDiagnostic(resolvedScope, nextProfile),
+          establishmentError: estError?.message ?? null,
+        });
         setEstablishment(null);
         setAccessError(normalizeAccessErrorMessage(
           estError?.message ?? "No se encontró el establecimiento asociado al perfil autenticado.",
@@ -562,6 +646,12 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       setEstablishment(estData);
+      logger.info("auth.bootstrap", "Access bootstrap completed", {
+        userId: uid,
+        email: maskEmail(userEmail),
+        establishmentRbd: estData.rbd,
+        ...toAuthDiagnostic(resolvedScope, nextProfile),
+      });
       profileLoaded.current = true;
       setIsLoading(false);
     }

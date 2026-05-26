@@ -158,17 +158,55 @@ Mitigación recomendada:
 
 Severidad: baja
 
-Cuando `exchangeCodeForSession` falla dentro de `AuthCallbackHandler`, la página hoy muestra feedback mediante toast, pero no registra telemetría visible ni logging operacional duradero.
+Cuando `exchangeCodeForSession` falla dentro de `AuthCallbackHandler`, la página muestra feedback mediante toast. Desde el ajuste del 2026-05-25 también emite trazas operativas en cliente para distinguir:
+
+- callback sin `code`;
+- error de `exchangeCodeForSession(code)`;
+- callback exitoso con sesión intercambiada.
 
 Impacto:
 
-- menor trazabilidad operativa centralizada;
-- diagnóstico más difícil de errores de autenticación o redirección.
+- la trazabilidad sigue dependiendo de consola de navegador, no de un backend de observabilidad central;
+- el diagnóstico operativo mejora, especialmente en producción estática, pero aún requiere capturar consola o reproducir con herramientas del navegador.
 
 Mitigación recomendada:
 
 - propagar un estado de error visible para el usuario;
 - registrar errores en observabilidad o logging seguro.
+
+## Diagnóstico operativo en producción
+
+El bootstrap auth ahora emite trazas cliente bajo los scopes `auth.callback` y `auth.bootstrap`.
+
+Siempre visibles:
+
+- `logger.error(...)` se mantiene activo también en producción.
+
+Trazas detalladas (`info` y `warn`):
+
+- habilitar con `NEXT_PUBLIC_DEBUG_AUTH=true` al compilar; o
+- activar manualmente en el navegador con `localStorage.setItem("consejos.debug.auth", "true")` y luego recargar.
+
+Hitos que quedan trazados:
+
+- inicio de callback OAuth;
+- éxito o error de `exchangeCodeForSession(code)`;
+- inicio del bootstrap de acceso;
+- resultado de lectura de `usuarios_perfiles`;
+- fallback por `get_current_portal_scope()` cuando no hay perfil persistido;
+- hidratación de perfil sintético para usuarios con una sola escuela en scope;
+- error al resolver `establecimientos` por `rbd`;
+- cierre exitoso del bootstrap con `landingRoute`, RBD accesibles y escuela resuelta.
+
+### Hallazgo operativo vigente
+
+Se detectó una incoherencia cliente en el fallback de acceso:
+
+- si `usuarios_perfiles` no devolvía fila, el cliente solo aceptaba el scope resuelto cuando `role_text === "DIRECTOR"`;
+- eso rechazaba usuarios con una sola escuela en scope aunque `default_rbd` ya estuviera resuelto correctamente;
+- desde el ajuste del 2026-05-25, el cliente acepta cualquier usuario no global con exactamente un `default_rbd` y genera un perfil sintético para completar el arranque.
+
+Esto no reemplaza la necesidad de mantener consistente `usuarios_perfiles`, pero evita que un director con scope válido vuelva innecesariamente a la pantalla de ingreso.
 
 ### Evaluación general
 

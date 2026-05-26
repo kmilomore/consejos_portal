@@ -29,6 +29,55 @@ function formatSchedule(acta: Acta) {
   return "—";
 }
 
+function matchesSessionFilter(session: number, rawFilter: string) {
+  const normalized = rawFilter.trim();
+  if (!normalized) {
+    return true;
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return session === Number(normalized);
+  }
+
+  const rangeMatch = normalized.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (!rangeMatch) {
+    return false;
+  }
+
+  const start = Number(rangeMatch[1]);
+  const end = Number(rangeMatch[2]);
+  const min = Math.min(start, end);
+  const max = Math.max(start, end);
+
+  return session >= min && session <= max;
+}
+
+function escapeCsvValue(value: string | number | null | undefined) {
+  const normalized = String(value ?? "").replace(/"/g, '""');
+  return `"${normalized}"`;
+}
+
+function escapeHtml(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function downloadFile(content: BlobPart, fileName: string, contentType: string) {
+  const blob = new Blob([content], { type: contentType });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export default function ActasPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
   const { isGlobalAdmin } = usePortalAuth();
@@ -49,6 +98,7 @@ export default function ActasPage() {
   // ── Search & filters — #27 ───────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [searchField, setSearchField] = useState<SearchField>("all");
+  const [filterSesion, setFilterSesion] = useState("");
   const [filterSchoolQuery, setFilterSchoolQuery] = useState("");
   const [filterComuna, setFilterComuna] = useState<string>("");
   const [filterTipo, setFilterTipo] = useState<SessionType | "">("");
@@ -77,20 +127,22 @@ export default function ActasPage() {
     return [...new Set(rows.map((acta) => acta.comuna).filter(Boolean))].sort((left, right) => left.localeCompare(right));
   }, [rows]);
 
-  const hasActiveFilters = Boolean(searchQuery || filterTipo || filterModo || filterSchoolQuery || filterComuna || searchField !== "all");
+  const hasActiveFilters = Boolean(searchQuery || filterSesion || filterTipo || filterModo || filterSchoolQuery || filterComuna || searchField !== "all");
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     const schoolQuery = filterSchoolQuery.toLowerCase().trim();
+    const sessionFilter = filterSesion.trim();
     const filtered = rows.filter((acta) => {
       const matchesTipo = filterTipo ? acta.tipo_sesion === filterTipo : true;
       const matchesModo = filterModo ? acta.modo_registro === filterModo : true;
+      const matchesSesion = matchesSessionFilter(acta.sesion, sessionFilter);
       const establishmentName = establishmentMap.get(acta.rbd)?.toLowerCase() ?? "";
       const matchesSchool = schoolQuery
         ? establishmentName.includes(schoolQuery) || acta.rbd.toLowerCase().includes(schoolQuery)
         : true;
       const matchesComuna = filterComuna ? acta.comuna === filterComuna : true;
-      if (!matchesTipo || !matchesModo || !matchesSchool || !matchesComuna) return false;
+      if (!matchesTipo || !matchesModo || !matchesSesion || !matchesSchool || !matchesComuna) return false;
       if (!q) return true;
       const searchScopes: Record<SearchField, boolean> = {
         all: (
@@ -120,7 +172,26 @@ export default function ActasPage() {
         : a.sesion - b.sesion;
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [rows, searchQuery, searchField, filterModo, filterTipo, filterSchoolQuery, filterComuna, sortField, sortDir, establishmentMap]);
+  }, [rows, searchQuery, searchField, filterSesion, filterModo, filterTipo, filterSchoolQuery, filterComuna, sortField, sortDir, establishmentMap]);
+
+  const exportRows = useMemo(() => {
+    return filteredRows.map((acta) => ({
+      sesion: acta.sesion,
+      tipoSesion: acta.tipo_sesion,
+      modoRegistro: acta.modo_registro,
+      fecha: formatDate(acta.fecha),
+      horario: formatSchedule(acta),
+      establecimiento: establishmentMap.get(acta.rbd) ?? "",
+      rbd: acta.rbd,
+      comuna: acta.comuna,
+      formato: acta.formato,
+      lugar: acta.lugar,
+      tablaTemas: acta.tabla_temas,
+      acuerdos: acta.acuerdos,
+      observacionDocumental: acta.observacion_documental,
+      linkActa: acta.link_acta ?? "",
+    }));
+  }, [filteredRows, establishmentMap]);
 
   const visibleSummary = useMemo(() => {
     const completas = filteredRows.filter((acta) => acta.modo_registro === "ACTA_COMPLETA").length;
@@ -161,10 +232,122 @@ export default function ActasPage() {
   function clearFilters() {
     setSearchQuery("");
     setSearchField("all");
+    setFilterSesion("");
     setFilterSchoolQuery("");
     setFilterComuna("");
     setFilterTipo("");
     setFilterModo("");
+  }
+
+  function exportCsv() {
+    if (exportRows.length === 0) {
+      return;
+    }
+
+    const header = [
+      "Sesion",
+      "Tipo de sesion",
+      "Modo de registro",
+      "Fecha",
+      "Horario",
+      "Establecimiento",
+      "RBD",
+      "Comuna",
+      "Formato",
+      "Lugar",
+      "Tabla de temas",
+      "Acuerdos",
+      "Observacion documental",
+      "Hipervinculo acta",
+    ];
+
+    const body = exportRows.map((row) => (
+      [
+        row.sesion,
+        row.tipoSesion,
+        row.modoRegistro,
+        row.fecha,
+        row.horario,
+        row.establecimiento,
+        row.rbd,
+        row.comuna,
+        row.formato,
+        row.lugar,
+        row.tablaTemas,
+        row.acuerdos,
+        row.observacionDocumental,
+        row.linkActa,
+      ].map((value) => escapeCsvValue(value)).join(",")
+    ));
+
+    downloadFile(`\uFEFF${[header.map((value) => escapeCsvValue(value)).join(","), ...body].join("\n")}`, `actas-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv;charset=utf-8;");
+  }
+
+  function exportExcel() {
+    if (exportRows.length === 0) {
+      return;
+    }
+
+    const tableRows = exportRows.map((row) => {
+      const cells = [
+        escapeHtml(row.sesion),
+        escapeHtml(row.tipoSesion),
+        escapeHtml(row.modoRegistro),
+        escapeHtml(row.fecha),
+        escapeHtml(row.horario),
+        escapeHtml(row.establecimiento),
+        escapeHtml(row.rbd),
+        escapeHtml(row.comuna),
+        escapeHtml(row.formato),
+        escapeHtml(row.lugar),
+        escapeHtml(row.tablaTemas),
+        escapeHtml(row.acuerdos),
+        escapeHtml(row.observacionDocumental),
+        row.linkActa
+          ? `<a href="${escapeHtml(row.linkActa)}" target="_blank" rel="noopener noreferrer">Abrir acta</a>`
+          : "",
+      ];
+
+      return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
+    }).join("");
+
+    const workbook = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #d4d4d8; padding: 6px 8px; vertical-align: top; }
+      th { background: #f4f4f5; font-weight: 700; }
+      a { color: #0f5f8f; }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>Sesion</th>
+          <th>Tipo de sesion</th>
+          <th>Modo de registro</th>
+          <th>Fecha</th>
+          <th>Horario</th>
+          <th>Establecimiento</th>
+          <th>RBD</th>
+          <th>Comuna</th>
+          <th>Formato</th>
+          <th>Lugar</th>
+          <th>Tabla de temas</th>
+          <th>Acuerdos</th>
+          <th>Observacion documental</th>
+          <th>Hipervinculo acta</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </body>
+</html>`;
+
+    downloadFile(`\uFEFF${workbook}`, `actas-${new Date().toISOString().slice(0, 10)}.xls`, "application/vnd.ms-excel;charset=utf-8;");
   }
 
   async function handleDelete() {
@@ -211,6 +394,14 @@ export default function ActasPage() {
                 className="w-full rounded-card border border-neutral-200 bg-white py-2 pl-8 pr-3 text-sm text-ink placeholder:text-neutral-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
               />
             </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="N° sesión o rango 1-5"
+              value={filterSesion}
+              onChange={(e) => setFilterSesion(e.target.value)}
+              className="w-full rounded-card border border-neutral-200 bg-white px-3 py-2 text-sm text-ink placeholder:text-neutral-400 focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20 sm:w-36"
+            />
             {isGlobalAdmin && snapshot.establishments.length > 0 && (
               <div className="relative w-full max-w-sm">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -tranneutral-y-1/2 text-neutral-400" />
@@ -255,6 +446,12 @@ export default function ActasPage() {
             </select>
             {hasActiveFilters && (
               <Button variant="secondary" onClick={clearFilters}>Limpiar filtros</Button>
+            )}
+            {filteredRows.length > 0 && (
+              <>
+                <Button variant="secondary" onClick={exportCsv}>Descargar CSV</Button>
+                <Button variant="secondary" onClick={exportExcel}>Descargar Excel</Button>
+              </>
             )}
           </div>
           <Button onClick={openNew}>Nueva acta</Button>

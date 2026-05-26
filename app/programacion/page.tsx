@@ -11,6 +11,8 @@ import {
   PencilLine,
   Plus,
   Search,
+  ArrowDown,
+  ArrowUp,
   XCircle,
 } from "lucide-react";
 import { ActaDetail } from "@/components/portal/acta-detail";
@@ -86,7 +88,7 @@ function programacionToForm(programacion: Programacion): ProgramacionFormState {
 
 export default function ProgramacionPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
-  const { establishment, profile, selectedRbd } = usePortalAuth();
+  const { establishment, profile, selectedRbd, canSelectSchool } = usePortalAuth();
   const activeRbd = selectedRbd ?? establishment?.rbd ?? profile?.rbd ?? null;
   const activeSchoolName = establishment?.nombre ?? "Establecimiento activo";
   const [viewDate, setViewDate] = useState(() => new Date());
@@ -107,15 +109,22 @@ export default function ProgramacionPage() {
   const [filterTipo, setFilterTipo] = useState<SessionType | "">("");
   const [filterEstado, setFilterEstado] = useState<PlanningStatus | "">("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<"fecha" | "sesion" | "establecimiento">("fecha");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const establishmentMap = useMemo(
+    () => new Map(snapshot.establishments.map((row) => [row.rbd, row.nombre])),
+    [snapshot.establishments],
+  );
 
   const baseRows = useMemo(
-    () => snapshot.programaciones.filter((row) => !activeRbd || row.rbd === activeRbd),
-    [activeRbd, snapshot.programaciones],
+    () => (canSelectSchool ? snapshot.programaciones : snapshot.programaciones.filter((row) => !activeRbd || row.rbd === activeRbd)),
+    [activeRbd, canSelectSchool, snapshot.programaciones],
   );
   const rows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return baseRows.filter((row) => {
+    const filteredRows = baseRows.filter((row) => {
       if (filterTipo && row.tipo_sesion !== filterTipo) {
         return false;
       }
@@ -130,6 +139,7 @@ export default function ProgramacionPage() {
 
       return [
         row.rbd,
+        establishmentMap.get(row.rbd) ?? "",
         row.tipo_sesion,
         row.formato_planeado,
         row.lugar_tentativo,
@@ -138,7 +148,37 @@ export default function ProgramacionPage() {
         String(row.numero_sesion),
       ].some((value) => value.toLowerCase().includes(query));
     });
-  }, [baseRows, filterEstado, filterTipo, searchQuery]);
+
+    return [...filteredRows].sort((left, right) => {
+      const direction = sortDir === "asc" ? 1 : -1;
+
+      if (sortField === "establecimiento") {
+        const schoolCompare = (establishmentMap.get(left.rbd) ?? left.rbd).localeCompare(establishmentMap.get(right.rbd) ?? right.rbd, "es", { sensitivity: "base" });
+        if (schoolCompare !== 0) {
+          return schoolCompare * direction;
+        }
+      }
+
+      if (sortField === "sesion") {
+        const sessionCompare = left.numero_sesion - right.numero_sesion;
+        if (sessionCompare !== 0) {
+          return sessionCompare * direction;
+        }
+      } else {
+        const dateCompare = left.fecha_programada.localeCompare(right.fecha_programada);
+        if (dateCompare !== 0) {
+          return dateCompare * direction;
+        }
+      }
+
+      const hourCompare = left.hora_programada.localeCompare(right.hora_programada);
+      if (hourCompare !== 0) {
+        return hourCompare * direction;
+      }
+
+      return (establishmentMap.get(left.rbd) ?? left.rbd).localeCompare(establishmentMap.get(right.rbd) ?? right.rbd, "es", { sensitivity: "base" }) * direction;
+    });
+  }, [baseRows, establishmentMap, filterEstado, filterTipo, searchQuery, sortDir, sortField]);
 
   const monthDays = useMemo(() => buildCalendarDays(viewDate), [viewDate]);
   const sessionsByDate = useMemo(() => {
@@ -151,6 +191,24 @@ export default function ProgramacionPage() {
     return map;
   }, [rows]);
   const selectedDateRows = sessionsByDate.get(selectedDate) ?? [];
+
+  function toggleSort(field: "fecha" | "sesion" | "establecimiento") {
+    if (sortField === field) {
+      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortDir(field === "establecimiento" ? "asc" : "desc");
+  }
+
+  function renderSortIcon(field: "fecha" | "sesion" | "establecimiento") {
+    if (sortField !== field) {
+      return null;
+    }
+
+    return sortDir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />;
+  }
 
   useEffect(() => {
     if (editingProgramacion) {
@@ -630,7 +688,7 @@ export default function ProgramacionPage() {
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Buscar por sesión, estado, lugar o temática"
+              placeholder={canSelectSchool ? "Buscar por escuela, sesión, estado, lugar o temática" : "Buscar por sesión, estado, lugar o temática"}
               className="h-11 w-full rounded-card border border-neutral-200 bg-white pl-10 pr-4 text-sm text-ink outline-none transition focus:border-ocean focus:ring-2 focus:ring-ocean/15"
             />
           </label>
@@ -685,6 +743,9 @@ export default function ProgramacionPage() {
                         </Badge>
                         {row.acta_vinculada_id ? <Badge tone="neutral">Acta vinculada</Badge> : null}
                       </div>
+                      {canSelectSchool ? (
+                        <p className="text-sm font-medium text-ink">{establishmentMap.get(row.rbd) ?? `RBD ${row.rbd}`}</p>
+                      ) : null}
                       <p className="text-sm text-neutral-600">{row.hora_programada} · {row.formato_planeado} · {row.lugar_tentativo}</p>
                       <p className="text-sm text-neutral-500">{row.tematicas}</p>
                     </div>
@@ -729,8 +790,26 @@ export default function ProgramacionPage() {
               <table className="min-w-full divide-y divide-neutral-200 text-left">
                 <thead className="bg-neutral-50/95 text-xs uppercase tracking-[0.18em] text-neutral-500">
                   <tr>
-                    <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Sesión</th>
-                    <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Fecha</th>
+                    <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">
+                      <button type="button" onClick={() => toggleSort("sesion")} className="inline-flex items-center gap-2 text-left transition hover:text-ink">
+                        Sesión
+                        {renderSortIcon("sesion")}
+                      </button>
+                    </th>
+                    <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">
+                      <button type="button" onClick={() => toggleSort("fecha")} className="inline-flex items-center gap-2 text-left transition hover:text-ink">
+                        Fecha
+                        {renderSortIcon("fecha")}
+                      </button>
+                    </th>
+                    {canSelectSchool ? (
+                      <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">
+                        <button type="button" onClick={() => toggleSort("establecimiento")} className="inline-flex items-center gap-2 text-left transition hover:text-ink">
+                          Establecimiento
+                          {renderSortIcon("establecimiento")}
+                        </button>
+                      </th>
+                    ) : null}
                     <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Formato</th>
                     <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Estado</th>
                     <th className="sticky top-0 px-4 py-4 font-semibold backdrop-blur">Temáticas</th>
@@ -742,9 +821,15 @@ export default function ProgramacionPage() {
                     <tr key={row.id} className={index % 2 === 0 ? "bg-white" : "bg-neutral-50/45"}>
                       <td className="px-4 py-4">
                         <p className="font-medium text-ink">{row.tipo_sesion} #{String(row.numero_sesion).padStart(2, "0")}</p>
-                        <p className="text-xs text-neutral-500">{snapshot.establishments.find(e => e.rbd === row.rbd)?.nombre ?? `RBD ${row.rbd}`}</p>
+                        <p className="text-xs text-neutral-500">RBD {row.rbd}</p>
                       </td>
                       <td className="px-4 py-4">{formatDate(row.fecha_programada)} · {row.hora_programada}</td>
+                      {canSelectSchool ? (
+                        <td className="px-4 py-4">
+                          <p className="font-medium text-ink">{establishmentMap.get(row.rbd) ?? `RBD ${row.rbd}`}</p>
+                          <p className="text-xs text-neutral-500">RBD {row.rbd}</p>
+                        </td>
+                      ) : null}
                       <td className="px-4 py-4">{row.formato_planeado}</td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-2">

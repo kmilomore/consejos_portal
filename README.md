@@ -78,6 +78,8 @@ Sin esa migración, el diagnóstico de producción mostrará tablas vacías aunq
 
 Para el flujo Google OAuth por correo institucional y portal por establecimiento, aplica también la migración `supabase/migrations/20260416_consejos_auth_bootstrap_from_base.sql`.
 
+En el esquema vigente de alcance por correo y cobertura territorial, deben estar aplicadas además `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql` y `supabase/migrations/20260526_consejos_reassert_storage_evidencias_scope.sql`.
+
 Esa migración:
 
 - normaliza filas desde `public."BASE DE DATOS ESCUELAS SLEP"`
@@ -85,6 +87,8 @@ Esa migración:
 - crea o actualiza `usuarios_perfiles` automáticamente para el usuario autenticado según su correo
 
 El callback browser vuelve siempre a `/auth/login/`, donde el portal ejecuta `exchangeCodeForSession(code)` y luego resuelve el acceso real con `usuarios_perfiles` + `get_current_portal_scope`.
+
+La segunda migración es relevante para actas documentales: reimpone las políticas RLS de `storage.objects` sobre el bucket `evidencias_actas` usando `has_school_scope_access()`, evitando que usuarios de equipo con scope parcial fallen al subir PDFs con `new row violates row-level security policy`.
 
 Nota operativa vigente:
 
@@ -110,6 +114,8 @@ Además, la migración crea:
 - bucket `evidencias_actas`
 - políticas RLS base por rol y RBD
 - función `public.get_next_session_number(session_type, establishment_rbd, target_year)`
+
+En operación actual, el bucket real del módulo es `evidencias_actas`, con escritura autenticada vía RLS y lectura por `getPublicUrl()` para `link_acta`.
 
 ## Próximos pasos recomendados
 

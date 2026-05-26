@@ -111,8 +111,8 @@ Esa resolucion termina en `activeRbd`. Toda la vista depende de esa variable.
 
 La pagina trabaja con dos subconjuntos:
 
-- `baseRows`: programaciones del `snapshot` filtradas por `activeRbd`
-- `rows`: `baseRows` mas filtros de tipo, estado y busqueda textual
+- `baseRows`: programaciones del `snapshot` filtradas por `activeRbd` cuando el usuario esta acotado a una sola escuela; si tiene cobertura multi-escuela (`canSelectSchool`), usa el scope completo del snapshot
+- `rows`: `baseRows` mas filtros de tipo, estado, busqueda textual y ordenamiento
 
 Todo lo visual debe colgar de `rows` para que calendario, agenda diaria y tabla se mantengan consistentes.
 
@@ -303,6 +303,7 @@ La pantalla tiene cinco zonas principales.
 Responsable de:
 
 - navegar entre meses
+- mostrar nombre del establecimiento cuando el scope incluye mas de una escuela
 - seleccionar fecha activa
 - mostrar cantidad diaria
 - mostrar hasta dos sesiones resumidas por dia
@@ -313,6 +314,7 @@ Responsable de:
 Responsable de:
 
 - crear nueva sesion
+- permitir ordenar por fecha, sesion y establecimiento cuando aplica
 - editar sesion existente
 - mostrar el correlativo esperado
 - salir del modo edicion

@@ -1,6 +1,6 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-05-12 (v6)
+> **Última actualización:** 2026-05-26 (v7)
 > **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
 > **Estado actual:** flujo híbrido operativo con 13 mejoras UI/UX implementadas; compilación limpia.
 
@@ -62,6 +62,8 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - **L10** — botón `Limpiar filtros`: resetea búsqueda, campo de búsqueda, texto de establecimiento, comuna, tipo y modo sin tocar el estado del modal ni la data del snapshot
 - **L11** — búsqueda avanzada por campo: selector `searchField` con opciones `todo`, `establecimiento`, `temas y observación`, `acuerdos`, `comuna` y `RBD`
 - **L12** — resumen visible de resultados filtrados: cards superiores con total, completas, documentales, ordinarias y filas con documento adjunto
+- **L13** — filtro por número de sesión: input dedicado en la barra de filtros; acepta coincidencia exacta (`4`) o rango simple (`1-5`) sobre `acta.sesion` y participa en `Limpiar filtros`
+- **L14** — exportación del listado filtrado: botones `Descargar CSV` y `Descargar Excel`; ambos exportan las filas visibles con columna de hipervínculo a `link_acta` cuando existe
 - **L4** — navegación prev/next dentro del modal de detalle: `filteredRows` y `onNavigate` se pasan desde la página; el modal muestra chevrons que navegan por la lista filtrada actual
 - **D1** — resumen de quórum en el header del modal: badge `X/Y · Quórum válido/Sin quórum` visible solo para `ACTA_COMPLETA`; umbral mínimo 4 de 6
 - **D2** — banner de próxima sesión al inicio del body del modal: aparece si `acta.proxima_sesion` existe; reemplaza la row inline que estaba al final del detalle
@@ -74,6 +76,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - **F11** — `QuorumBadge` sticky al hacer scroll en el formulario: la cabecera de la sección de asistencia tiene `sticky top-0 z-10 bg-white/95 backdrop-blur-sm`; incluye además los botones Expandir/Colapsar
 - caché compartido del portal endurecido para evitar que el listado, el detalle y el formulario vuelvan a mostrar skeleton o reconsulten `actas` al cambiar de módulo
 - mutaciones de actas ahora invalidan una versión global del snapshot para que `/metricas/` y vistas agregadas no queden mostrando cumplimiento stale tras guardar o editar
+- reassert de RLS para `evidencias_actas`: la migración `20260526_consejos_reassert_storage_evidencias_scope.sql` vuelve a alinear `storage.objects` con `has_school_scope_access()` para que integrantes de equipo con scope parcial puedan subir PDFs documentales
 
 ### Pendiente o parcial
 
@@ -85,6 +88,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - selector UI para `programacion_origen_id`
 - definición final de KPIs que cuentan solo `ACTA_COMPLETA` vs ambos modos
 - confirmación en entorno real de que `20260514_consejos_usuario_establecimiento_roles.sql` está aplicada; sin esa migración el alcance por correo/RBD/rol no queda garantizado
+- confirmación en entorno real de que `20260526_consejos_reassert_storage_evidencias_scope.sql` está aplicada; sin ella puede reaparecer `new row violates row-level security policy` al subir respaldo documental con usuarios de equipo
 
 ---
 
@@ -101,7 +105,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 
 | Archivo | Rol real hoy |
 |---|---|
-| `app/actas/page.tsx` | listado tabular, búsqueda, filtros `tipo` y `modo`, acciones editar/eliminar, apertura de detalle |
+| `app/actas/page.tsx` | listado tabular, búsqueda, filtros `tipo`/`modo`/`sesión`, exportación CSV/Excel, acciones editar/eliminar, apertura de detalle |
 | `components/portal/acta-form.tsx` | formulario principal de creación/edición, con bifurcación entre modo completo y documental |
 | `components/portal/acta-detail.tsx` | vista de solo lectura, impresión y adaptación visual según `modo_registro` |
 | `components/portal/confirm-dialog.tsx` | confirmar descarte de cambios y eliminación |
@@ -115,6 +119,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 | `supabase/migrations/20260418_save_acta_atomic.sql` | RPC atómica alineada al modo híbrido, aún no activada en cliente |
 | `supabase/migrations/20260424_consejos_actas_registro_documental.sql` | migración que habilita `modo_registro`, `observacion_documental` y horarios nullable |
 | `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql` | sube el límite del bucket `evidencias_actas` a 50 MB para alinearlo con la UI |
+| `supabase/migrations/20260526_consejos_reassert_storage_evidencias_scope.sql` | reimpone RLS de `storage.objects` para `evidencias_actas` con `has_school_scope_access()` |
 
 Nota auth vigente:
 
@@ -314,6 +319,7 @@ Comportamiento diferencial:
 - si la persistencia en `actas` falla, intenta borrar el archivo recién subido para evitar huérfanos en Storage
 - el insert/update de la fila usa `upsert` real por `id`, evitando el bug en que un documental nuevo se trataba como `update` y nunca se insertaba
 - el botón final cambia texto a `Guardar registro documental`
+- el upload depende de que el primer segmento del path siga siendo el `rbd` real; las políticas de `storage.objects` validan ese segmento con `has_school_scope_access()`
   - **"Guardar avance" también exige documento**: `validate(draft=true)` verifica si el modo es `REGISTRO_DOCUMENTAL` y no hay `link_acta` ni archivo pendiente; si falta, bloquea el guardado antes de llegar a Supabase (necesario porque el constraint de BD es incondicional)
 Disparadores:
 - botón cerrar
@@ -438,6 +444,8 @@ No tocar sin revisar primero:
 - si no está aplicada `20260424_consejos_actas_registro_documental.sql`, el frontend híbrido queda desalineado con la base
 - si no está aplicada `20260514_consejos_usuario_establecimiento_roles.sql`, los representantes pueden terminar viendo un comportamiento incoherente con la cobertura esperada
 - si no está aplicada `20260505_consejos_storage_evidencias_50mb.sql`, la UI puede aceptar hasta 50 MB pero Supabase Storage seguirá rechazando archivos sobre 10 MB
+- si no está aplicada `20260526_consejos_reassert_storage_evidencias_scope.sql`, el flujo documental puede fallar solo en el upload con `new row violates row-level security policy` para usuarios con cobertura parcial aunque el guardado del acta sí esté permitido
+- si no está aplicada `20260526_consejos_storage_scope_normalized_rbd.sql`, el flujo documental puede seguir fallando aunque el usuario tenga scope correcto, porque `buildActaDocumentPath()` guarda el RBD del path como `6301405-33884-2` mientras el permiso real vive como `6301405/33884-2`
 - si se rompe `queries.ts`, el módulo puede compilar pero cargar semántica equivocada
 - el flujo cliente-side todavía no es transaccional entre acta e invitados
 - el documento adjunto sigue fuera de la transacción SQL

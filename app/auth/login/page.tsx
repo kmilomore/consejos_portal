@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { toast } from "@/components/ui/toast";
+import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
 
 function normalizeOAuthErrorMessage(rawMessage: string | null | undefined) {
@@ -38,14 +39,26 @@ function AuthCallbackHandler({ onError }: { onError: (message: string | null) =>
     const code = url.searchParams.get("code");
 
     async function handleCallback() {
+      logger.info("auth.callback", "Processing login callback", {
+        hasCode: Boolean(code),
+        pathname: url.pathname,
+      });
+
       if (code) {
         const { error } = await authClient.auth.exchangeCodeForSession(code);
 
         if (error) {
+          logger.error("auth.callback", "OAuth code exchange failed", {
+            pathname: url.pathname,
+            error: error.message,
+          });
           onError(normalizeOAuthErrorMessage(error.message));
           return;
         }
 
+        logger.info("auth.callback", "OAuth code exchange completed", {
+          pathname: url.pathname,
+        });
         onError(null);
 
         if (!error) {
@@ -56,6 +69,9 @@ function AuthCallbackHandler({ onError }: { onError: (message: string | null) =>
         return;
       }
 
+      logger.info("auth.callback", "Login page opened without OAuth code", {
+        pathname: url.pathname,
+      });
       onError(null);
     }
 
