@@ -69,11 +69,12 @@ function buildSessionMetricRows(
 }
 
 export default function MetricasPage() {
-  const { isGlobalAdmin, landingRoute } = usePortalAuth();
+  const { isGlobalAdmin, isReadOnly, landingRoute } = usePortalAuth();
   const { snapshot, status } = usePortalSnapshot();
   const [selectedSessionNumber, setSelectedSessionNumber] = useState<number | null>(null);
   const isDirectorView = !isGlobalAdmin && landingRoute === "/resumen/";
-  const isRepresentativeView = !isGlobalAdmin && landingRoute === "/admin/";
+  const isRepresentativeView = !isGlobalAdmin && !isReadOnly && landingRoute === "/admin/";
+  const isCollaboratorView = isReadOnly && landingRoute === "/admin/";
   const sessionRows = buildSessionMetricRows(snapshot.actas, snapshot.programaciones, snapshot.establishments);
   const establishmentByRbd = new Map(snapshot.establishments.map((item) => [item.rbd, item]));
   const totalSesionesRealizadas = snapshot.actas.length;
@@ -95,11 +96,15 @@ export default function MetricasPage() {
   const porcentajeCompletas = totalActas === 0 ? 0 : Math.round((actasCompletas / totalActas) * 100);
   const metricasDescription = isDirectorView
     ? "Indicadores de tu establecimiento, con foco en el cumplimiento normativo anual de las 4 sesiones ordinarias."
+    : isCollaboratorView
+      ? "Indicadores globales de solo lectura sobre sesiones realizadas, avance normativo y distribución territorial del año en curso."
     : isRepresentativeView
       ? "Indicadores consolidados de tus establecimientos asignados, incluyendo avance normativo y paneles asociados a su cobertura."
       : "Indicadores globales de sesiones realizadas, avance normativo y distribución territorial del año en curso.";
   const sesionesRealizadasDetail = isDirectorView
     ? `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas por tu establecimiento durante el año.`
+    : isCollaboratorView
+      ? `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro de todo el portal en modo solo lectura.`
     : isRepresentativeView
       ? `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro de tus escuelas asignadas.`
       : `Corresponde a ${totalActas} acta${totalActas === 1 ? "" : "s"} registradas durante el año dentro del alcance actual.`;

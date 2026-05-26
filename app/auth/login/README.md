@@ -2,7 +2,7 @@
 
 ## Alcance
 
-Esta sección documenta el comportamiento de [app/auth/login/page.tsx](app/auth/login/page.tsx) y su dependencia directa principal [components/auth/auth-screen.tsx](components/auth/auth-screen.tsx), apoyada por [lib/supabase/auth-context.tsx](lib/supabase/auth-context.tsx) y [lib/supabase/client.ts](lib/supabase/client.ts).
+Esta sección documenta el comportamiento de [app/auth/login/page.tsx](app/auth/login/page.tsx) y su dependencia directa principal [components/auth/auth-screen.tsx](components/auth/auth-screen.tsx), apoyada por [lib/auth/context.tsx](lib/auth/context.tsx) y [lib/supabase/client.ts](lib/supabase/client.ts).
 
 La ruta implementa acceso solo mediante Google OAuth.
 
@@ -38,7 +38,7 @@ Si el intercambio resulta exitoso:
 - elimina `code` de la URL;
 - usa `window.history.replaceState(...)` para evitar que el código quede visible en historial o copias de URL.
 
-La sesión efectiva y la resolución de acceso no se cierran en esta página. Después del callback, [lib/supabase/auth-context.tsx](lib/supabase/auth-context.tsx) confirma la sesión real con Supabase, carga `usuarios_perfiles`, resuelve el alcance con `get_current_portal_scope` y recién entonces deja estabilizada la navegación hacia `/admin/` o `/resumen/`.
+La sesión efectiva y la resolución de acceso no se cierran en esta página. Después del callback, [lib/auth/context.tsx](lib/auth/context.tsx) confirma la sesión real con Supabase, carga `usuarios_perfiles`, resuelve el alcance con `get_current_portal_scope` y recién entonces deja estabilizada la navegación hacia `/admin/` o `/resumen/`.
 
 ### 2.1. Rehidratación segura del estado auth
 
@@ -87,7 +87,7 @@ Si falta cualquiera de esas variables, la autenticación queda inoperante en el 
 
 ### Contexto de autenticación
 
-[lib/supabase/auth-context.tsx](lib/supabase/auth-context.tsx) centraliza:
+[lib/auth/context.tsx](lib/auth/context.tsx) centraliza:
 
 - estado de sesión;
 - carga de perfil del usuario desde la base;
@@ -98,11 +98,19 @@ Si falta cualquiera de esas variables, la autenticación queda inoperante en el 
 
 Regla operativa vigente de acceso:
 
-- el equipo interno del portal mantiene su lógica principal desde `usuarios_perfiles`;
-- los directores deben poder resolver acceso desde `usuario_establecimiento_roles` cuando el correo autenticado coincide con `email_normalizado` o `correo_electronico`;
-- ese fallback no debe convertir al equipo en directores ni reemplazar la lógica actual de representantes con cobertura parcial.
+- `usuario_establecimiento_roles` es la fuente de verdad del acceso;
+- `get_current_portal_scope()` devuelve `role_text`, `is_global_admin`, `accessible_rbds`, `default_rbd`, `can_select_school`, `landing_route`, `is_read_only` y `can_manage_users`;
+- `ADMIN` entra con acceso global y puede gestionar usuarios;
+- `COLABORADOR` entra con acceso global de solo lectura;
+- `REPRESENTANTE` entra a `/admin/` con cobertura parcial;
+- `DIRECTOR` entra a `/resumen/` con su establecimiento resuelto.
 
 Esto implica que la página de login es una capa delgada: la lógica crítica de autenticación vive principalmente en el contexto.
+
+Regla importante desde 2026-05-26:
+
+- `canSelectSchool` no equivale a permiso de escritura;
+- un colaborador global puede navegar y cambiar escuela activa para revisar datos, pero el resto del portal debe seguir en modo read-only.
 
 ## Supuestos operativos
 
@@ -195,6 +203,7 @@ Hitos que quedan trazados:
 - resultado de lectura de `usuarios_perfiles`;
 - fallback por `get_current_portal_scope()` cuando no hay perfil persistido;
 - hidratación de perfil sintético para usuarios con una sola escuela en scope;
+- flags de alcance `is_read_only` y `can_manage_users` cuando el scope se resuelve por SQL.
 - error al resolver `establecimientos` por `rbd`;
 - cierre exitoso del bootstrap con `landingRoute`, RBD accesibles y escuela resuelta.
 

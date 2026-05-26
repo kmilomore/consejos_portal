@@ -9,6 +9,8 @@ import type {
   Establishment,
   ExtraordinarySessionReason,
   InvitedGuest,
+  PortalManagedAccessRole,
+  PortalUserAccess,
   Programacion,
   SessionFormat,
   SuspensionClassDetail,
@@ -46,6 +48,15 @@ export interface PersistenceStepResult {
   errorMessage?: string;
 }
 
+export interface PortalUserAccessUpsertInput {
+  correo_electronico: string;
+  rbd: string | null;
+  rol: PortalManagedAccessRole;
+  equipo?: string;
+  origen?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ProgramacionUpsertInput {
   id?: string;
   rbd: string;
@@ -76,10 +87,74 @@ type InvitadoRow = {
   cargo: string;
 };
 
+type PortalUserAccessRow = {
+  id: string;
+  correo_electronico: string;
+  email_normalizado: string;
+  rbd: string | null;
+  rol: string;
+  equipo: string;
+  origen: string;
+  metadata: Json;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 const roleOrder = ["Director", "Sostenedor", "Docente", "Asistente", "Estudiante", "Apoderado"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function normalizeAccessMetadata(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function normalizePortalUserAccess(row: PortalUserAccessRow): PortalUserAccess {
+  return {
+    id: row.id,
+    correo_electronico: row.correo_electronico,
+    email_normalizado: row.email_normalizado,
+    rbd: row.rbd,
+    rol: row.rol,
+    equipo: row.equipo,
+    origen: row.origen,
+    metadata: normalizeAccessMetadata(row.metadata),
+    activo: row.activo,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function humanizeUserAccessError(message: string) {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) {
+    return "No fue posible gestionar el acceso del usuario.";
+  }
+
+  if (normalized.includes("solo un administrador global")) {
+    return "Solo un administrador global puede gestionar usuarios desde este panel.";
+  }
+
+  if (normalized.includes("duplicate key") || normalized.includes("unique_scope")) {
+    return "Ya existe una asignación activa con ese correo, rol, equipo y escuela.";
+  }
+
+  if (normalized.includes("correo valido")) {
+    return "Debes ingresar un correo válido.";
+  }
+
+  if (normalized.includes("rbd valido")) {
+    return "Debes seleccionar una escuela válida para ese rol.";
+  }
+
+  if (normalized.includes("row-level security") || normalized.includes("permission denied")) {
+    return "Tu sesión no tiene permisos para gestionar usuarios.";
+  }
+
+  return message;
 }
 
 function normalizeActaMode(value: unknown): ActaRecordMode {
@@ -591,6 +666,69 @@ export async function deleteActa(actaId: string): Promise<boolean> {
   bumpPortalSnapshotVersion();
 
   return true;
+}
+
+export async function listPortalUserAccess(): Promise<{ data: PortalUserAccess[]; errorMessage?: string }> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { data: [], errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { data, error } = await supabase
+    .from("usuario_establecimiento_roles")
+    .select("id, correo_electronico, email_normalizado, rbd, rol, equipo, origen, metadata, activo, created_at, updated_at")
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    logger.error("listPortalUserAccess", error.message);
+    return { data: [], errorMessage: humanizeUserAccessError(error.message) };
+  }
+
+  return {
+    data: ((data ?? []) as PortalUserAccessRow[]).map(normalizePortalUserAccess),
+  };
+}
+
+export async function upsertPortalUserAccess(input: PortalUserAccessUpsertInput): Promise<PersistenceStepResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { ok: false, errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { error } = await supabase.rpc("upsert_usuario_establecimiento_rol", {
+    p_correo_electronico: input.correo_electronico,
+    p_rbd: input.rbd ?? "",
+    p_rol: input.rol,
+    p_equipo: input.equipo ?? "",
+    p_origen: input.origen ?? "manual",
+    p_metadata: (input.metadata ?? {}) as Json,
+  });
+
+  if (error) {
+    logger.error("upsertPortalUserAccess", error.message);
+    return { ok: false, errorMessage: humanizeUserAccessError(error.message) };
+  }
+
+  return { ok: true };
+}
+
+export async function deactivatePortalUserAccess(accessId: string): Promise<PersistenceStepResult> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { ok: false, errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { error } = await supabase
+    .from("usuario_establecimiento_roles")
+    .update({ activo: false })
+    .eq("id", accessId);
+
+  if (error) {
+    logger.error("deactivatePortalUserAccess", error.message);
+    return { ok: false, errorMessage: humanizeUserAccessError(error.message) };
+  }
+
+  return { ok: true };
 }
 
 export async function ensureExtraordinarySessionReason(

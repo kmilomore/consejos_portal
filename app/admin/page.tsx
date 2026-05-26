@@ -105,7 +105,7 @@ function DirectoryRow({ e }: { e: SlepEscuela }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { profile, isGlobalAdmin, accessibleRbds, landingRoute } = usePortalAuth();
+  const { profile, isGlobalAdmin, isReadOnly, accessibleRbds, landingRoute } = usePortalAuth();
   const router = useRouter();
   const { data, metrics, isLoading, error } = useSlepDirectorio();
   const [query, setQuery] = useState("");
@@ -176,18 +176,26 @@ export default function AdminPage() {
           SLEP Colchagua
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">
-          {isGlobalAdmin ? "Panel Administrador" : "Panel de territorio asignado"}
+          {isGlobalAdmin ? "Panel Administrador" : isReadOnly ? "Panel colaborador" : "Panel de territorio asignado"}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
           {isGlobalAdmin
             ? "Directorio de establecimientos educacionales y métricas por territorio."
-            : "Vista agregada únicamente de las escuelas y comunas asociadas al correo autenticado."}
+            : isReadOnly
+              ? "Vista global de solo lectura sobre establecimientos, comunas y cobertura del portal."
+              : "Vista agregada únicamente de las escuelas y comunas asociadas al correo autenticado."}
         </p>
       </div>
 
-      {!isGlobalAdmin && (
+      {!isGlobalAdmin && !isReadOnly && (
         <div className="rounded-card border border-ocean/15 bg-ocean/5 px-5 py-4 text-sm text-neutral-700">
           Este panel no entrega acceso global. Las metricas, territorios y escuelas mostradas corresponden solo a tu cobertura asignada. Hoy tienes {accessibleRbds.length} escuela{accessibleRbds.length === 1 ? "" : "s"} dentro de alcance. Los directores no entran aqui: ellos aterrizan en /resumen y ven solo su establecimiento.
+        </div>
+      )}
+
+      {isReadOnly && (
+        <div className="rounded-card border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
+          Este acceso colaborador ve la cobertura completa del portal, pero no puede crear, editar ni eliminar información.
         </div>
       )}
 

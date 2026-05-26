@@ -1,8 +1,8 @@
 # Contexto: Módulo de Actas — Consejos Escolares
 
-> **Última actualización:** 2026-05-26 (v7)
+> **Última actualización:** 2026-05-26 (v8)
 > **Fuente de verdad local:** este archivo para el módulo de actas, complementado por `context.md` a nivel portal.
-> **Estado actual:** flujo híbrido operativo con 13 mejoras UI/UX implementadas; compilación limpia.
+> **Estado actual:** flujo híbrido operativo con mejoras UI/UX y contrato read-only para colaborador; compilación limpia.
 
 ---
 
@@ -77,6 +77,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - caché compartido del portal endurecido para evitar que el listado, el detalle y el formulario vuelvan a mostrar skeleton o reconsulten `actas` al cambiar de módulo
 - mutaciones de actas ahora invalidan una versión global del snapshot para que `/metricas/` y vistas agregadas no queden mostrando cumplimiento stale tras guardar o editar
 - reassert de RLS para `evidencias_actas`: la migración `20260526_consejos_reassert_storage_evidencias_scope.sql` vuelve a alinear `storage.objects` con `has_school_scope_access()` para que integrantes de equipo con scope parcial puedan subir PDFs documentales
+- bloqueo de acciones de mutación para colaborador global: no puede crear, editar ni eliminar actas aunque conserve lectura y exportación del módulo
 
 ### Pendiente o parcial
 
@@ -88,6 +89,7 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 - selector UI para `programacion_origen_id`
 - definición final de KPIs que cuentan solo `ACTA_COMPLETA` vs ambos modos
 - confirmación en entorno real de que `20260514_consejos_usuario_establecimiento_roles.sql` está aplicada; sin esa migración el alcance por correo/RBD/rol no queda garantizado
+- confirmación en entorno real de que `20260526_consejos_colaborador_readonly.sql` está aplicada; sin ella el colaborador no queda protegido por RLS read-only
 - confirmación en entorno real de que `20260526_consejos_reassert_storage_evidencias_scope.sql` está aplicada; sin ella puede reaparecer `new row violates row-level security policy` al subir respaldo documental con usuarios de equipo
 
 ---
@@ -111,21 +113,21 @@ El objetivo del diseño actual es soportar la operación híbrida 2026 en las 4 
 | `components/portal/confirm-dialog.tsx` | confirmar descarte de cambios y eliminación |
 | `components/ui/toast.tsx` | feedback de guardado o error |
 | `lib/supabase/queries.ts` | loader canónico y mutaciones del módulo |
-| `lib/supabase/use-portal-snapshot.tsx` | snapshot compartido; fuente única de datos para la página |
-| `lib/supabase/auth-context.tsx` | `profile`, `selectedRbd`, `establishment`, alcance de la escuela activa |
-| `lib/supabase/use-slep-directorio.ts` | filtrado visible del directorio para representantes y cobertura parcial |
-| `lib/supabase/use-slep-directorio.ts` | catálogo visible de escuelas para el selector |
+| `lib/hooks/use-portal-snapshot.tsx` | snapshot compartido; fuente única de datos para la página |
+| `lib/auth/context.tsx` | `profile`, `selectedRbd`, `establishment`, `isGlobalAdmin`, `isReadOnly` y alcance efectivo |
+| `lib/hooks/use-slep-directorio.ts` | catálogo visible de escuelas y directorio filtrado por alcance |
 | `types/domain.ts` | `Acta`, `AttendeeSlot`, `InvitedGuest`, `ActaRecordMode` |
 | `supabase/migrations/20260418_save_acta_atomic.sql` | RPC atómica alineada al modo híbrido, aún no activada en cliente |
 | `supabase/migrations/20260424_consejos_actas_registro_documental.sql` | migración que habilita `modo_registro`, `observacion_documental` y horarios nullable |
 | `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql` | sube el límite del bucket `evidencias_actas` a 50 MB para alinearlo con la UI |
+| `supabase/migrations/20260526_consejos_colaborador_readonly.sql` | agrega rol `COLABORADOR`, separa lectura/escritura y deja el módulo en solo lectura para ese perfil |
 | `supabase/migrations/20260526_consejos_reassert_storage_evidencias_scope.sql` | reimpone RLS de `storage.objects` para `evidencias_actas` con `has_school_scope_access()` |
 
 Nota auth vigente:
 
 - el módulo no debe asumir que todo acceso válido nace en `usuarios_perfiles`;
 - para directores, el alcance puede resolverse desde `usuario_establecimiento_roles` por correo autenticado;
-- para el equipo interno y representantes parciales se mantiene la lógica actual basada en `usuarios_perfiles` más flags de scope derivados.
+- para el equipo interno, representantes parciales y colaborador global, el frontend debe consumir flags de scope derivados desde `get_current_portal_scope()` (`isGlobalAdmin`, `isReadOnly`, `accessibleRbds`).
 
 ### Hallazgo operativo 2026-05-12
 
@@ -149,7 +151,7 @@ Patrón correcto para Actas:
 2. `app/actas/page.tsx`
 3. `components/portal/acta-detail.tsx`
 4. `lib/supabase/queries.ts`
-5. `lib/supabase/use-portal-snapshot.tsx`
+5. `lib/hooks/use-portal-snapshot.tsx`
 6. migraciones SQL del módulo
 
 ---
@@ -331,7 +333,7 @@ Comportamiento diferencial:
 - no invalidar o limpiar snapshot compartido al abrir modales, cambiar query params o cerrar el drawer
 - no usar rutas internas mezcladas con y sin slash final al navegar hacia `/actas/`
 - no reintroducir estados de loading que tapen toda la página si ya existe `snapshot.actas` cacheado
-- no duplicar la lógica de lectura de actas fuera de `lib/supabase/use-portal-snapshot.tsx` y `lib/supabase/queries.ts`
+- no duplicar la lógica de lectura de actas fuera de `lib/hooks/use-portal-snapshot.tsx` y `lib/supabase/queries.ts`
 - no asumir que el problema está en el guardado del acta si la fila aparece en `/actas/`; confirmar primero si el desacople está en snapshot o en las otras fuentes agregadas
 - no sacar `searchField`, `filterComuna`, `filterTipo`, `filterModo`, `filterRbd`, `sortField` o `sortDir` fuera del mismo `useMemo` de `filteredRows`; el resumen superior y la navegación del modal dependen de ese subconjunto consistente
 - no exige horario completo
@@ -481,6 +483,7 @@ No tocar sin revisar primero:
 
 - el límite vigente de carga para documentos de acta es 50 MB y debe mantenerse alineado entre UI y bucket `evidencias_actas`
 - el texto del perfil en `usuarios_perfiles.rol` no basta para inferir alcance: hoy el verdadero permiso global está en `usuario_establecimiento_roles` vía `is_global_admin()` y el scope territorial en `current_accessible_rbds()`
+- colaborador global no debe tratarse como “admin global”: comparte lectura total, pero no escritura ni gestión de usuarios
 - si se añade un rol nuevo que no sea `DIRECTOR` ni `ADMIN` pero tenga scope parcial, el guard `isGlobalAdmin + accessibleRbds` lo cubre automáticamente siempre que `get_current_portal_scope()` devuelva sus RBDs correctamente
 - drafts creados antes de 2026-05-11 están en formato `FormState` plano (sin `savedAt`); `parseSavedDraft` los descarta automáticamente al no encontrar `savedAt` — ningún dato queda huérfano
 - `getAttendeesSuggestions` depende de que `actas` tenga datos de asistentes del mismo RBD; si el usuario crea su primer acta para un establecimiento, no habrá sugerencias — el campo funciona igual sin datalist
@@ -504,16 +507,17 @@ No tocar sin revisar primero:
 8. No volver al borrador único `acta-draft-new` para todos los casos; hoy el draft es por acta.
 9. No relajar la obligación de RUT/correo/modalidad para asistentes presentes sin rediseño explícito.
 10. No volver a tratar `profile.rol === 'ADMIN'` como equivalente a “admin global” sin revisar también `isGlobalAdmin`.
-11. No usar `if (draft) return true` como atajo total en `validate()`: las reglas que son constraints de BD deben aplicarse siempre, incluso para “Guardar avance”.
-12. No restaurar el guard textual `profile.rol === “DIRECTOR”` en `handleSubmit`; el guard vigente usa `isGlobalAdmin + accessibleRbds` y cubre todos los roles con scope parcial.
-13. No guardar en localStorage el `FormState` plano sin `savedAt`; el formato esperado por `parseSavedDraft` es `{ form: FormState, savedAt: number }`.
-14. No exponer mensajes de error de Supabase directamente en `setSaveError`; usar `humanizeDbError()` o redactar un mensaje propio en español.
-15. No volver a `items-center` en el contenedor de `ActaDetail`; el modal debe anclar desde arriba del viewport (`items-start`) para que el header sea inmediatamente visible.
-16. No mostrar el filtro de establecimiento a usuarios no globales; la condición `isGlobalAdmin` en `app/actas/page.tsx` es deliberada y no debe relajarse a `canSelectSchool` sin validar el contrato de scope.
-17. No usar `sortField` y `sortDir` fuera del `useMemo` de `filteredRows`; el orden es presentación pura y no debe afectar el estado del modal abierto ni el conteo de resultados.
-18. No implementar `getAttendeesSuggestions` con acceso a todos los RBDs del snapshot; la función filtra `a.rbd === rbd` obligatoriamente para no sugerir PII de otras escuelas.
-19. No llamar `navigator.clipboard.writeText` sin considerar que puede lanzar en entornos sin HTTPS; agregar `try/catch` si se reutiliza el patrón de copiado en otros lugares.
-20. No sacar el `QuorumBadge` del wrapper sticky sin moverlo a otro contexto visible; si se mueve al body scrollable el usuario pierde referencia de quórum mientras rellena los 6 estamentos.
+11. No tratar `canSelectSchool` como permiso de escritura; colaborador global también puede seleccionar escuela pero sigue siendo solo lectura.
+12. No usar `if (draft) return true` como atajo total en `validate()`: las reglas que son constraints de BD deben aplicarse siempre, incluso para “Guardar avance”.
+13. No restaurar el guard textual `profile.rol === “DIRECTOR”` en `handleSubmit`; el guard vigente usa `isGlobalAdmin + accessibleRbds` y cubre todos los roles con scope parcial.
+14. No guardar en localStorage el `FormState` plano sin `savedAt`; el formato esperado por `parseSavedDraft` es `{ form: FormState, savedAt: number }`.
+15. No exponer mensajes de error de Supabase directamente en `setSaveError`; usar `humanizeDbError()` o redactar un mensaje propio en español.
+16. No volver a `items-center` en el contenedor de `ActaDetail`; el modal debe anclar desde arriba del viewport (`items-start`) para que el header sea inmediatamente visible.
+17. No mostrar el filtro de establecimiento a usuarios no globales; la condición `isGlobalAdmin` en `app/actas/page.tsx` es deliberada y no debe relajarse a `canSelectSchool` sin validar el contrato de scope.
+18. No usar `sortField` y `sortDir` fuera del `useMemo` de `filteredRows`; el orden es presentación pura y no debe afectar el estado del modal abierto ni el conteo de resultados.
+19. No implementar `getAttendeesSuggestions` con acceso a todos los RBDs del snapshot; la función filtra `a.rbd === rbd` obligatoriamente para no sugerir PII de otras escuelas.
+20. No llamar `navigator.clipboard.writeText` sin considerar que puede lanzar en entornos sin HTTPS; agregar `try/catch` si se reutiliza el patrón de copiado en otros lugares.
+21. No sacar el `QuorumBadge` del wrapper sticky sin moverlo a otro contexto visible; si se mueve al body scrollable el usuario pierde referencia de quórum mientras rellena los 6 estamentos.
 
 ### No tocar sin revisar también
 
@@ -522,7 +526,7 @@ No tocar sin revisar primero:
 - `supabase/migrations/20260424_consejos_actas_registro_documental.sql`
 - `supabase/migrations/20260418_save_acta_atomic.sql`
 - `supabase/migrations/20260505_consejos_storage_evidencias_50mb.sql`
-- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/hooks/use-portal-snapshot.tsx`
 - `components/portal/acta-detail.tsx` — posicionamiento del modal, layout A4, navegación prev/next, banner D2 y botón D3
 - `app/actas/page.tsx` — filtros, ordenamiento y condición `isGlobalAdmin` para filtro de escuela; `establishmentMap`; props pasados a `ActaDetail`
 - `components/portal/acta-form.tsx` — header de progreso F5, sticky header de asistencia F11, `getAttendeesSuggestions`, `formatBytes`, `timeAgo`
@@ -548,16 +552,17 @@ Razón:
 9. los asistentes presentes requieren trazabilidad mínima: nombre, RUT, correo, modalidad.
 10. la operación híbrida debe seguir funcionando para las 4 comunas sin flags separados en frontend.
 11. el representante del sostenedor puede navegar con perfil tipo admin, pero su visibilidad efectiva debe seguir limitada por los RBD autorizados en `usuario_establecimiento_roles`.
-12. `validate(draft)` debe proteger todas las reglas que son invariantes de BD aunque el guardado sea parcial.
-13. el guard de RBD en `handleSubmit` usa `isGlobalAdmin + accessibleRbds`, no el rol textual; no reemplazar.
-14. los drafts en localStorage tienen formato `{ form, savedAt }` y TTL de 24 horas; `parseSavedDraft` es la única función que los lee.
-15. los errores de Supabase que llegan al usuario pasan por `humanizeDbError()`; no exponer mensajes crudos del cliente.
-16. `ActaDetail` ancla desde `items-start` del viewport; el scroll interno queda en el body del modal, no en el documento.
-17. el filtro por establecimiento en el listado es exclusivo de `isGlobalAdmin`; el estado `filterRbd` forma parte del `useMemo` de `filteredRows`.
-18. el ordenamiento de columnas (`sortField`, `sortDir`) se aplica dentro del mismo `useMemo` de `filteredRows`, después del filtrado; no se maneja en estado separado.
-19. `siblingActas` y `onNavigate` se pasan desde `app/actas/page.tsx` a `ActaDetail`; el modal no accede al snapshot directamente.
-20. `getAttendeesSuggestions` filtra siempre por `rbd` antes de devolver nombres; no devuelve sugerencias de otras escuelas.
-21. el indicador de autoguardado (`lastDraftSavedAt`) solo se actualiza al persistir en localStorage, no al detectar cambios en el formulario.
+12. colaborador global puede revisar, filtrar y exportar, pero no debe recuperar botones de `Nueva acta`, `Editar` o `Eliminar`.
+13. `validate(draft)` debe proteger todas las reglas que son invariantes de BD aunque el guardado sea parcial.
+14. el guard de RBD en `handleSubmit` usa `isGlobalAdmin + accessibleRbds`, no el rol textual; no reemplazar.
+15. los drafts en localStorage tienen formato `{ form, savedAt }` y TTL de 24 horas; `parseSavedDraft` es la única función que los lee.
+16. los errores de Supabase que llegan al usuario pasan por `humanizeDbError()`; no exponer mensajes crudos del cliente.
+17. `ActaDetail` ancla desde `items-start` del viewport; el scroll interno queda en el body del modal, no en el documento.
+18. el filtro por establecimiento en el listado es exclusivo de `isGlobalAdmin`; el estado `filterRbd` forma parte del `useMemo` de `filteredRows`.
+19. el ordenamiento de columnas (`sortField`, `sortDir`) se aplica dentro del mismo `useMemo` de `filteredRows`, después del filtrado; no se maneja en estado separado.
+20. `siblingActas` y `onNavigate` se pasan desde `app/actas/page.tsx` a `ActaDetail`; el modal no accede al snapshot directamente.
+21. `getAttendeesSuggestions` filtra siempre por `rbd` antes de devolver nombres; no devuelve sugerencias de otras escuelas.
+22. el indicador de autoguardado (`lastDraftSavedAt`) solo se actualiza al persistir en localStorage, no al detectar cambios en el formulario.
 22. el header de asistencia usa `sticky top-0` dentro del body con `overflow-y-auto`; depende de esa propiedad en el contenedor padre para funcionar correctamente.
 
 ---

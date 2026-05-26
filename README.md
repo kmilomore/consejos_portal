@@ -78,17 +78,33 @@ Sin esa migración, el diagnóstico de producción mostrará tablas vacías aunq
 
 Para el flujo Google OAuth por correo institucional y portal por establecimiento, aplica también la migración `supabase/migrations/20260416_consejos_auth_bootstrap_from_base.sql`.
 
-En el esquema vigente de alcance por correo y cobertura territorial, deben estar aplicadas además `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql` y `supabase/migrations/20260526_consejos_reassert_storage_evidencias_scope.sql`.
+En el esquema vigente de alcance por correo y cobertura territorial, deben estar aplicadas además estas migraciones:
 
-Esa migración:
+- `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql`
+- `supabase/migrations/20260526_consejos_admin_user_management_rls.sql`
+- `supabase/migrations/20260526_consejos_colaborador_readonly.sql`
+- `supabase/migrations/20260526_consejos_reassert_storage_evidencias_scope.sql`
+
+Estas migraciones dejan este contrato operativo:
 
 - normaliza filas desde `public."BASE DE DATOS ESCUELAS SLEP"`
 - sincroniza `establecimientos` desde esa base maestra
 - crea o actualiza `usuarios_perfiles` automáticamente para el usuario autenticado según su correo
+- usa `usuario_establecimiento_roles` como fuente de verdad del acceso
+- separa lectura (`has_school_scope_access`) de escritura (`has_school_write_access`)
+- habilita gestión de usuarios solo para admin global mediante `/admin/usuarios/`
+- agrega el rol `COLABORADOR` como acceso global de solo lectura
 
 El callback browser vuelve siempre a `/auth/login/`, donde el portal ejecuta `exchangeCodeForSession(code)` y luego resuelve el acceso real con `usuarios_perfiles` + `get_current_portal_scope`.
 
-La segunda migración es relevante para actas documentales: reimpone las políticas RLS de `storage.objects` sobre el bucket `evidencias_actas` usando `has_school_scope_access()`, evitando que usuarios de equipo con scope parcial fallen al subir PDFs con `new row violates row-level security policy`.
+Roles de negocio vigentes:
+
+- `ADMIN`: acceso global con escritura total y permiso para gestionar usuarios.
+- `COLABORADOR`: acceso global de solo lectura; puede ver todo, pero no crear, editar ni eliminar.
+- `REPRESENTANTE`: navegación tipo admin con alcance parcial a sus RBD autorizados.
+- `DIRECTOR`: acceso operativo a su establecimiento.
+
+La migración de storage es relevante para actas documentales: reimpone las políticas RLS de `storage.objects` sobre el bucket `evidencias_actas`. Tras el cambio read-only, la lectura usa `has_school_scope_access()` y la escritura `has_school_write_access()`, evitando permisos equivocados para usuarios con alcance parcial o global read-only.
 
 Nota operativa vigente:
 
@@ -101,6 +117,7 @@ Condición clave: la tabla `BASE DE DATOS ESCUELAS SLEP` debe contener el `RBD` 
 
 Se modelaron estas entidades iniciales:
 
+- `usuario_establecimiento_roles`
 - `usuarios_perfiles`
 - `establecimientos`
 - `programacion`
@@ -114,6 +131,12 @@ Además, la migración crea:
 - bucket `evidencias_actas`
 - políticas RLS base por rol y RBD
 - función `public.get_next_session_number(session_type, establishment_rbd, target_year)`
+
+En el estado actual también existen:
+
+- `public.get_current_portal_scope()` con flags `is_read_only` y `can_manage_users`
+- `public.upsert_usuario_establecimiento_rol(...)` para alta y actualización de accesos por admin global
+- políticas RLS que distinguen explícitamente lectura de escritura
 
 En operación actual, el bucket real del módulo es `evidencias_actas`, con escritura autenticada vía RLS y lectura por `getPublicUrl()` para `link_acta`.
 

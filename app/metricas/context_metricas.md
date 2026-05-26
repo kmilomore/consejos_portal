@@ -1,6 +1,6 @@
 # Contexto del modulo /metricas
 
-> Ultima actualizacion: 2026-05-14
+> Ultima actualizacion: 2026-05-26
 
 ## Objetivo
 
@@ -36,7 +36,7 @@ Se confirmo que el problema de skeleton y recarga al cambiar de modulo no debia 
 
 Consecuencia practica:
 
-- si `/metricas` vuelve a mostrar skeleton o recalcular desde cero al cambiar de seccion, primero revisar `lib/supabase/use-portal-snapshot.tsx`, `lib/supabase/auth-context.tsx` y `lib/supabase/client.ts`
+- si `/metricas` vuelve a mostrar skeleton o recalcular desde cero al cambiar de seccion, primero revisar `lib/hooks/use-portal-snapshot.tsx`, `lib/auth/context.tsx` y `lib/supabase/client.ts`
 - no intentar “arreglar” este sintoma agregando un fetch local dentro de la pagina
 
 Hallazgo adicional del mismo dia:
@@ -64,6 +64,7 @@ La cabecera de metricas muestra cuatro indicadores basados en `snapshot.actas` d
 Regla de alcance vigente:
 
 - director: ve solo metricas de su establecimiento; el cruce normativo siempre se hace contra `4` sesiones ordinarias al ano
+- colaborador global: ve metricas globales de todo el portal en modo solo lectura
 - representante con alcance parcial: ve metricas agregadas solo sobre sus establecimientos asignados
 - admin global: ve la agregacion completa del alcance total disponible
 
@@ -203,13 +204,14 @@ Esto permite navegar desde metricas al registro exacto sin duplicar UI ni estado
 - No asumir que un faltante en metricas implica ausencia real de acta; confirmar siempre contra `actas` y version del snapshot.
 - No volver a mostrar paneles `Territorio` ni `Top 3 escuelas` en vista director.
 - No presentar texto de “indicadores globales” cuando el usuario esta en alcance director o representante parcial.
+- Cuando el usuario sea colaborador global, si se usa copy de alcance total, debe explicitar que es una vista de solo lectura y no un permiso administrativo.
 
 ## Archivos involucrados
 
 - `app/metricas/page.tsx`
 - `app/metricas/context_metricas.md`
 - `app/actas/page.tsx`
-- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/hooks/use-portal-snapshot.tsx`
 - `lib/supabase/queries.ts`
 
 ## Checklist para cambios futuros

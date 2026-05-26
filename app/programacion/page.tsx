@@ -88,7 +88,7 @@ function programacionToForm(programacion: Programacion): ProgramacionFormState {
 
 export default function ProgramacionPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
-  const { establishment, profile, selectedRbd, canSelectSchool } = usePortalAuth();
+  const { establishment, profile, selectedRbd, canSelectSchool, isReadOnly } = usePortalAuth();
   const activeRbd = selectedRbd ?? establishment?.rbd ?? profile?.rbd ?? null;
   const activeSchoolName = establishment?.nombre ?? "Establecimiento activo";
   const [viewDate, setViewDate] = useState(() => new Date());
@@ -363,6 +363,12 @@ export default function ProgramacionPage() {
   }
 
   async function handleDropProgramacion(targetDate: string) {
+    if (isReadOnly) {
+      setDragOverDate(null);
+      setDraggingProgramacionId(null);
+      return;
+    }
+
     if (!draggingProgramacionId) {
       return;
     }
@@ -430,7 +436,9 @@ export default function ProgramacionPage() {
       <SectionCard
         eyebrow="Planificación"
         title="Programación de sesiones"
-        description="Programa, ajusta y ejecuta sesiones del consejo escolar desde el establecimiento activo."
+        description={isReadOnly
+          ? "Consulta la programación y las actas vinculadas desde el establecimiento activo sin permisos de edición."
+          : "Programa, ajusta y ejecuta sesiones del consejo escolar desde el establecimiento activo."}
       >
         <div className="mb-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-modal border border-neutral-200/80 bg-white p-5 shadow-sm">
@@ -470,7 +478,7 @@ export default function ProgramacionPage() {
                     onClick={() => handleDateSelection(dateKey)}
                     onDragOver={(event) => {
                       event.preventDefault();
-                      if (draggingProgramacionId) {
+                      if (!isReadOnly && draggingProgramacionId) {
                         setDragOverDate(dateKey);
                       }
                     }}
@@ -502,8 +510,12 @@ export default function ProgramacionPage() {
                       {dailyRows.slice(0, 2).map((row) => (
                         <div
                           key={row.id}
-                          draggable={row.estado === "PROGRAMADA" && !row.acta_vinculada_id}
+                          draggable={!isReadOnly && row.estado === "PROGRAMADA" && !row.acta_vinculada_id}
                           onDragStart={(event) => {
+                            if (isReadOnly) {
+                              event.preventDefault();
+                              return;
+                            }
                             event.stopPropagation();
                             setDraggingProgramacionId(row.id);
                           }}
@@ -526,7 +538,8 @@ export default function ProgramacionPage() {
             </div>
           </div>
 
-          <div className="rounded-modal border border-neutral-200/80 bg-white p-5 shadow-sm">
+          {!isReadOnly ? (
+            <div className="rounded-modal border border-neutral-200/80 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3 border-b border-neutral-100 pb-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-ocean">
@@ -648,7 +661,12 @@ export default function ProgramacionPage() {
                 {isSaving ? "Guardando..." : editingProgramacion ? "Guardar cambios" : "Guardar programación"}
               </Button>
             </div>
-          </div>
+            </div>
+          ) : (
+            <div className="rounded-modal border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-700 shadow-sm">
+              Tu perfil colaborador puede revisar toda la programación y abrir actas vinculadas, pero no crear, editar, reprogramar ni cancelar sesiones.
+            </div>
+          )}
         </div>
 
         <div className="mb-6 grid gap-4 lg:grid-cols-3">
@@ -724,7 +742,7 @@ export default function ProgramacionPage() {
             </Badge>
           </div>
 
-          {draggingProgramacionId || isReprogramming ? (
+          {!isReadOnly && (draggingProgramacionId || isReprogramming) ? (
             <p className="mt-3 text-sm text-neutral-500">
               {isReprogramming ? "Reprogramando sesión..." : "Arrastra una sesión programada a otra fecha del calendario para reprogramarla visualmente."}
             </p>
@@ -751,24 +769,30 @@ export default function ProgramacionPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="secondary" type="button" className="gap-2" onClick={() => handleEditProgramacion(row)} disabled={Boolean(row.acta_vinculada_id)}>
-                        <PencilLine className="h-4 w-4" />
-                        Editar
-                      </Button>
+                      {!isReadOnly ? (
+                        <Button variant="secondary" type="button" className="gap-2" onClick={() => handleEditProgramacion(row)} disabled={Boolean(row.acta_vinculada_id)}>
+                          <PencilLine className="h-4 w-4" />
+                          Editar
+                        </Button>
+                      ) : null}
                       {row.acta_vinculada_id ? (
                         <Button variant="secondary" type="button" className="gap-2" onClick={() => handleOpenLinkedActa(row)}>
                           <FileText className="h-4 w-4" />
                           Ver acta
                         </Button>
                       ) : null}
-                      <Button variant="secondary" type="button" className="gap-2" onClick={() => setActaProgramacion(row)} disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}>
-                        <FileText className="h-4 w-4" />
-                        {row.acta_vinculada_id ? "Acta creada" : "Crear acta"}
-                      </Button>
-                      <Button variant="ghost" type="button" className="gap-2 text-status-danger hover:text-coral-700" onClick={() => setCancelTarget(row)} disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}>
-                        <XCircle className="h-4 w-4" />
-                        Cancelar
-                      </Button>
+                      {!isReadOnly ? (
+                        <>
+                          <Button variant="secondary" type="button" className="gap-2" onClick={() => setActaProgramacion(row)} disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}>
+                            <FileText className="h-4 w-4" />
+                            {row.acta_vinculada_id ? "Acta creada" : "Crear acta"}
+                          </Button>
+                          <Button variant="ghost" type="button" className="gap-2 text-status-danger hover:text-coral-700" onClick={() => setCancelTarget(row)} disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}>
+                            <XCircle className="h-4 w-4" />
+                            Cancelar
+                          </Button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -840,14 +864,16 @@ export default function ProgramacionPage() {
                       <td className="px-4 py-4">{row.tematicas}</td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEditProgramacion(row)}
-                            disabled={Boolean(row.acta_vinculada_id)}
-                            className="rounded-full px-3 py-1 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Editar
-                          </button>
+                          {!isReadOnly ? (
+                            <button
+                              type="button"
+                              onClick={() => handleEditProgramacion(row)}
+                              disabled={Boolean(row.acta_vinculada_id)}
+                              className="rounded-full px-3 py-1 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Editar
+                            </button>
+                          ) : null}
                           {row.acta_vinculada_id ? (
                             <button
                               type="button"
@@ -857,22 +883,26 @@ export default function ProgramacionPage() {
                               Ver acta
                             </button>
                           ) : null}
-                          <button
-                            type="button"
-                            onClick={() => setActaProgramacion(row)}
-                            disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}
-                            className="rounded-full px-3 py-1 text-xs font-semibold text-neutral-700 ring-1 ring-neutral-200 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {row.acta_vinculada_id ? "Acta creada" : "Crear acta"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCancelTarget(row)}
-                            disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}
-                            className="rounded-full px-3 py-1 text-xs font-semibold text-ember ring-1 ring-ember/30 transition hover:bg-ember/5 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Cancelar
-                          </button>
+                          {!isReadOnly ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setActaProgramacion(row)}
+                                disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}
+                                className="rounded-full px-3 py-1 text-xs font-semibold text-neutral-700 ring-1 ring-neutral-200 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {row.acta_vinculada_id ? "Acta creada" : "Crear acta"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCancelTarget(row)}
+                                disabled={row.estado === "CANCELADA" || Boolean(row.acta_vinculada_id)}
+                                className="rounded-full px-3 py-1 text-xs font-semibold text-ember ring-1 ring-ember/30 transition hover:bg-ember/5 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

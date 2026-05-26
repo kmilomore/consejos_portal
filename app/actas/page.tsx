@@ -80,7 +80,7 @@ function downloadFile(content: BlobPart, fileName: string, contentType: string) 
 
 export default function ActasPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
-  const { isGlobalAdmin } = usePortalAuth();
+  const { isGlobalAdmin, isReadOnly } = usePortalAuth();
   const searchParams = useSearchParams();
   const rows = snapshot.actas;
 
@@ -439,8 +439,14 @@ export default function ActasPage() {
               </>
             )}
           </div>
-          <Button onClick={openNew}>Nueva acta</Button>
+          {!isReadOnly ? <Button onClick={openNew}>Nueva acta</Button> : null}
         </div>
+
+        {isReadOnly ? (
+          <div className="rounded-card border border-neutral-200 bg-neutral-50 px-5 py-4 text-sm text-neutral-700">
+            Tu perfil colaborador puede revisar actas y exportar información, pero no crear, editar ni eliminar registros.
+          </div>
+        ) : null}
 
         <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
@@ -534,25 +540,27 @@ export default function ActasPage() {
                     </td>
                     <td className="hidden px-4 py-3.5 text-neutral-600 lg:table-cell">{acta.lugar}{acta.lugar && acta.comuna ? ", " : ""}{acta.comuna}</td>
                     <td className="px-4 py-3.5">
-                      <div
-                        className="flex items-center justify-end gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => openEdit(acta)}
-                          className="rounded-full px-3 py-1 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+                      {!isReadOnly ? (
+                        <div
+                          className="flex items-center justify-end gap-2"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(acta)}
-                          className="rounded-full px-3 py-1 text-xs font-semibold text-ember ring-1 ring-ember/30 transition hover:bg-ember/5"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(acta)}
+                            className="rounded-full px-3 py-1 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(acta)}
+                            className="rounded-full px-3 py-1 text-xs font-semibold text-ember ring-1 ring-ember/30 transition hover:bg-ember/5"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

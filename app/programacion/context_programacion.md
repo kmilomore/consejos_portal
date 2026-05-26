@@ -1,6 +1,6 @@
 # Contexto Operativo: Programacion
 
-> Ultima actualizacion: 2026-05-12  
+> Ultima actualizacion: 2026-05-26  
 > Objetivo: este documento es la fuente de verdad operativa de la seccion `programacion/` y esta pensado para iterar con IA sin tener que redescubrir el modulo en cada sesion.
 > Contexto general del portal: ver `../../context.md` para arquitectura global, decisiones transversales y estado general del producto.
 
@@ -19,6 +19,7 @@ Hoy cubre estos casos reales:
 - crear un acta a partir de una programacion
 - abrir el acta ya vinculada cuando la sesion esta realizada
 - filtrar por tipo, estado y busqueda textual para establecimientos con alto volumen
+- permitir a colaborador global revisar la planificacion completa en modo solo lectura, sin mutaciones
 
 La experiencia esta pensada para trabajar sobre una escuela activa, no como un backoffice global desacoplado del resto del portal.
 
@@ -46,11 +47,11 @@ La experiencia esta pensada para trabajar sobre una escuela activa, no como un b
 
 ### Contextos compartidos
 
-- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/hooks/use-portal-snapshot.tsx`
   Exposicion de `snapshot` y `refresh()` para evitar fetches por pantalla.
 
-- `lib/supabase/auth-context.tsx`
-  Fuente de verdad de escuela activa, perfil y `selectedRbd`.
+- `lib/auth/context.tsx`
+  Fuente de verdad de escuela activa, perfil, `selectedRbd`, `canSelectSchool` e `isReadOnly`.
 
 Hallazgo operativo validado el 2026-05-12:
 
@@ -113,6 +114,11 @@ La pagina trabaja con dos subconjuntos:
 
 - `baseRows`: programaciones del `snapshot` filtradas por `activeRbd` cuando el usuario esta acotado a una sola escuela; si tiene cobertura multi-escuela (`canSelectSchool`), usa el scope completo del snapshot
 - `rows`: `baseRows` mas filtros de tipo, estado, busqueda textual y ordenamiento
+
+Nota vigente de permisos:
+
+- `canSelectSchool` puede ser verdadero para admin global, representante multi-escuela o colaborador global;
+- la capacidad de mutar no sale de ese flag, sino de `isReadOnly` y del contrato SQL `has_school_write_access()`.
 
 Todo lo visual debe colgar de `rows` para que calendario, agenda diaria y tabla se mantengan consistentes.
 
@@ -243,6 +249,7 @@ Restricciones vigentes:
 - no reprogramar sesiones `REALIZADA`
 - no reprogramar sesiones `CANCELADA`
 - no reprogramar sesiones con acta vinculada
+- no permitir drag-and-drop ni formulario de edicion cuando `isReadOnly === true`
 
 ### 6.5 Crear acta desde programacion
 

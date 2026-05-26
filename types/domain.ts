@@ -42,6 +42,24 @@ export interface PortalScope {
   default_rbd: string | null;
   can_select_school: boolean;
   landing_route: "/admin/" | "/resumen/";
+  is_read_only?: boolean;
+  can_manage_users?: boolean;
+}
+
+export type PortalManagedAccessRole = "ADMIN" | "COLABORADOR" | "DIRECTOR" | "REPRESENTANTE";
+
+export interface PortalUserAccess {
+  id: string;
+  correo_electronico: string;
+  email_normalizado: string;
+  rbd: string | null;
+  rol: string;
+  equipo: string;
+  origen: string;
+  metadata: Record<string, unknown>;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Programacion {

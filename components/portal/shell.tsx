@@ -17,6 +17,7 @@ import {
   LogOut,
   Search,
   School2,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/lib/auth/context";
@@ -34,6 +35,7 @@ const directorNavigation = [
 
 const adminNavigation = [
   { href: "/admin/", label: "Panel General", icon: LayoutGrid },
+  { href: "/admin/usuarios/", label: "Usuarios", icon: Users },
   { href: "/resumen/", label: "Resumen EE", icon: LayoutDashboard },
   { href: "/programacion/", label: "Programación", icon: CalendarRange },
   { href: "/actas/", label: "Actas", icon: FileText },
@@ -204,6 +206,7 @@ function PortalHeader({
   activeComuna,
   isAdmin,
   isGlobalAdmin,
+  isReadOnly,
   availableSchoolCount,
   selectedRbd,
 }: {
@@ -213,6 +216,7 @@ function PortalHeader({
   activeComuna: string | null | undefined;
   isAdmin: boolean;
   isGlobalAdmin: boolean;
+  isReadOnly: boolean;
   availableSchoolCount: number;
   selectedRbd: string | null;
 }) {
@@ -233,7 +237,7 @@ function PortalHeader({
             <p className="mt-2 text-sm font-semibold text-ink">{activeRbd ? `RBD ${activeRbd}` : "Panel general"}</p>
             <p className="mt-1 flex items-center gap-2 text-xs text-neutral-500">
               <MapPin className="h-3.5 w-3.5 text-neutral-400" />
-              {activeComuna || (isGlobalAdmin ? "Cobertura completa" : `${availableSchoolCount} escuelas asignadas`)}
+              {activeComuna || (isGlobalAdmin || isReadOnly ? "Cobertura completa" : `${availableSchoolCount} escuelas asignadas`)}
             </p>
           </div>
 
@@ -241,14 +245,16 @@ function PortalHeader({
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400">Vista actual</p>
             <p className="mt-2 text-sm font-semibold text-ink">
               {isAdmin && !selectedRbd
-                ? (isGlobalAdmin ? "Administración territorial" : "Territorio asignado")
+                ? (isGlobalAdmin ? "Administración territorial" : isReadOnly ? "Colaboración global" : "Territorio asignado")
                 : "Seguimiento por establecimiento"}
             </p>
             <p className="mt-1 text-xs text-neutral-500">
               {isAdmin && !selectedRbd
                 ? (isGlobalAdmin
                   ? "Acceso agregado a todas las escuelas disponibles."
-                  : "Vista agregada solo para las escuelas y comunas habilitadas a tu correo autenticado.")
+                  : isReadOnly
+                    ? "Acceso global de solo lectura sobre todas las escuelas habilitadas en el portal."
+                    : "Vista agregada solo para las escuelas y comunas habilitadas a tu correo autenticado.")
                 : "Datos operativos, asistencia y sesiones del establecimiento seleccionado."}
             </p>
           </div>
@@ -266,14 +272,16 @@ interface PortalShellProps extends PropsWithChildren {
 
 export function PortalShell({ children, profile, establishment }: PortalShellProps): React.ReactElement {
   const pathname = usePathname();
-  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin, accessibleRbds, landingRoute } = usePortalAuth();
+  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin, isReadOnly, canManageUsers, accessibleRbds, landingRoute } = usePortalAuth();
   const { data: slepSchools } = useSlepDirectorio();
   const isAdmin = isGlobalAdmin || landingRoute === "/admin/";
   const assignedSchoolCount = accessibleRbds.length;
   const navigation = isAdmin
-    ? adminNavigation.map((item) => item.href === "/admin/"
-      ? { ...item, label: isGlobalAdmin ? "Panel General" : "Mi Territorio" }
-      : item)
+    ? adminNavigation
+      .filter((item) => canManageUsers || item.href !== "/admin/usuarios/")
+      .map((item) => item.href === "/admin/"
+        ? { ...item, label: isGlobalAdmin ? "Panel General" : isReadOnly ? "Panel lectura" : "Mi Territorio" }
+        : item)
     : directorNavigation;
 
   const activeSlepSchool = isAdmin
@@ -288,12 +296,14 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
   const displayEmail = user?.email ?? profile.correo_electronico ?? "";
   const initial = displayEmail.charAt(0).toUpperCase();
   const pageTitle = isAdmin && !selectedRbd
-    ? (isGlobalAdmin ? "Panel territorial" : "Mi territorio asignado")
+    ? (isGlobalAdmin ? "Panel territorial" : isReadOnly ? "Panel colaborador" : "Mi territorio asignado")
     : activeDisplayName;
   const pageSubtitle = isAdmin && !selectedRbd
     ? (isGlobalAdmin
       ? "Monitorea disponibilidad, navegación y operación del portal por establecimiento con una vista centralizada."
-      : "Visualiza solo las escuelas y territorios asociados al correo autenticado, con una vista agregada acotada a tu cobertura.")
+      : isReadOnly
+        ? "Consulta toda la información del portal con alcance global, pero sin permisos para crear, editar o eliminar registros."
+        : "Visualiza solo las escuelas y territorios asociados al correo autenticado, con una vista agregada acotada a tu cobertura.")
     : "Accede al resumen ejecutivo, programación, actas y métricas del establecimiento activo desde un solo flujo.";
 
   return (
@@ -333,19 +343,21 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-400">Tipo de acceso</p>
                       <p className="mt-1 text-sm font-semibold text-ink">
-                        {isGlobalAdmin ? "Administrador global" : "Cobertura asignada"}
+                        {isGlobalAdmin ? "Administrador global" : isReadOnly ? "Colaborador global" : "Cobertura asignada"}
                       </p>
                     </div>
-                    <Badge tone={isGlobalAdmin ? "success" : "warn"}>
-                      {isGlobalAdmin ? "Admin global" : "Alcance parcial"}
+                    <Badge tone={isGlobalAdmin ? "success" : isReadOnly ? "neutral" : "warn"}>
+                      {isGlobalAdmin ? "Admin global" : isReadOnly ? "Solo lectura" : "Alcance parcial"}
                     </Badge>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-neutral-600">
                     {isGlobalAdmin
                       ? "Puedes navegar y consolidar información de todos los establecimientos habilitados en el portal."
-                      : `Solo puedes ver el territorio y las ${assignedSchoolCount} escuela${assignedSchoolCount === 1 ? "" : "s"} vinculada${assignedSchoolCount === 1 ? "" : "s"} a tu correo autenticado.`}
+                      : isReadOnly
+                        ? "Puedes revisar toda la información disponible en el portal, pero no puedes crear, editar ni eliminar registros."
+                        : `Solo puedes ver el territorio y las ${assignedSchoolCount} escuela${assignedSchoolCount === 1 ? "" : "s"} vinculada${assignedSchoolCount === 1 ? "" : "s"} a tu correo autenticado.`}
                   </p>
-                  {!isGlobalAdmin && (
+                  {!isGlobalAdmin && !isReadOnly && (
                     <div className="mt-3 rounded-card bg-status-warning-bg px-3 py-2 text-xs text-status-warning ring-1 ring-status-warning/30">
                       Este acceso no abre un panel general del SLEP. Solo habilita las escuelas relacionadas a tu cobertura.
                     </div>
@@ -446,6 +458,7 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
           activeComuna={activeComuna}
           isAdmin={isAdmin}
           isGlobalAdmin={isGlobalAdmin}
+          isReadOnly={isReadOnly}
           availableSchoolCount={slepSchools.length}
           selectedRbd={selectedRbd}
         />

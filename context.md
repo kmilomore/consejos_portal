@@ -19,7 +19,7 @@ Experiencia principal:
 
 ---
 
-## 2. Estado Actual del Producto (2026-05-14)
+## 2. Estado Actual del Producto (2026-05-26)
 
 ### Ya implementado y funcional
 
@@ -34,6 +34,7 @@ Experiencia principal:
 - Perfil de director derivado desde `DIRECTOR/A` + `CORREO ELECTRÓNICO` de `BASE DE DATOS ESCUELAS SLEP`
 - Cobertura de representantes derivada desde `CORREO REPRESENTANTE` por RBD en la misma base maestra
 - Admin global resuelto también desde `usuario_establecimiento_roles` con `rol = 'ADMIN'` y `rbd = null`
+- Colaborador global resuelto también desde `usuario_establecimiento_roles` con `rol = 'COLABORADOR'` y `rbd = null`
 - Shell principal adaptado a ancho completo de pantalla y navegación con logo institucional `SLEPCOLCHAGUA.webp`
 - Rediseño parcial del shell y módulos compartidos para mejorar jerarquía, tablas, botones, carga y lectura operativa
 - Persistencia de escuela seleccionada en navegación admin mediante `localStorage`
@@ -42,7 +43,12 @@ Experiencia principal:
 - Corrección de rehidratación auth para validar el cache persistido contra el `user.id` confirmado por Supabase y evitar loops de retorno al login por estado stale de otro usuario en la misma pestaña
 - Dropdown de escuelas diferenciado entre admin global y representante con alcance acotado por correo autenticado
 - Panel admin agregado también acotado por escuelas y territorios del representante cuando no es admin global
-- Sidebar con indicador explícito del tipo de acceso: `Admin global` o `Cobertura asignada`
+- Sidebar con indicador explícito del tipo de acceso: `Admin global`, `Colaborador global` o `Cobertura asignada`
+- Ruta `/admin/usuarios/` para gestionar accesos, roles, RBD y metadatos desde el portal
+- Gestión de usuarios protegida por RLS y disponible solo para admin global
+- Contrato de permisos separado entre lectura y escritura con `has_school_scope_access()` y `has_school_write_access()`
+- Flags de alcance en cliente vía `get_current_portal_scope()`: `is_read_only` y `can_manage_users`
+- UI read-only aplicada a colaborador en actas y programación, incluyendo bloqueo de drag-and-drop y acciones de mutación
 - `PortalSnapshotProvider` — contexto de datos compartido, cero re-fetch al navegar, nunca se desmonta mientras exista sesión
 - Navegación entre secciones sin flash visual ni pérdida de contenido (`app/loading.tsx` eliminado, `AppFrame` reestructurado)
 - Cliente Supabase browser compartido como singleton para no re-crear sesión ni listeners en cada remount
@@ -99,6 +105,8 @@ Experiencia principal:
 - Cierre de redirect si Supabase Auth sigue apuntando al portal antiguo
 - Endurecimiento de métricas según reglas de negocio finales
 - Aplicar en Supabase la migración `20260514_consejos_usuario_establecimiento_roles.sql` si aún no está corrida
+- Aplicar en Supabase la migración `20260526_consejos_admin_user_management_rls.sql` si aún no está corrida
+- Aplicar en Supabase la migración `20260526_consejos_colaborador_readonly.sql` si aún no está corrida
 
 ---
 
@@ -167,7 +175,7 @@ La app entera cuelga de `PortalAuthProvider` + `AppFrame`, que centraliza:
 - Control de loading y acceso
 - Redirect entre login y portal autenticado
 
-**Invariante:** no duplicar lógica de sesión fuera de `auth-context.tsx`.
+**Invariante:** no duplicar lógica de sesión fuera de `lib/auth/context.tsx`.
 
 Detalle operativo vigente:
 - `selectedRbd` se restaura desde `localStorage` solo para perfiles `ADMIN`
@@ -191,9 +199,9 @@ Hallazgo validado el 2026-05-12:
 
 Patrón correcto vigente:
 - `lib/supabase/client.ts` debe exponer un singleton browser client
-- `lib/supabase/auth-context.tsx` debe hidratar y persistir estado suficiente para no re-bootstrapear acceso en cada remount, pero siempre validándolo contra el usuario autenticado real antes de reutilizarlo
-- `lib/supabase/use-portal-snapshot.tsx` debe reutilizar caché persistido, deduplicar requests en vuelo por `userId + selectedRbd` y revalidar cuando la versión global del snapshot cambie tras una mutación
-- `lib/supabase/use-slep-directorio.ts` debe compartir caché por usuario, deduplicar requests en vuelo y complementar la RPC con `establecimientos` cuando el directorio base no traiga una escuela válida
+- `lib/auth/context.tsx` debe hidratar y persistir estado suficiente para no re-bootstrapear acceso en cada remount, pero siempre validándolo contra el usuario autenticado real antes de reutilizarlo
+- `lib/hooks/use-portal-snapshot.tsx` debe reutilizar caché persistido, deduplicar requests en vuelo por `userId + selectedRbd` y revalidar cuando la versión global del snapshot cambie tras una mutación
+- `lib/hooks/use-slep-directorio.ts` debe compartir caché por usuario, deduplicar requests en vuelo y complementar la RPC con `establecimientos` cuando el directorio base no traiga una escuela válida
 - las rutas internas del shell deben mantenerse con slash final consistente (`/resumen/`, `/programacion/`, `/actas/`, `/metricas/`, `/admin/`)
 
 Hallazgo adicional validado el 2026-05-12:
@@ -290,10 +298,10 @@ Invariantes operativas:
 | `components/ui/toast.tsx` | Sistema de toasts global |
 | `components/ui/button.tsx` | Botón base con variantes `primary`, `secondary`, `ghost` |
 | `components/ui/badge.tsx` | Badge con tones |
-| `lib/supabase/auth-context.tsx` | Sesión, perfil, establecimiento, auth flow |
+| `lib/auth/context.tsx` | Sesión, perfil, establecimiento, auth flow |
 | `lib/supabase/queries.ts` | `fetchPortalSnapshot`, mutaciones de `programacion`, `upsertActa`, `replaceActaInvitados`, uploads, delete e invalidación de versión del snapshot |
-| `lib/supabase/use-portal-snapshot.tsx` | Context Provider + `usePortalSnapshot()` hook con caché versionado |
-| `lib/supabase/use-slep-directorio.ts` | Hook → RPC `get_slep_directorio()` con fallback a `establecimientos` |
+| `lib/hooks/use-portal-snapshot.tsx` | Context Provider + `usePortalSnapshot()` hook con caché versionado |
+| `lib/hooks/use-slep-directorio.ts` | Hook → RPC `get_slep_directorio()` con fallback a `establecimientos` |
 | `types/domain.ts` | Tipos de dominio: `Acta`, `Profile`, `Establishment`, etc. |
 | `tailwind.config.ts` | Tokens visuales del portal |
 | `supabase/migrations/` | Historial de migraciones SQL |
@@ -304,25 +312,26 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 
 | Quieres cambiar... | Empieza en... | Apoyo secundario |
 |---|---|---|
-| Login, OTP, magic link, sesión | `components/auth/auth-screen.tsx` | `lib/supabase/auth-context.tsx`, `app/auth/login/page.tsx` |
-| Redirecciones y guardias globales | `components/portal/app-frame.tsx` | `lib/supabase/auth-context.tsx` |
-| Navegación lateral, logo, selector de escuela, header contextual | `components/portal/shell.tsx` | `lib/supabase/use-slep-directorio.ts`, `lib/supabase/auth-context.tsx` |
-| Persistencia de escuela seleccionada | `lib/supabase/auth-context.tsx` | `components/portal/shell.tsx`, `lib/supabase/use-portal-snapshot.tsx` |
-| Precarga de establecimiento activo en nueva acta | `components/portal/acta-form.tsx` | `lib/supabase/auth-context.tsx`, `lib/supabase/use-slep-directorio.ts`, `app/actas/page.tsx` |
+| Login, OTP, magic link, sesión | `components/auth/auth-screen.tsx` | `lib/auth/context.tsx`, `app/auth/login/page.tsx` |
+| Redirecciones y guardias globales | `components/portal/app-frame.tsx` | `lib/auth/context.tsx` |
+| Navegación lateral, logo, selector de escuela, header contextual | `components/portal/shell.tsx` | `lib/hooks/use-slep-directorio.ts`, `lib/auth/context.tsx` |
+| Persistencia de escuela seleccionada | `lib/auth/context.tsx` | `components/portal/shell.tsx`, `lib/hooks/use-portal-snapshot.tsx` |
+| Precarga de establecimiento activo en nueva acta | `components/portal/acta-form.tsx` | `lib/auth/context.tsx`, `lib/hooks/use-slep-directorio.ts`, `app/actas/page.tsx` |
 | Resumen del establecimiento | `app/resumen/page.tsx` | `components/portal/section-card.tsx`, `components/portal/attendance-chart.tsx` |
 | Programación, calendario y acciones operativas | `app/programacion/page.tsx` | `components/portal/acta-form.tsx`, `lib/supabase/queries.ts` |
 | Métricas y visualizaciones | `app/metricas/page.tsx` | `components/portal/attendance-chart.tsx`, `components/portal/section-card.tsx` |
-| Panel admin y directorio SLEP | `app/admin/page.tsx` | `lib/supabase/use-slep-directorio.ts`, `lib/supabase/queries.ts`, `types/domain.ts` |
+| Panel admin y directorio SLEP | `app/admin/page.tsx` | `lib/hooks/use-slep-directorio.ts`, `lib/supabase/queries.ts`, `types/domain.ts` |
+| Gestión de usuarios del portal | `app/admin/usuarios/page.tsx` | `app/admin/context-usuarios.md`, `lib/supabase/queries.ts`, `lib/auth/context.tsx`, `types/domain.ts` |
 | Listado, filtro y flujo de actas | `app/actas/page.tsx` | `components/portal/acta-form.tsx`, `components/portal/acta-detail.tsx`, `lib/supabase/queries.ts` |
 | Formularios y persistencia de borradores | `components/portal/acta-form.tsx` | `components/ui/button.tsx`, `components/ui/toast.tsx` |
 | Modal de confirmación | `components/portal/confirm-dialog.tsx` | `components/ui/button.tsx` |
 | Estilos globales, skeletons, animaciones base | `app/globals.css` | `tailwind.config.ts` |
 | Sistema visual de cards y bloques | `components/portal/section-card.tsx` | `components/portal/stat-card.tsx`, `tailwind.config.ts` |
 | Botones, badges, toasts | `components/ui/button.tsx` | `components/ui/badge.tsx`, `components/ui/toast.tsx` |
-| Fetch de snapshot portal | `lib/supabase/use-portal-snapshot.tsx` | `lib/supabase/queries.ts` |
+| Fetch de snapshot portal | `lib/hooks/use-portal-snapshot.tsx` | `lib/supabase/queries.ts` |
 | Consultas, mutaciones y uploads Supabase | `lib/supabase/queries.ts` | `lib/supabase/client.ts` |
-| Directorio filtrado de escuelas | `lib/supabase/use-slep-directorio.ts` | `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql`, `establecimientos` |
-| Roles, RLS, bootstrap y permisos | `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql` | `supabase/migrations/20260416_consejos_fix_rls_recursion.sql` |
+| Directorio filtrado de escuelas | `lib/hooks/use-slep-directorio.ts` | `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql`, `supabase/migrations/20260526_consejos_colaborador_readonly.sql`, `establecimientos` |
+| Roles, RLS, bootstrap y permisos | `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql` | `supabase/migrations/20260526_consejos_admin_user_management_rls.sql`, `supabase/migrations/20260526_consejos_colaborador_readonly.sql`, `supabase/migrations/20260416_consejos_fix_rls_recursion.sql` |
 
 ### Mapa por carpetas
 
@@ -347,7 +356,7 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 
 `supabase/migrations/`
 - fuente de verdad del comportamiento de permisos, bootstrap y RPC SQL
-- la definición efectiva vigente de acceso por correo/RBD/rol está en `20260514_consejos_usuario_establecimiento_roles.sql`
+- la definición efectiva vigente de acceso por correo/RBD/rol está en `20260514_consejos_usuario_establecimiento_roles.sql`, complementada por `20260526_consejos_admin_user_management_rls.sql` y `20260526_consejos_colaborador_readonly.sql`
 - cualquier mejora de acceso o filtrado debe documentarse aquí y en este `context.md`
 
 `types/`
@@ -357,8 +366,8 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 
 Ruta 1 — mejorar navegación admin:
 - `components/portal/shell.tsx`
-- `lib/supabase/auth-context.tsx`
-- `lib/supabase/use-slep-directorio.ts`
+- `lib/auth/context.tsx`
+- `lib/hooks/use-slep-directorio.ts`
 
 Ruta 2 — mejorar paneles visuales y consistencia:
 - `node_modules/@slep-colchagua/design-system/INSTRUCCIONES_DISENO.md` (fuente de verdad del DS)
@@ -369,7 +378,7 @@ Ruta 2 — mejorar paneles visuales y consistencia:
 - `components/ui/button.tsx`
 
 Ruta 3 — mejorar experiencia de datos por establecimiento:
-- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/hooks/use-portal-snapshot.tsx`
 - `lib/supabase/queries.ts`
 - `app/resumen/page.tsx`
 - `app/programacion/page.tsx`
@@ -383,8 +392,8 @@ Ruta 4 — mejorar actas:
 
 Ruta 5 — mejorar permisos o acceso por correo:
 - `supabase/migrations/20260514_consejos_usuario_establecimiento_roles.sql`
-- `lib/supabase/auth-context.tsx`
-- `lib/supabase/use-slep-directorio.ts`
+- `lib/auth/context.tsx`
+- `lib/hooks/use-slep-directorio.ts`
 
 ### Migraciones SQL relevantes
 
@@ -421,7 +430,7 @@ Ruta 5 — mejorar permisos o acceso por correo:
 
 ### 7.1 Solicitud de acceso
 
-`sendOtp(email)` en `auth-context.tsx`:
+`sendOtp(email)` en `lib/auth/context.tsx`:
 1. Normaliza correo a minúsculas
 2. Construye redirect con `resolveOtpRedirectUrl()` → apunta a `/auth/login/`
 3. Llama `supabase.auth.signInWithOtp({ shouldCreateUser: false, emailRedirectTo })`
@@ -448,10 +457,15 @@ Luego limpia los parámetros con `history.replaceState`.
 3. Si `profile.rbd` existe, consulta `establecimientos`
 4. `useEffect` depende de `userId` (no de `session` completa) para evitar re-renders por renovación de JWT
 
-Desde 2026-05-14 el bootstrap admite tres casos sobre la tabla única `usuario_establecimiento_roles`:
+Desde 2026-05-26 el bootstrap y la resolución de scope admiten cuatro casos sobre la tabla única `usuario_establecimiento_roles`:
 - correo con fila `rol = 'ADMIN'` y `rbd = null` → `ADMIN` global
+- correo con fila `rol = 'COLABORADOR'` y `rbd = null` → acceso global de solo lectura
 - correo presente en `CORREO REPRESENTANTE` sincronizado a `rol = 'REPRESENTANTE'` por RBD → navegación administrativa con alcance limitado a sus escuelas
 - correo de director en `CORREO ELECTRÓNICO` sincronizado a `rol = 'DIRECTOR'` por RBD → `DIRECTOR` con un solo RBD
+
+`get_current_portal_scope()` ahora expone además:
+- `is_read_only`: verdadero para colaborador global
+- `can_manage_users`: verdadero solo para admin global
 
 ### 7.5 Redirecciones en AppFrame
 
@@ -492,22 +506,26 @@ La definición efectiva vigente quedó en `20260514_consejos_usuario_establecimi
 - sincronizar directores desde `DIRECTOR/A` + `CORREO ELECTRÓNICO`
 - sincronizar representantes desde `REPRESENTANTE CONSEJO ESCOLAR` + `CORREO REPRESENTANTE`
 - permitir admins globales desde filas `rol = 'ADMIN'` sin `rbd`
+- permitir colaboradores globales desde filas `rol = 'COLABORADOR'` sin `rbd`
 
 Funciones nuevas o redefinidas:
 - `is_global_admin()`
+- `has_global_readonly_access()`
 - `current_accessible_rbds()`
 - `has_school_scope_access(target_rbd)`
+- `has_school_write_access(target_rbd)`
 - `is_admin()` ahora equivale a admin global, no a representante con alcance parcial
-- `bootstrap_current_user_profile_from_base_escuelas()` ahora contempla admin global, representante y director
+- `bootstrap_current_user_profile_from_base_escuelas()` ahora contempla admin global, colaborador, representante y director
 
 Detalle adicional del criterio vigente:
 - `is_global_admin()` ya no depende de `usuarios_perfiles`; lee `usuario_establecimiento_roles`
-- `current_accessible_rbds()` devuelve todos los `RBD` para admin global y solo los `RBD` asignados para representante/director
+- `current_accessible_rbds()` devuelve todos los `RBD` para admin global y colaborador global, y solo los `RBD` asignados para representante/director
+- `has_school_scope_access()` se usa para lectura; `has_school_write_access()` se usa para mutaciones y storage write
 - `bootstrap_current_user_profile_from_base_escuelas()` crea `usuarios_perfiles` como proyección de la tabla única, no como fuente de verdad del alcance
 
-### Avance 3 — Endurecimiento de RLS por alcance
+### Avance 3 — Endurecimiento de RLS por alcance y por capacidad de escritura
 
-Se reemplazó la lógica que daba acceso global a todo `rol = 'ADMIN'` por una verificación explícita de RBD accesibles.
+Se reemplazó la lógica que daba acceso global a todo `rol = 'ADMIN'` por una verificación explícita de RBD accesibles y, desde 2026-05-26, por una separación explícita entre lectura y escritura.
 
 Tablas y superficies endurecidas:
 - `establecimientos`
@@ -517,6 +535,11 @@ Tablas y superficies endurecidas:
 - `logs`
 - `storage.objects` para bucket `evidencias_actas`
 - RPC `get_slep_directorio()`
+
+Resultado vigente:
+- `COLABORADOR` puede leer todo el alcance del portal, pero no escribir
+- `ADMIN` mantiene lectura y escritura global, además de gestión de usuarios
+- representantes y directores escriben solo dentro de sus `RBD` autorizados
 
 Resultado esperado:
 - un representante puede entrar con perfil administrativo de navegación
@@ -634,7 +657,7 @@ Trabajo realizado por archivo:
 Se corrigió el problema donde el dropdown de escuela del menú lateral perdía la selección al navegar entre páginas o al rehidratar el portal.
 
 Archivo intervenido:
-- `lib/supabase/auth-context.tsx`
+- `lib/auth/context.tsx`
 
 Trabajo realizado:
 - se agregó una clave `localStorage` para `selectedRbd`
@@ -655,12 +678,12 @@ Detalle técnico del fix:
 Se reforzó el comportamiento para que el menú de navegación no dependa solo del rol `ADMIN`, sino también del alcance real del usuario autenticado.
 
 Archivos intervenidos:
-- `lib/supabase/auth-context.tsx`
-- `lib/supabase/use-slep-directorio.ts`
+- `lib/auth/context.tsx`
+- `lib/hooks/use-slep-directorio.ts`
 
 Trabajo realizado:
 - se agregó `isGlobalAdmin` al contexto de autenticación
-- `auth-context.tsx` consulta la RPC `is_global_admin()` cuando el perfil autenticado es `ADMIN`
+- `lib/auth/context.tsx` consulta la RPC `is_global_admin()` cuando el perfil autenticado es `ADMIN`
 - `use-slep-directorio.ts` aplica una segunda barrera en cliente:
   - si el usuario es admin global, ve todas las escuelas disponibles
   - si el usuario es `ADMIN` pero no global, solo ve escuelas cuyo `correo_representante` coincide con su `correo_electronico`
@@ -680,9 +703,10 @@ Archivos intervenidos:
 
 Trabajo realizado:
 - el menú lateral ahora cambia la etiqueta de `/admin` a `Mi Territorio` cuando el usuario no es admin global
-- el header contextual deja de comunicar “cobertura completa” para usuarios acotados y muestra cobertura asignada
+- el header contextual deja de comunicar “cobertura completa” para usuarios acotados y muestra cobertura asignada o colaboración global según corresponda
 - la página `/admin` cambia su título, descripción y copy para reflejar que la vista agregada está limitada a escuelas/comunas autorizadas
 - se agregó un banner explicativo en el panel admin para usuarios con cobertura parcial
+- el colaborador global ahora ve copy específico de solo lectura y ya no se etiqueta como “territorio asignado”
 
 Resultado esperado:
 - el “panel general” ya no se interpreta como acceso a todo para representantes
@@ -699,9 +723,11 @@ Trabajo realizado:
 - se agregó un bloque visual encima del selector de escuela para perfiles `ADMIN`
 - el bloque muestra el tipo de acceso actual:
   - `Administrador global`
+  - `Colaborador global`
   - `Cobertura asignada`
 - se incorporó un `Badge` de apoyo visual:
   - `Admin global`
+  - `Solo lectura`
   - `Alcance parcial`
 - se añadió texto contextual para explicar el efecto práctico del permiso actual
 
@@ -723,7 +749,7 @@ Se ajustó el drawer de creación de actas para que, cuando el portal ya tiene u
 Archivos intervenidos:
 - `components/portal/acta-form.tsx`
 - `app/actas/page.tsx`
-- `lib/supabase/auth-context.tsx`
+- `lib/auth/context.tsx`
 
 Trabajo realizado:
 - `ActaForm` ahora toma `selectedRbd`, `profile.rbd` y `establishment` desde `PortalAuthProvider`
@@ -751,7 +777,7 @@ Archivos intervenidos:
 - `app/actas/page.tsx`
 - `app/metricas/page.tsx`
 - `lib/supabase/queries.ts`
-- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/hooks/use-portal-snapshot.tsx`
 - `supabase/migrations/20260418_save_acta_atomic.sql`
 - `supabase/migrations/20260424_consejos_actas_registro_documental.sql`
 
@@ -774,7 +800,7 @@ Se separó la lectura de actas para distinguir claramente entre sesiones complet
 Archivos intervenidos:
 - `app/metricas/page.tsx`
 - `app/actas/page.tsx`
-- `lib/supabase/use-portal-snapshot.tsx`
+- `lib/hooks/use-portal-snapshot.tsx`
 - `lib/supabase/queries.ts`
 
 Trabajo realizado:
@@ -889,7 +915,8 @@ Resultado:
 - La migración `bootstrap_current_user_profile_from_base_escuelas()` se redefine varias veces en el historial; la definición efectiva es la última aplicada.
 - Si la migración `20260514_consejos_usuario_establecimiento_roles.sql` no se ejecuta en la base real, el frontend seguirá mostrando el comportamiento anterior.
 - La seguridad real ya no depende del texto en `usuarios_perfiles.rol`; depende de `usuario_establecimiento_roles`, `is_global_admin()` y `current_accessible_rbds()`.
-- `usuarios_perfiles` ahora permite lectura por alcance: admin global ve todo y representantes pueden leer perfiles de escuelas dentro de su cobertura RBD.
+- `usuarios_perfiles` ahora permite lectura por alcance: admin global y colaborador global ven todo; representantes pueden leer perfiles de escuelas dentro de su cobertura RBD.
+- La escritura ya no debe inferirse desde `has_school_scope_access()`; las mutaciones reales dependen de `has_school_write_access()`.
 - El admin sembrado en la migración debe usar el correo real de login; si se deja una variante incorrecta del dominio, el bootstrap no lo tratará como global.
 - El shell principal ya no depende de un ancho máximo fijo; futuras vistas deben respetar esa expansión y evitar wrappers internos demasiado angostos.
 - La escuela activa en contexto ya es una dependencia funcional del flujo de actas; cualquier cambio en `selectedRbd` debe validarse también abriendo `Nueva acta`.
@@ -928,6 +955,7 @@ type SessionType   = "Ordinaria" | "Extraordinaria"
 type SessionFormat = "Presencial" | "Online" | "Híbrido"
 type PlanningStatus = "PROGRAMADA" | "REALIZADA" | "CANCELADA"
 type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL"
+type PortalManagedAccessRole = "ADMIN" | "COLABORADOR" | "DIRECTOR" | "REPRESENTANTE"
 ```
 
 ### Reglas de negocio modeladas
@@ -936,7 +964,8 @@ type ActaRecordMode = "ACTA_COMPLETA" | "REGISTRO_DOCUMENTAL"
 - El acceso real se decide por `usuario_establecimiento_roles`, no por el texto de `usuarios_perfiles.rol`
 - El rol `DIRECTOR` queda acotado a su propio RBD en toda escritura
 - El representante puede navegar con perfil administrativo, pero su alcance efectivo sigue limitado a los `RBD` asignados
-- El rol `ADMIN` puede ver y gestionar datos de cualquier establecimiento
+- El rol `ADMIN` puede ver y gestionar datos de cualquier establecimiento y gestionar usuarios del portal
+- El rol `COLABORADOR` puede ver todo el portal, pero no crear, editar ni eliminar registros
 - El N° de sesión se calcula del servidor (`count(actas por rbd+tipo) + 1`) — nunca editable en UI
 - Los PDFs de evidencia viven en el bucket `actas` con path `{rbd}/{año}/{actaId}.pdf`
 - `ACTA_COMPLETA` y `REGISTRO_DOCUMENTAL` comparten la misma tabla `actas` y el mismo correlativo operativo
@@ -1265,7 +1294,7 @@ async function handleExportPdf() {
 
 ### 14.7 El objeto `session` de Supabase se reemplaza en cada renovación de JWT
 
-El `useEffect` de carga de acceso en `auth-context.tsx` depende de `userId` (estable) en lugar de `session` (se reemplaza aunque el usuario no cambie). Cambiar esta dependencia causa el flash "Resolviendo sesión…" en cada navegación.
+El `useEffect` de carga de acceso en `lib/auth/context.tsx` depende de `userId` (estable) en lugar de `session` (se reemplaza aunque el usuario no cambie). Cambiar esta dependencia causa el flash "Resolviendo sesión…" en cada navegación.
 
 ---
 
