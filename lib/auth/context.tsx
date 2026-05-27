@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "@/components/ui/toast";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { logger } from "@/lib/logger";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
@@ -74,6 +75,22 @@ function toAuthDiagnostic(scope: PortalScope, profile: Profile | null) {
     profileRole: profile?.rol ?? null,
     profileRbd: profile?.rbd ?? null,
   };
+}
+
+function buildAuthUiTrace(label: string, scope: PortalScope, detail?: string | null) {
+  const fields = [
+    `rol=${scope.role_text}`,
+    `ruta=${scope.landing_route}`,
+    `soloLectura=${scope.is_read_only ? "si" : "no"}`,
+    `rbds=${scope.accessible_rbds.length}`,
+    `defaultRbd=${scope.default_rbd ?? "null"}`,
+  ];
+
+  if (detail) {
+    fields.push(`detalle=${detail}`);
+  }
+
+  return `${label} · ${fields.join(" · ")}`;
 }
 
 interface AuthStateCache {
@@ -437,9 +454,10 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         email: maskEmail(userEmail),
       });
 
-      // Fetch profile, with one bootstrap+retry if the first query finds no row.
-      // Extracted into a const-returning helper so TypeScript can narrow the
-      // discriminated union on the result without `let`-reassignment confusion.
+      // Fetch the persisted profile if it exists. Access itself is validated
+      // later from get_current_portal_scope(), which is the source of truth.
+      // Avoid auto-bootstrapping unknown users here so a valid Google login
+      // alone does not create portal access implicitly.
       async function fetchProfileData() {
         const first = await client
           .from("usuarios_perfiles")
@@ -447,25 +465,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           .eq("id", uid)
           .single();
 
-        if (!first.error && first.data) {
-          return first;
+        if (first.error) {
+          bootstrapErrorMessage = first.error.message;
         }
 
-        const bootstrap = await client.rpc("bootstrap_current_user_profile_from_base_escuelas");
-        if (bootstrap.error) {
-          bootstrapErrorMessage = bootstrap.error.message;
-          return first;
-        }
-
-        if (cancelled) {
-          return first;
-        }
-
-        return client
-          .from("usuarios_perfiles")
-          .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
-          .eq("id", uid)
-          .single();
+        return first;
       }
 
       const profileResult = await fetchProfileData();
@@ -521,6 +525,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
               default_rbd: typeof scopeRow.default_rbd === "string" ? scopeRow.default_rbd : null,
               can_select_school: Boolean(scopeRow.can_select_school),
               landing_route: scopeRow.landing_route === "/admin" || scopeRow.landing_route === "/admin/" ? "/admin/" : "/resumen/",
+              is_read_only: Boolean(scopeRow.is_read_only),
+              can_manage_users: Boolean(scopeRow.can_manage_users),
             };
           }
         }
@@ -532,11 +538,19 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           scopeError: scopeResult.error?.message ?? null,
         });
 
-        const canHydrateSingleSchoolProfile = !resolvedScope.is_global_admin
-          && Boolean(resolvedScope.default_rbd)
-          && resolvedScope.accessible_rbds.length === 1;
+        const hasPortalScope = resolvedScope.is_global_admin
+          || Boolean(resolvedScope.is_read_only)
+          || Boolean(resolvedScope.can_manage_users)
+          || Boolean(resolvedScope.can_select_school)
+          || Boolean(resolvedScope.default_rbd)
+          || resolvedScope.accessible_rbds.length > 0;
 
-        if (!canHydrateSingleSchoolProfile) {
+        if (!hasPortalScope) {
+          const deniedTrace = buildAuthUiTrace(
+            "Acceso portal rechazado en scope fallback",
+            resolvedScope,
+            bootstrapErrorMessage ?? profileError?.message ?? scopeResult.error?.message ?? "sin alcance portal",
+          );
           logger.error("auth.bootstrap", "Access denied after scope fallback", {
             userId: uid,
             email: maskEmail(userEmail),
@@ -544,12 +558,13 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
             profileError: profileError?.message ?? null,
             bootstrapError: bootstrapErrorMessage,
           });
+          toast(deniedTrace, "error");
           setProfile(null);
           setEstablishment(null);
           setAccessError(normalizeAccessErrorMessage(
             bootstrapErrorMessage
               ?? profileError?.message
-              ?? "No existe un perfil portal vinculado a este usuario.",
+              ?? "No existe un acceso portal activo para este usuario en la base de datos.",
           ));
           profileLoaded.current = true;
           setIsLoading(false);
@@ -570,6 +585,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           email: maskEmail(userEmail),
           ...toAuthDiagnostic(resolvedScope, nextProfile),
         });
+        toast(buildAuthUiTrace("Acceso portal validado por scope", resolvedScope), "info");
       }
 
       // Run scope resolution and establishment fetch in parallel when the rbd
@@ -631,6 +647,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           email: maskEmail(userEmail),
           ...toAuthDiagnostic(resolvedScope, nextProfile),
         });
+        toast(buildAuthUiTrace("Acceso portal sin establecimiento fijo", resolvedScope), "info");
         setEstablishment(null);
         profileLoaded.current = true;
         setIsLoading(false);
@@ -653,6 +670,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const estError = (rawEstResult as { error?: { message: string } | null } | null)?.error;
 
       if (!estData) {
+        const establishmentTrace = buildAuthUiTrace(
+          "Acceso portal sin establecimiento resoluble",
+          resolvedScope,
+          estError?.message ?? "establecimiento no encontrado",
+        );
         logger.error("auth.bootstrap", "Failed to load establishment for scoped user", {
           userId: uid,
           email: maskEmail(userEmail),
@@ -660,6 +682,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           ...toAuthDiagnostic(resolvedScope, nextProfile),
           establishmentError: estError?.message ?? null,
         });
+        toast(establishmentTrace, "error");
         setEstablishment(null);
         setAccessError(normalizeAccessErrorMessage(
           estError?.message ?? "No se encontró el establecimiento asociado al perfil autenticado.",

@@ -1,6 +1,6 @@
 # Contexto Operativo: Gestion de usuarios
 
-> Ultima actualizacion: 2026-05-26  
+> Ultima actualizacion: 2026-05-27  
 > Objetivo: este documento formaliza la pantalla `/admin/usuarios/` como modulo operativo del portal y deja su flujo completo listo para iterar con IA sin redescubrir permisos, datos ni restricciones.  
 > Contexto general del portal: ver `../../context.md` para arquitectura global, decisiones transversales y contrato de acceso.
 
@@ -316,7 +316,7 @@ El panel protege bastante desde cliente, pero la seguridad real vive en SQL y RL
 - si la base maestra vuelve a sincronizar una fila manualmente corregida desde otro origen, puede reaparecer una asignacion paralela con distinto `origen`
 - la pagina asume que el correo ya existe en Auth; si no existe, la asignacion se puede guardar igual pero ese usuario no podra iniciar sesion utilmente hasta ser creado en Auth
 - la estadistica `Admins globales` hoy cuenta solo filas activas con `rol = 'ADMIN'` y `rbd = null`; no cuenta colaboradores globales
-- la pagina no expone auditoria detallada de quien hizo cada cambio; solo muestra `updated_at`
+- la pagina no expone auditoria detallada de quien hizo cada cambio; la seccion "Actividad reciente" infiere el evento desde los campos existentes pero no registra el admin ejecutor
 
 ---
 
@@ -348,6 +348,88 @@ Validacion minima esperada:
 3. prueba manual de alta `COLABORADOR`
 4. prueba manual de alta `DIRECTOR` o `REPRESENTANTE` con escuela
 5. prueba manual de desactivacion de una fila manual
+
+---
+
+## 12. Seccion de actividad reciente (agregada 2026-05-27)
+
+### Que hace
+
+La pagina incluye una tercera seccion debajo de la tabla de accesos registrados llamada "Ultimos cambios de acceso". Muestra los 20 registros de `usuario_establecimiento_roles` modificados mas recientemente, ordenados por `updated_at` descending. No genera llamadas adicionales a Supabase: usa el mismo `rows` ya cargado por `loadRows()`.
+
+### Columnas visibles
+
+- Fecha: `updated_at` (modificacion) y `created_at` (creacion original)
+- Usuario: nombre de referencia y correo electronico
+- Rol: badge con tono por rol
+- Escuela: nombre y RBD si aplica, "Global" si el rol no tiene RBD
+- Origen: badge manual o sincronizado
+- Evento: tipo inferido en cliente
+
+### Logica de inferencia de evento (`deriveEventType`)
+
+```
+si activo === false → "Desactivado"
+si updated_at - created_at < 60 000 ms → "Creado"
+resto → "Actualizado"
+```
+
+Colores: "Creado" verde (`text-status-success`), "Actualizado" azul (`text-ocean`), "Desactivado" rojo (`text-status-danger`).
+
+### Limitacion conocida
+
+Esta seccion no registra *quien* ejecuto el cambio (que admin lo realizo). Solo muestra *que* cambio y *cuando*. Para rastrear el admin ejecutor se necesita una tabla de auditoria dedicada (ver proxima iteracion en seccion 13).
+
+---
+
+## 13. Proxima iteracion planeada: auditoria real con tabla dedicada
+
+### Objetivo
+
+Agregar trazabilidad completa de quién ejecutó cada cambio en `usuario_establecimiento_roles`, de modo que la seccion "Actividad reciente" muestre tambien el correo del admin que creó, actualizó o desactivó cada acceso.
+
+### Modelo propuesto
+
+Nueva tabla `portal_access_audit` con las columnas:
+
+| columna | tipo | descripcion |
+|---|---|---|
+| `id` | uuid | PK generada |
+| `access_id` | uuid | FK a `usuario_establecimiento_roles.id` |
+| `admin_email` | text | correo del admin que ejecuto la accion |
+| `accion` | text | `CREADO`, `ACTUALIZADO`, `DESACTIVADO` |
+| `snapshot_antes` | jsonb | estado de la fila antes del cambio (null si es creacion) |
+| `snapshot_despues` | jsonb | estado de la fila despues del cambio |
+| `created_at` | timestamptz | timestamp del evento |
+
+### Mecanismo de escritura
+
+Un trigger `AFTER INSERT OR UPDATE` en `usuario_establecimiento_roles` llama a una funcion `log_portal_access_change()` que:
+
+1. resuelve `admin_email` desde `auth.jwt() ->> 'email'`
+2. determina `accion` segun si es INSERT, si `activo` cambio de true a false, o si es otro UPDATE
+3. inserta en `portal_access_audit`
+
+La funcion se declara con `security definer` para que el admin tenga permiso de escribir en la tabla de auditoria sin exponer la tabla directamente.
+
+### Ajustes en la capa de datos
+
+- nueva funcion `listPortalAccessAudit(limit?: number)` en `lib/supabase/queries.ts` que hace SELECT sobre `portal_access_audit ORDER BY created_at DESC LIMIT 50`
+- nuevo tipo `PortalAccessAuditEntry` en `types/domain.ts`
+
+### Ajustes en la UI
+
+- la seccion "Actividad reciente" pasa a consumir `listPortalAccessAudit()` en vez de derivar desde `rows`
+- se agrega columna "Admin" que muestra quien ejecuto el cambio
+- se puede cargar independientemente del resto de la pagina (carga lazy con boton "Ver historial")
+
+### Archivos a tocar
+
+1. nueva migracion `20260527_consejos_portal_access_audit.sql`
+2. `lib/supabase/queries.ts` — agregar `listPortalAccessAudit`
+3. `types/domain.ts` — agregar `PortalAccessAuditEntry`
+4. `app/admin/usuarios/page.tsx` — reemplazar logica de derivacion por consulta real
+5. este archivo (actualizar seccion 3, 5, 6 y checklist)
 
 ---
 

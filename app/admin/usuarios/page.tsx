@@ -87,6 +87,21 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+type AccessEventType = "Creado" | "Actualizado" | "Desactivado";
+
+function deriveEventType(row: PortalUserAccess): AccessEventType {
+  if (!row.activo) return "Desactivado";
+  const diffMs = new Date(row.updated_at).getTime() - new Date(row.created_at).getTime();
+  if (diffMs < 60_000) return "Creado";
+  return "Actualizado";
+}
+
+const EVENT_TONE: Record<AccessEventType, string> = {
+  Creado: "text-status-success",
+  Actualizado: "text-ocean",
+  Desactivado: "text-status-danger",
+};
+
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub: string }) {
   return (
     <div className="rounded-card border border-neutral-200/80 bg-white p-5 shadow-sm">
@@ -614,6 +629,81 @@ export default function AdminUsuariosPage() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-modal border border-neutral-200/80 bg-white shadow-lg">
+        <div className="border-b border-neutral-100 px-6 py-5">
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-neutral-400">Actividad reciente</p>
+          <h2 className="mt-1 text-lg font-semibold text-ink">Últimos cambios de acceso</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Los 20 registros modificados más recientemente. El tipo de evento se infiere del estado y las fechas de cada fila.
+          </p>
+        </div>
+
+        <div className="overflow-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-neutral-100 bg-neutral-50/85">
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400 lg:px-6">Fecha</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Usuario</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Rol</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Escuela</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Origen</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400 lg:pr-6">Evento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoadingRows ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-neutral-400">Cargando actividad...</td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-neutral-400">Sin registros disponibles.</td>
+                </tr>
+              ) : (
+                [...rows]
+                  .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                  .slice(0, 20)
+                  .map((row) => {
+                    const school = row.rbd ? schoolMap.get(row.rbd) ?? null : null;
+                    const event = deriveEventType(row);
+                    return (
+                      <tr key={`log-${row.id}`} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/60">
+                        <td className="px-4 py-3 align-top text-sm text-neutral-600 lg:px-6">
+                          <p>{formatDateTime(row.updated_at)}</p>
+                          <p className="mt-0.5 text-xs text-neutral-400">Creado: {formatDateTime(row.created_at)}</p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <p className="text-sm font-semibold text-ink">{getReferenceName(row) || row.correo_electronico}</p>
+                          <p className="mt-0.5 text-xs text-neutral-500">{row.correo_electronico}</p>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <Badge tone={row.rol === "ADMIN" ? "warn" : "neutral"}>{row.rol}</Badge>
+                        </td>
+                        <td className="px-4 py-3 align-top text-sm text-neutral-600">
+                          {row.rbd ? (
+                            <div>
+                              <p className="font-medium text-ink">{school?.nombre_establecimiento ?? "Escuela no encontrada"}</p>
+                              <p className="mt-0.5 text-xs text-neutral-400">RBD {row.rbd}</p>
+                            </div>
+                          ) : (
+                            <span className="text-neutral-500">Global</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <Badge tone={row.origen === "manual" ? "success" : "neutral"}>{row.origen}</Badge>
+                        </td>
+                        <td className="px-4 py-3 align-top lg:pr-6">
+                          <span className={`text-sm font-semibold ${EVENT_TONE[event]}`}>{event}</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="rounded-card border border-ocean/15 bg-ocean/5 px-5 py-4 text-sm text-neutral-700">
         <div className="flex items-start gap-3">

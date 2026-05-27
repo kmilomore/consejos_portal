@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
@@ -68,14 +68,34 @@ function buildSessionMetricRows(
   });
 }
 
+function formatRelativeTime(date: Date): string {
+  const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diffMinutes < 1) return "ahora mismo";
+  if (diffMinutes === 1) return "hace 1 minuto";
+  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  return diffHours === 1 ? "hace 1 hora" : `hace ${diffHours} horas`;
+}
+
 export default function MetricasPage() {
   const { isGlobalAdmin, isReadOnly, landingRoute } = usePortalAuth();
   const { snapshot, status } = usePortalSnapshot();
   const [selectedSessionNumber, setSelectedSessionNumber] = useState<number | null>(null);
+  const [sessionTypeFilter, setSessionTypeFilter] = useState<"Todas" | "Ordinaria" | "Extraordinaria">("Todas");
+  const [snapshotLoadedAt, setSnapshotLoadedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (status === "ready") {
+      setSnapshotLoadedAt(new Date());
+    }
+  }, [status]);
   const isDirectorView = !isGlobalAdmin && landingRoute === "/resumen/";
   const isRepresentativeView = !isGlobalAdmin && !isReadOnly && landingRoute === "/admin/";
   const isCollaboratorView = isReadOnly && landingRoute === "/admin/";
   const sessionRows = buildSessionMetricRows(snapshot.actas, snapshot.programaciones, snapshot.establishments);
+  const filteredSessionRows = sessionTypeFilter === "Todas"
+    ? sessionRows
+    : sessionRows.filter((row) => row.tipoSesion === sessionTypeFilter);
   const establishmentByRbd = new Map(snapshot.establishments.map((item) => [item.rbd, item]));
   const totalSesionesRealizadas = snapshot.actas.length;
   const sesionesOrdinariasRealizadas = snapshot.actas.filter((acta) => acta.tipo_sesion === "Ordinaria").length;
@@ -185,13 +205,13 @@ export default function MetricasPage() {
     return (
       <div className="space-y-6">
         <div className="skeleton-shimmer h-20 rounded-modal" />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4">
           <div className="skeleton-shimmer h-40 rounded-modal" />
           <div className="skeleton-shimmer h-40 rounded-modal" />
           <div className="skeleton-shimmer h-40 rounded-modal" />
           <div className="skeleton-shimmer h-40 rounded-modal" />
         </div>
-        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="space-y-6">
           <div className="skeleton-shimmer h-[320px] rounded-modal" />
           <div className="skeleton-shimmer h-[320px] rounded-modal" />
         </div>
@@ -208,6 +228,11 @@ export default function MetricasPage() {
         <p className="mt-1 text-sm text-neutral-500">
           {metricasDescription}
         </p>
+        {snapshotLoadedAt ? (
+          <p className="mt-2 text-xs text-neutral-400">
+            Datos actualizados {formatRelativeTime(snapshotLoadedAt)}.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -233,7 +258,7 @@ export default function MetricasPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="space-y-6">
         <SectionCard
           eyebrow="Participación"
           title="Asistencia por estamento"
@@ -322,14 +347,23 @@ export default function MetricasPage() {
       </div>
 
       {isDirectorView ? null : (
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-6">
           <SectionCard
             eyebrow="Territorio"
             title="Sesiones realizadas por comuna"
             description="Desglose total con separación entre sesiones ordinarias y extraordinarias registradas en actas."
+            collapsible
           >
             {sesionesPorComuna.length === 0 ? (
-              <p className="text-sm text-neutral-400">Sin sesiones registradas aún.</p>
+              <div className="rounded-card border border-dashed border-neutral-200 p-8 text-center">
+                <p className="text-sm text-neutral-500">Sin sesiones registradas aún.</p>
+                <Link
+                  href="/actas"
+                  className="mt-3 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+                >
+                  Registrar primera acta →
+                </Link>
+              </div>
             ) : (
               <div className="overflow-hidden rounded-card border border-neutral-200">
                 <table className="w-full text-sm">
@@ -362,10 +396,19 @@ export default function MetricasPage() {
             eyebrow="Ranking"
             title="Top 3 escuelas con más sesiones"
             description="Se consideran las sesiones efectivamente realizadas y registradas durante el año."
+            collapsible
           >
             <div className="space-y-4">
               {topEscuelas.length === 0 ? (
-                <p className="text-sm text-neutral-400">Sin sesiones registradas aún.</p>
+                <div className="rounded-card border border-dashed border-neutral-200 p-8 text-center">
+                  <p className="text-sm text-neutral-500">Sin sesiones registradas aún.</p>
+                  <Link
+                    href="/actas"
+                    className="mt-3 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+                  >
+                    Registrar primera acta →
+                  </Link>
+                </div>
               ) : (
                 topEscuelas.map((item, index) => (
                   <div key={item.rbd} className="rounded-card bg-mist p-4">
@@ -399,11 +442,41 @@ export default function MetricasPage() {
         description={`Cobertura documental actual: ${porcentajeCompletas}% de las actas registradas ya están completamente sistematizadas.`}
       >
         {sessionRows.length === 0 ? (
-          <p className="text-sm text-neutral-400">Sin sesiones registradas aún.</p>
+          <div className="rounded-card border border-dashed border-neutral-200 p-8 text-center">
+            <p className="text-sm text-neutral-500">Sin sesiones registradas aún.</p>
+            <Link
+              href="/actas"
+              className="mt-3 inline-flex items-center rounded-full px-4 py-1.5 text-xs font-semibold text-ocean ring-1 ring-ocean/30 transition hover:bg-mist"
+            >
+              Registrar primera acta →
+            </Link>
+          </div>
         ) : (
+          <>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              {(["Todas", "Ordinaria", "Extraordinaria"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setSessionTypeFilter(type)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-semibold transition",
+                    sessionTypeFilter === type
+                      ? "bg-ocean text-white"
+                      : "text-neutral-500 ring-1 ring-neutral-200 hover:bg-mist",
+                  )}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            {filteredSessionRows.length === 0 ? (
+              <p className="text-sm text-neutral-400">Sin sesiones del tipo seleccionado.</p>
+            ) : (
           <div className="overflow-hidden rounded-card border border-neutral-200">
+            <div className="max-h-[420px] overflow-y-auto">
             <table className="w-full text-sm">
-              <thead className="bg-neutral-50">
+              <thead className="sticky top-0 bg-neutral-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Sesión</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400">Comuna</th>
@@ -413,7 +486,7 @@ export default function MetricasPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {sessionRows.map((session) => (
+                {filteredSessionRows.map((session) => (
                   <tr key={session.key} className="transition-colors hover:bg-mist/60">
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-ink">
@@ -451,7 +524,10 @@ export default function MetricasPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
+            )}
+          </>
         )}
       </SectionCard>
     </div>

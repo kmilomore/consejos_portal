@@ -25,7 +25,7 @@ Al cargar la página, `AuthCallbackHandler`:
 
 - crea un cliente de Supabase con `createClient()`;
 - inspecciona la URL actual;
-- busca el parámetro `code`, típico del flujo OAuth.
+- busca `code`, `error`, `error_code` y `error_description` tanto en querystring como en `hash`, para cubrir callbacks exitosos y errores devueltos por Supabase Auth.
 
 ### 2. Intercambio de código OAuth
 
@@ -33,12 +33,20 @@ Si existe `code`, la página ejecuta:
 
 - `auth.exchangeCodeForSession(code)`.
 
+Si Supabase devuelve un error OAuth antes del intercambio de sesión, la página:
+
+- normaliza el mensaje para casos conocidos como `signup_disabled`;
+- muestra toast y error visible en la UI;
+- limpia los parámetros de auth desde la URL para no dejar enlaces reutilizables con estado de error.
+
 Si el intercambio resulta exitoso:
 
 - elimina `code` de la URL;
 - usa `window.history.replaceState(...)` para evitar que el código quede visible en historial o copias de URL.
 
 La sesión efectiva y la resolución de acceso no se cierran en esta página. Después del callback, [lib/auth/context.tsx](lib/auth/context.tsx) confirma la sesión real con Supabase, carga `usuarios_perfiles`, resuelve el alcance con `get_current_portal_scope` y recién entonces deja estabilizada la navegación hacia `/admin/` o `/resumen/`.
+
+Desde el ajuste del 2026-05-27, el cliente ya no intenta bootstrapear perfiles automáticamente durante el login. Un usuario autenticado con Google solo obtiene acceso útil si la base del portal ya le resuelve alcance real mediante `usuario_establecimiento_roles` y `get_current_portal_scope()`.
 
 ### 2.1. Rehidratación segura del estado auth
 
@@ -100,6 +108,7 @@ Regla operativa vigente de acceso:
 
 - `usuario_establecimiento_roles` es la fuente de verdad del acceso;
 - `get_current_portal_scope()` devuelve `role_text`, `is_global_admin`, `accessible_rbds`, `default_rbd`, `can_select_school`, `landing_route`, `is_read_only` y `can_manage_users`;
+- autenticarse con Google no crea acceso portal por sí solo;
 - `ADMIN` entra con acceso global y puede gestionar usuarios;
 - `COLABORADOR` entra con acceso global de solo lectura;
 - `REPRESENTANTE` entra a `/admin/` con cobertura parcial;
@@ -164,23 +173,19 @@ Mitigación recomendada:
 
 ### 3. Manejo silencioso de errores en callback
 
-Severidad: baja
+Severidad: cerrada
 
-Cuando `exchangeCodeForSession` falla dentro de `AuthCallbackHandler`, la página muestra feedback mediante toast. Desde el ajuste del 2026-05-25 también emite trazas operativas en cliente para distinguir:
+El callback ya no maneja los errores de forma silenciosa. Desde el ajuste del 2026-05-27 distingue y muestra en UI:
 
 - callback sin `code`;
+- error OAuth devuelto directamente por Supabase en la URL (`error`, `error_code`, `error_description`);
 - error de `exchangeCodeForSession(code)`;
 - callback exitoso con sesión intercambiada.
 
-Impacto:
+Estado actual:
 
-- la trazabilidad sigue dependiendo de consola de navegador, no de un backend de observabilidad central;
-- el diagnóstico operativo mejora, especialmente en producción estática, pero aún requiere capturar consola o reproducir con herramientas del navegador.
-
-Mitigación recomendada:
-
-- propagar un estado de error visible para el usuario;
-- registrar errores en observabilidad o logging seguro.
+- los errores más comunes ya quedan visibles mediante toast y mensaje persistente en pantalla;
+- el diagnóstico operativo sigue mejorando con logging cliente, aunque aún no existe observabilidad centralizada.
 
 ## Diagnóstico operativo en producción
 
@@ -198,24 +203,26 @@ Trazas detalladas (`info` y `warn`):
 Hitos que quedan trazados:
 
 - inicio de callback OAuth;
+- error OAuth directo devuelto por Supabase antes del intercambio de sesión;
 - éxito o error de `exchangeCodeForSession(code)`;
 - inicio del bootstrap de acceso;
 - resultado de lectura de `usuarios_perfiles`;
 - fallback por `get_current_portal_scope()` cuando no hay perfil persistido;
-- hidratación de perfil sintético para usuarios con una sola escuela en scope;
+- hidratación de perfil sintético cuando el scope SQL ya autoriza acceso real en portal;
 - flags de alcance `is_read_only` y `can_manage_users` cuando el scope se resuelve por SQL.
 - error al resolver `establecimientos` por `rbd`;
 - cierre exitoso del bootstrap con `landingRoute`, RBD accesibles y escuela resuelta.
 
 ### Hallazgo operativo vigente
 
-Se detectó una incoherencia cliente en el fallback de acceso:
+Se corrigieron dos incoherencias operativas en el fallback de acceso:
 
 - si `usuarios_perfiles` no devolvía fila, el cliente solo aceptaba el scope resuelto cuando `role_text === "DIRECTOR"`;
-- eso rechazaba usuarios con una sola escuela en scope aunque `default_rbd` ya estuviera resuelto correctamente;
-- desde el ajuste del 2026-05-25, el cliente acepta cualquier usuario no global con exactamente un `default_rbd` y genera un perfil sintético para completar el arranque.
+- eso rechazaba colaboradores globales y otros accesos válidos resueltos por SQL;
+- desde el ajuste del 2026-05-25, el cliente acepta cualquier scope portal real devuelto por `get_current_portal_scope()`;
+- desde el ajuste del 2026-05-27, el login ya no llama `bootstrap_current_user_profile_from_base_escuelas()` para crear acceso implícito durante el ingreso.
 
-Esto no reemplaza la necesidad de mantener consistente `usuarios_perfiles`, pero evita que un director con scope válido vuelva innecesariamente a la pantalla de ingreso.
+Esto deja una regla más dura: Google autentica identidad, pero la autorización final solo existe si la base del portal ya tiene acceso activo para ese correo.
 
 ### Evaluación general
 
@@ -224,9 +231,9 @@ El login quedó reducido a un flujo Google-only y la superficie cliente ahora es
 ### Recomendaciones priorizadas
 
 1. Validar dominio institucional del usuario autenticado en backend, no solo en la UI.
-2. Confirmar que el alta o bootstrap de perfiles solo permita identidades Google autorizadas.
-3. Agregar trazabilidad de errores en el callback de autenticación.
+2. Confirmar periódicamente que `get_current_portal_scope()` solo conceda acceso a correos presentes en la política operativa esperada.
+3. Si se requiere auditoría más fuerte, enviar errores auth a observabilidad centralizada además de toast y consola.
 
 ### Resumen ejecutivo
 
-La página de login quedó alineada con el uso real del portal: acceso solo por Google. La limpieza redujo superficie innecesaria en cliente y simplificó la operación. Lo que queda por asegurar está del lado de autorización efectiva: comprobar dominio permitido y perfiles válidos después del login OAuth.
+La página de login quedó alineada con el uso real del portal: acceso solo por Google, con error visible ante fallos de OAuth y con autorización efectiva atada al acceso real cargado en la base del portal. La operación cliente es más predecible y ya no concede acceso implícito por bootstrap durante el ingreso.

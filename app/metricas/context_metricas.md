@@ -1,6 +1,6 @@
 # Contexto del modulo /metricas
 
-> Ultima actualizacion: 2026-05-26
+> Ultima actualizacion: 2026-05-27
 
 ## Objetivo
 
@@ -206,11 +206,53 @@ Esto permite navegar desde metricas al registro exacto sin duplicar UI ni estado
 - No presentar texto de “indicadores globales” cuando el usuario esta en alcance director o representante parcial.
 - Cuando el usuario sea colaborador global, si se usa copy de alcance total, debe explicitar que es una vista de solo lectura y no un permiso administrativo.
 
+## Reglas de presentacion y UI vigentes (desde 2026-05-27)
+
+### Layout
+
+- La pagina usa bloques apilados verticalmente (`space-y-6`).
+- Excepcion: los cuatro KPIs superiores mantienen grid de columnas (`md:grid-cols-2 xl:grid-cols-4`) porque son tarjetas pequenas que se leen bien en fila.
+- No usar grids de dos columnas para los bloques de secciones grandes (Asistencia, Avance, Territorio, Top 3, Trazabilidad).
+
+### Secciones colapsables
+
+- Los bloques **Territorio** y **Top 3 escuelas** arrancan colapsados por defecto.
+- El colapso se implementa mediante la prop `collapsible` de `SectionCard`.
+- Al hacer click en el header se alterna el estado expandido/colapsado; el label cambia entre "Expandir" y "Colapsar".
+- No agregar colapso a los bloques principales (KPIs, Asistencia, Avance de sesiones, Trazabilidad).
+
+### Timestamp del snapshot
+
+- Bajo la descripcion del header de la pagina se muestra "Datos actualizados [tiempo relativo]."
+- El tiempo relativo se calcula con `formatRelativeTime()` desde el momento en que `status` transiciona a `"ready"`.
+- Si el snapshot todavia no esta listo, el timestamp no se muestra.
+- Formato: "ahora mismo", "hace 1 minuto", "hace N minutos", "hace 1 hora", "hace N horas".
+
+### Filtro de tipo de sesion en Trazabilidad
+
+- Sobre la tabla de trazabilidad hay tres botones pill: **Todas**, **Ordinaria**, **Extraordinaria**.
+- El filtro actua sobre `filteredSessionRows`; los calculos de KPIs siempre usan `sessionRows` completo.
+- Cuando el filtro activo no tiene resultados se muestra el texto "Sin sesiones del tipo seleccionado." sin tabla.
+- El filtro seleccionado se marca con fondo `bg-ocean text-white`; los inactivos con `ring-1 ring-neutral-200`.
+
+### Scroll interno en Trazabilidad
+
+- La tabla de trazabilidad tiene altura maxima de `420px` con `overflow-y-auto`.
+- El `thead` es `sticky top-0` para que el encabezado quede fijo durante el scroll interno.
+- No ampliar la altura maxima sin revisar que el header sticky siga funcionando.
+
+### Estado vacio con accion
+
+- Cuando no hay datos para mostrar en Territorio, Top 3 o Trazabilidad, se muestra una card con borde punteado (`border-dashed`) con el mensaje "Sin sesiones registradas aun." y un link "Registrar primera acta →" que navega a `/actas`.
+- No usar el texto gris simple (`<p className="text-sm text-neutral-400">`) en estos bloques cuando no hay datos.
+- No mostrar el link de accion si el usuario es de solo lectura (colaborador global); en ese caso mantener solo el texto informativo.
+
 ## Archivos involucrados
 
 - `app/metricas/page.tsx`
 - `app/metricas/context_metricas.md`
 - `app/actas/page.tsx`
+- `components/portal/section-card.tsx`
 - `lib/hooks/use-portal-snapshot.tsx`
 - `lib/supabase/queries.ts`
 
@@ -223,3 +265,6 @@ Antes de modificar `/metricas`, validar:
 3. si la sesion necesita consolidacion por llave logica
 4. si la navegacion debe resolverse reutilizando `/actas`
 5. si la formula normativa cambia y hay que actualizar este documento
+6. si un nuevo bloque debe ser colapsable o siempre visible
+7. si el filtro de tipo de sesion afecta el nuevo calculo o solo la vista
+8. si el estado vacio requiere accion segun el rol del usuario (no mostrar CTA de escritura a colaborador global)
