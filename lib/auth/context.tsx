@@ -40,6 +40,14 @@ function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
   }
 
   if (
+    lowerMessage.includes("dominio institucional")
+    || lowerMessage.includes("dominio permitido")
+    || lowerMessage.includes("solo se permiten correos del dominio")
+  ) {
+    return "Tu cuenta autenticó, pero el correo no pertenece al dominio institucional permitido para este portal."
+  }
+
+  if (
     lowerMessage.includes("permission denied")
     || lowerMessage.includes("not authorized")
     || lowerMessage.includes("forbidden")

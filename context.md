@@ -2,6 +2,9 @@
 
 > **Última actualización:** 2026-05-26  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
+> **Centro de documentación:** ver `docs/README.md` para navegar toda la documentación desde un solo lugar.
+> **Contexto general unificado:** ver `docs/contexto-general.md` para una vista consolidada del sistema.
+> **Seguridad:** ver `docs/seguridad.md` para autenticación, autorización, RLS y endurecimientos recientes.
 > **Contexto específico de programación:** ver `context_programacion.md` para el detalle operativo completo del módulo `programacion/`, sus invariantes, flujos y criterios para iterar con IA.
 
 ---

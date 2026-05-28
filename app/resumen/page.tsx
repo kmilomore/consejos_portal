@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
 
 export default function SummaryPage() {
   const { snapshot, status } = usePortalSnapshot();
-  const { establishment, profile, selectedRbd } = usePortalAuth();
-  const isAdmin = profile?.rol === "ADMIN";
+  const { establishment, profile, selectedRbd, isGlobalAdmin, canSelectSchool, landingRoute } = usePortalAuth();
+  const isAdmin = isGlobalAdmin || canSelectSchool || landingRoute === "/admin/";
   const { data: slepSchools } = useSlepDirectorio();
 
   const activeSchool = isAdmin ? (slepSchools.find((e) => e.rbd === selectedRbd) ?? null) : null;
