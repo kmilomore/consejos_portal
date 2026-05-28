@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePortalAuth } from "@/lib/auth/context";
+import { hasTerritorialView } from "@/lib/auth/scope";
 import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -272,9 +273,9 @@ interface PortalShellProps extends PropsWithChildren {
 
 export function PortalShell({ children, profile, establishment }: PortalShellProps): React.ReactElement {
   const pathname = usePathname();
-  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin, isReadOnly, canManageUsers, accessibleRbds, landingRoute } = usePortalAuth();
+  const { signOut, user, selectedRbd, setSelectedRbd, isGlobalAdmin, isReadOnly, canManageUsers, accessibleRbds, canSelectSchool } = usePortalAuth();
   const { data: slepSchools } = useSlepDirectorio();
-  const isAdmin = isGlobalAdmin || landingRoute === "/admin/";
+  const isAdmin = hasTerritorialView({ isGlobalAdmin, isReadOnly, canSelectSchool, accessibleRbds });
   const assignedSchoolCount = accessibleRbds.length;
   const navigation = isAdmin
     ? adminNavigation

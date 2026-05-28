@@ -6,6 +6,7 @@ import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
 import { StatCard } from "@/components/portal/stat-card";
 import { usePortalAuth } from "@/lib/auth/context";
+import { hasTerritorialView } from "@/lib/auth/scope";
 import { usePortalSnapshot } from "@/lib/hooks/use-portal-snapshot";
 import { cn, formatDate, formatPercent } from "@/lib/utils";
 
@@ -78,7 +79,7 @@ function formatRelativeTime(date: Date): string {
 }
 
 export default function MetricasPage() {
-  const { isGlobalAdmin, isReadOnly, landingRoute } = usePortalAuth();
+  const { isGlobalAdmin, isReadOnly, canSelectSchool, accessibleRbds } = usePortalAuth();
   const { snapshot, status } = usePortalSnapshot();
   const [selectedSessionNumber, setSelectedSessionNumber] = useState<number | null>(null);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<"Todas" | "Ordinaria" | "Extraordinaria">("Todas");
@@ -89,9 +90,10 @@ export default function MetricasPage() {
       setSnapshotLoadedAt(new Date());
     }
   }, [status]);
-  const isDirectorView = !isGlobalAdmin && landingRoute === "/resumen/";
-  const isRepresentativeView = !isGlobalAdmin && !isReadOnly && landingRoute === "/admin/";
-  const isCollaboratorView = isReadOnly && landingRoute === "/admin/";
+  const isTerritorialView = hasTerritorialView({ isGlobalAdmin, isReadOnly, canSelectSchool, accessibleRbds });
+  const isDirectorView = !isTerritorialView;
+  const isRepresentativeView = isTerritorialView && !isGlobalAdmin && !isReadOnly;
+  const isCollaboratorView = isTerritorialView && isReadOnly;
   const sessionRows = buildSessionMetricRows(snapshot.actas, snapshot.programaciones, snapshot.establishments);
   const filteredSessionRows = sessionTypeFilter === "Todas"
     ? sessionRows

@@ -5,14 +5,15 @@ import { ArrowRight, School2 } from "lucide-react";
 import { AttendanceChart } from "@/components/portal/attendance-chart";
 import { SectionCard } from "@/components/portal/section-card";
 import { usePortalAuth } from "@/lib/auth/context";
+import { hasTerritorialView } from "@/lib/auth/scope";
 import { usePortalSnapshot } from "@/lib/hooks/use-portal-snapshot";
 import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import { cn } from "@/lib/utils";
 
 export default function SummaryPage() {
   const { snapshot, status } = usePortalSnapshot();
-  const { establishment, profile, selectedRbd, isGlobalAdmin, canSelectSchool, landingRoute } = usePortalAuth();
-  const isAdmin = isGlobalAdmin || canSelectSchool || landingRoute === "/admin/";
+  const { establishment, profile, selectedRbd, isGlobalAdmin, isReadOnly, canSelectSchool, accessibleRbds } = usePortalAuth();
+  const isAdmin = hasTerritorialView({ isGlobalAdmin, isReadOnly, canSelectSchool, accessibleRbds });
   const { data: slepSchools } = useSlepDirectorio();
 
   const activeSchool = isAdmin ? (slepSchools.find((e) => e.rbd === selectedRbd) ?? null) : null;

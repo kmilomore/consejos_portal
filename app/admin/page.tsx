@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Building2, MapPin, Search, TreePine, Users } from "lucide-react";
 import { usePortalAuth } from "@/lib/auth/context";
+import { hasTerritorialView } from "@/lib/auth/scope";
 import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import type { SlepEscuela } from "@/types/domain";
 import { useRouter } from "next/navigation";
@@ -105,19 +106,20 @@ function DirectoryRow({ e }: { e: SlepEscuela }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { profile, isGlobalAdmin, isReadOnly, accessibleRbds, landingRoute } = usePortalAuth();
+  const { profile, isGlobalAdmin, isReadOnly, accessibleRbds, canSelectSchool } = usePortalAuth();
   const router = useRouter();
   const { data, metrics, isLoading, error } = useSlepDirectorio();
   const [query, setQuery] = useState("");
   const [comunaFilter, setComunaFilter] = useState("");
   const [territoryFilter, setTerritoryFilter] = useState("");
+  const isTerritorialView = hasTerritorialView({ isGlobalAdmin, isReadOnly, canSelectSchool, accessibleRbds });
 
   // Guard: non-admins get redirected
   useEffect(() => {
-    if (profile && landingRoute !== "/admin/") {
+    if (profile && !isTerritorialView) {
       router.replace("/resumen/");
     }
-  }, [landingRoute, profile, router]);
+  }, [isTerritorialView, profile, router]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AuthScreen } from "@/components/auth/auth-screen";
 import { toast } from "@/components/ui/toast";
+import { usePortalAuth } from "@/lib/auth/context";
 import { logger } from "@/lib/logger";
 import { createClient } from "@/lib/supabase/client";
 
@@ -38,6 +40,10 @@ function normalizeOAuthErrorMessage(rawMessage: string | null | undefined) {
     return "El ingreso con Google fue cancelado antes de completarse.";
   }
 
+  if (lowerMessage.includes("issued in the future") || lowerMessage.includes("clock skew")) {
+    return "La hora del dispositivo no coincide con la hora real y Supabase rechazó la sesión. Activa la fecha y hora automáticas, corrige el reloj y vuelve a intentar.";
+  }
+
   return `No fue posible completar el ingreso con Google: ${message}`;
 }
 
@@ -50,18 +56,34 @@ function clearOAuthParams(url: URL) {
   window.history.replaceState(window.history.state, "", url.toString());
 }
 
-function AuthCallbackHandler({ onError }: { onError: (message: string | null) => void }) {
+function AuthCallbackHandler({
+  onError,
+  onSettled,
+}: {
+  onError: (message: string | null) => void;
+  onSettled: () => void;
+}) {
+  const handledCallbackRef = useRef<string | null>(null);
+
   useEffect(() => {
     const client = createClient();
 
     if (!client) {
       onError("No se pudo inicializar la autenticación en este navegador.");
+      onSettled();
       return;
     }
 
     const authClient = client;
     const url = new URL(window.location.href);
     const { code, error, errorCode, errorDescription } = readOAuthParams(url);
+    const callbackSignature = JSON.stringify({ code, error, errorCode, errorDescription, pathname: url.pathname });
+
+    if (handledCallbackRef.current === callbackSignature) {
+      return;
+    }
+
+    handledCallbackRef.current = callbackSignature;
 
     async function handleCallback() {
       logger.info("auth.callback", "Processing login callback", {
@@ -84,6 +106,7 @@ function AuthCallbackHandler({ onError }: { onError: (message: string | null) =>
         toast(normalizedError, "error");
         onError(normalizedError);
         clearOAuthParams(url);
+        onSettled();
         return;
       }
 
@@ -97,6 +120,7 @@ function AuthCallbackHandler({ onError }: { onError: (message: string | null) =>
             error: error.message,
           });
           onError(normalizeOAuthErrorMessage(error.message));
+          onSettled();
           return;
         }
 
@@ -110,6 +134,8 @@ function AuthCallbackHandler({ onError }: { onError: (message: string | null) =>
           clearOAuthParams(url);
         }
 
+        onSettled();
+
         return;
       }
 
@@ -117,16 +143,31 @@ function AuthCallbackHandler({ onError }: { onError: (message: string | null) =>
         pathname: url.pathname,
       });
       onError(null);
+      onSettled();
     }
 
     void handleCallback();
-  }, [onError]);
+  }, [onError, onSettled]);
 
   return null;
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { session, isLoading, isSessionReady, landingRoute } = usePortalAuth();
   const [callbackError, setCallbackError] = useState<string | null>(null);
+  const [callbackPending, setCallbackPending] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    const url = new URL(window.location.href);
+    const { code, error, errorCode, errorDescription } = readOAuthParams(url);
+    return Boolean(code || error || errorCode || errorDescription);
+  });
+  const handleCallbackSettled = useCallback(() => {
+    setCallbackPending(false);
+  }, []);
 
   useEffect(() => {
     if (!callbackError) {
@@ -136,9 +177,17 @@ export default function LoginPage() {
     toast(callbackError, "error");
   }, [callbackError]);
 
+  useEffect(() => {
+    if (callbackPending || !isSessionReady || isLoading || !session) {
+      return;
+    }
+
+    router.replace(landingRoute);
+  }, [callbackPending, isLoading, isSessionReady, landingRoute, router, session]);
+
   return (
     <>
-      <AuthCallbackHandler onError={setCallbackError} />
+      <AuthCallbackHandler onError={setCallbackError} onSettled={handleCallbackSettled} />
       <AuthScreen externalError={callbackError} />
     </>
   );

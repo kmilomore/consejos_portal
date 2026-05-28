@@ -212,6 +212,7 @@ function resolveAuthRedirectUrl() {
 interface PortalAuthContextValue {
   session: Session | null;
   user: User | null;
+  isSessionReady: boolean;
   profile: Profile | null;
   establishment: Establishment | null;
   isGlobalAdmin: boolean;
@@ -234,6 +235,7 @@ const PortalAuthContext = createContext<PortalAuthContextValue | null>(null);
 export function PortalAuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [supabase] = useState(() => createClient());
   const [session, setSession] = useState<Session | null>(() => authStateCache.session ?? null);
+  const [isSessionReady, setIsSessionReady] = useState(() => Boolean(authStateCache.session));
   const [profile, setProfile] = useState<Profile | null>(() => authStateCache.profile ?? null);
   const [establishment, setEstablishment] = useState<Establishment | null>(() => authStateCache.establishment ?? null);
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(() => authStateCache.isGlobalAdmin);
@@ -354,6 +356,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   useEffect(() => {
     if (!supabase) {
       setAccessError("No se pudo inicializar el cliente de Supabase en el navegador.");
+      setIsSessionReady(true);
       setIsLoading(false);
       return;
     }
@@ -373,6 +376,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       setSession(data.session ?? null);
+      setIsSessionReady(true);
       if (!data.session) {
         setProfile(null);
         setEstablishment(null);
@@ -389,6 +393,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
       if (nextSession) {
         setSession(nextSession);
+        setIsSessionReady(true);
       } else if (event === "SIGNED_OUT") {
         // Only wipe state on explicit sign-out, not on transient null events
         // (createBrowserClient fires INITIAL_SESSION with null before reading cookies)
@@ -405,6 +410,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
         setCanSelectSchool(false);
         setLandingRoute("/resumen/");
         setAccessError(null);
+        setIsSessionReady(true);
         setIsLoading(false);
         clearStoredAuthState();
       }
@@ -471,7 +477,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           .from("usuarios_perfiles")
           .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
           .eq("id", uid)
-          .single();
+          .maybeSingle();
 
         if (first.error) {
           bootstrapErrorMessage = first.error.message;
@@ -794,7 +800,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       return { error: "Supabase no está disponible en este navegador." };
     }
 
-    const allowedDomain = (process.env.NEXT_PUBLIC_AUTH_ALLOWED_DOMAIN ?? "@slepcolchagua.cl")
+    const allowedDomain = (process.env.NEXT_PUBLIC_AUTH_ALLOWED_DOMAIN ?? "")
       .replace(/^@/, "")
       .toLowerCase();
 
@@ -843,6 +849,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       value={{
         session,
         user: session?.user ?? null,
+        isSessionReady,
         profile,
         establishment,
         isGlobalAdmin,

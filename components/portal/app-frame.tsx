@@ -9,24 +9,36 @@ import { usePortalAuth } from "@/lib/auth/context";
 import { PortalSnapshotProvider } from "@/lib/hooks/use-portal-snapshot";
 import { PortalShell } from "@/components/portal/shell";
 
+function normalizePath(path: string) {
+  if (!path || path === "/") {
+    return "/";
+  }
+
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
 export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, profile, establishment, isLoading, accessError, signOut, landingRoute } = usePortalAuth();
+  const { session, profile, establishment, isLoading, isSessionReady, accessError, signOut, landingRoute } = usePortalAuth();
   const isAuthEntry = pathname === "/" || pathname.startsWith("/auth/login");
+  const isLoginRoute = pathname.startsWith("/auth/login");
+  const normalizedPathname = normalizePath(pathname);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!isSessionReady || isLoading) return;
 
     if (!session && !isAuthEntry) {
       router.replace("/");
       return;
     }
 
-    if (session && isAuthEntry) {
-      router.replace(landingRoute);
+    if (session && isAuthEntry && !isLoginRoute) {
+      if (normalizedPathname !== landingRoute) {
+        router.replace(landingRoute);
+      }
     }
-  }, [isAuthEntry, isLoading, landingRoute, pathname, router, session]);
+  }, [isAuthEntry, isLoading, isLoginRoute, isSessionReady, landingRoute, normalizedPathname, router, session]);
 
   useEffect(() => {
     if (!session || !accessError) {
@@ -38,12 +50,33 @@ export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) 
 
   // Auth entry: render login page directly. No loader, no banners.
   if (isAuthEntry) {
-    if (session) return null;
+    if (isLoginRoute) {
+      return <>{children}</>;
+    }
+
+    if (session) {
+      return (
+        <div className="flex min-h-screen items-center justify-center px-6">
+          <div className="max-w-md rounded-modal border border-neutral-200 bg-white p-8 text-center shadow-lg">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">Acceso</p>
+            <p className="mt-4 text-lg font-semibold text-ink">Redirigiendo al portal</p>
+            <p className="mt-2 text-sm text-neutral-500">
+              Tu sesión ya fue validada. Si la navegación no avanza, abre directamente la ruta {landingRoute}.
+            </p>
+            {normalizedPathname !== landingRoute && (
+              <div className="mt-6">
+                <Button onClick={() => router.replace(landingRoute)}>Entrar ahora</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
     return <>{children}</>;
   }
 
   // Not authenticated yet — wait silently.
-  if (!session) return null;
+  if (!isSessionReady || !session) return null;
 
   // Authenticated — always wrap in PortalSnapshotProvider so it never unmounts during
   // auth-state transitions (profile loading, token refresh, etc.).

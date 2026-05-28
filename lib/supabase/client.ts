@@ -17,6 +17,7 @@ export function createClient() {
 
   browserClient = createSupabaseClient<Database>(url, anonKey, {
     auth: {
+      detectSessionInUrl: false,
       persistSession: true,
       storageKey: "consejos-portal",
     },
