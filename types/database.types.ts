@@ -1203,6 +1203,44 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_access_audit: {
+        Row: {
+          access_id: string
+          accion: string
+          admin_email: string
+          created_at: string
+          id: string
+          snapshot_antes: Json | null
+          snapshot_despues: Json | null
+        }
+        Insert: {
+          access_id: string
+          accion: string
+          admin_email: string
+          created_at?: string
+          id?: string
+          snapshot_antes?: Json | null
+          snapshot_despues?: Json | null
+        }
+        Update: {
+          access_id?: string
+          accion?: string
+          admin_email?: string
+          created_at?: string
+          id?: string
+          snapshot_antes?: Json | null
+          snapshot_despues?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_access_audit_access_id_fkey"
+            columns: ["access_id"]
+            isOneToOne: false
+            referencedRelation: "usuario_establecimiento_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       programacion: {
         Row: {
           acta_vinculada_id: string | null

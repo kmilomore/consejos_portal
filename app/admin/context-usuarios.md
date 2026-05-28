@@ -4,6 +4,8 @@
 > Objetivo: este documento formaliza la pantalla `/admin/usuarios/` como modulo operativo del portal y deja su flujo completo listo para iterar con IA sin redescubrir permisos, datos ni restricciones.  
 > Contexto general del portal: ver `../../context.md` para arquitectura global, decisiones transversales y contrato de acceso.
 
+> Nota: la trazabilidad detallada de quien ejecuta cambios ya no vive solo en esta pantalla. Desde 2026-05-28 existe el modulo dedicado `/admin/auditoria/`, documentado en `context-auditoria.md`.
+
 ---
 
 ## 1. Proposito del modulo
@@ -316,7 +318,7 @@ El panel protege bastante desde cliente, pero la seguridad real vive en SQL y RL
 - si la base maestra vuelve a sincronizar una fila manualmente corregida desde otro origen, puede reaparecer una asignacion paralela con distinto `origen`
 - la pagina asume que el correo ya existe en Auth; si no existe, la asignacion se puede guardar igual pero ese usuario no podra iniciar sesion utilmente hasta ser creado en Auth
 - la estadistica `Admins globales` hoy cuenta solo filas activas con `rol = 'ADMIN'` y `rbd = null`; no cuenta colaboradores globales
-- la pagina no expone auditoria detallada de quien hizo cada cambio; la seccion "Actividad reciente" infiere el evento desde los campos existentes pero no registra el admin ejecutor
+- la tabla de usuarios sigue mostrando una actividad resumida derivada en cliente; la trazabilidad real de admin ejecutor y cambios vive ahora en `/admin/auditoria/`
 
 ---
 
@@ -378,15 +380,15 @@ Colores: "Creado" verde (`text-status-success`), "Actualizado" azul (`text-ocean
 
 ### Limitacion conocida
 
-Esta seccion no registra *quien* ejecuto el cambio (que admin lo realizo). Solo muestra *que* cambio y *cuando*. Para rastrear el admin ejecutor se necesita una tabla de auditoria dedicada (ver proxima iteracion en seccion 13).
+Esta seccion sigue siendo una vista resumida derivada desde `rows`. El historial confiable con admin ejecutor, snapshot antes/despues y eventos reales se consulta ahora desde `/admin/auditoria/`.
 
 ---
 
-## 13. Proxima iteracion planeada: auditoria real con tabla dedicada
+## 13. Iteracion implementada: auditoria real con tabla dedicada
 
 ### Objetivo
 
-Agregar trazabilidad completa de quién ejecutó cada cambio en `usuario_establecimiento_roles`, de modo que la seccion "Actividad reciente" muestre tambien el correo del admin que creó, actualizó o desactivó cada acceso.
+Agregar trazabilidad completa de quién ejecutó cada cambio en `usuario_establecimiento_roles`, de modo que exista un historial confiable para accesos fuera de la inferencia visual de la tabla de usuarios.
 
 ### Modelo propuesto
 
@@ -398,8 +400,8 @@ Nueva tabla `portal_access_audit` con las columnas:
 | `access_id` | uuid | FK a `usuario_establecimiento_roles.id` |
 | `admin_email` | text | correo del admin que ejecuto la accion |
 | `accion` | text | `CREADO`, `ACTUALIZADO`, `DESACTIVADO` |
-| `snapshot_antes` | jsonb | estado de la fila antes del cambio (null si es creacion) |
-| `snapshot_despues` | jsonb | estado de la fila despues del cambio |
+| `snapshot_antes` | jsonb | resumen del estado antes del cambio (null si es creacion) |
+| `snapshot_despues` | jsonb | resumen del estado despues del cambio |
 | `created_at` | timestamptz | timestamp del evento |
 
 ### Mecanismo de escritura
@@ -419,17 +421,26 @@ La funcion se declara con `security definer` para que el admin tenga permiso de 
 
 ### Ajustes en la UI
 
-- la seccion "Actividad reciente" pasa a consumir `listPortalAccessAudit()` en vez de derivar desde `rows`
-- se agrega columna "Admin" que muestra quien ejecuto el cambio
-- se puede cargar independientemente del resto de la pagina (carga lazy con boton "Ver historial")
+- se crea la pantalla `/admin/auditoria/` como modulo exclusivo de admin global
+- esa vista mezcla `logs` operativos y `portal_access_audit` en una misma tabla cronologica
+- la tabla de usuarios conserva su resumen local para lectura rapida, pero ya no es la fuente de verdad de trazabilidad
 
 ### Archivos a tocar
 
-1. nueva migracion `20260527_consejos_portal_access_audit.sql`
+1. nueva migracion `20260528_consejos_portal_access_audit.sql`
 2. `lib/supabase/queries.ts` — agregar `listPortalAccessAudit`
-3. `types/domain.ts` — agregar `PortalAccessAuditEntry`
-4. `app/admin/usuarios/page.tsx` — reemplazar logica de derivacion por consulta real
-5. este archivo (actualizar seccion 3, 5, 6 y checklist)
+3. `lib/supabase/queries.ts` — agregar `listPortalLogs`
+4. `types/domain.ts` — agregar `PortalAccessAuditEntry`
+5. `app/admin/auditoria/page.tsx` — nueva vista de trazabilidad central
+6. este archivo (actualizar seccion 3, 5, 6 y checklist)
+
+### Estado actual
+
+La auditoria dedicada ya existe y debe usarse cuando se necesite responder:
+
+- quien ingreso al portal
+- quien creo, actualizo o desactivo accesos
+- que cambios se hicieron sobre correo, rol, RBD, equipo u origen
 
 ---
 

@@ -60,6 +60,13 @@ Gestiona accesos manuales sobre `usuario_establecimiento_roles`.
 Documento operativo:
 - [Contexto de usuarios](../app/admin/context-usuarios.md)
 
+### Auditoria
+
+Consolida eventos operativos del portal y cambios de acceso para dar trazabilidad a ingresos, acciones y modificaciones administrativas.
+
+Documento operativo:
+- [Contexto de auditoria](../app/admin/context-auditoria.md)
+
 ### Programacion
 
 Planifica, edita, cancela y vincula sesiones del consejo escolar.
@@ -143,6 +150,7 @@ Regla practica:
 - `actas`
 - `actas_invitados`
 - `logs`
+- `portal_access_audit`
 
 ### Storage
 

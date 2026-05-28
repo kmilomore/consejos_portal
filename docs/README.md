@@ -29,6 +29,7 @@ Si necesitas una sola puerta de entrada para entender el proyecto, comienza por 
 ### Modulos operativos
 
 - [Contexto de usuarios](../app/admin/context-usuarios.md)
+- [Contexto de auditoria](../app/admin/context-auditoria.md)
 - [Contexto de programacion](../app/programacion/context_programacion.md)
 - [Contexto de actas](../app/actas/context-actas.md)
 - [Contexto de metricas](../app/metricas/context_metricas.md)

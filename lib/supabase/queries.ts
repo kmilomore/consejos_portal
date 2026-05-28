@@ -9,6 +9,9 @@ import type {
   Establishment,
   ExtraordinarySessionReason,
   InvitedGuest,
+  LogEntry,
+  PortalAccessAuditEntry,
+  PortalAccessAuditSnapshot,
   PortalManagedAccessRole,
   PortalUserAccess,
   Programacion,
@@ -101,6 +104,26 @@ type PortalUserAccessRow = {
   updated_at: string;
 };
 
+type PortalAccessAuditRow = {
+  id: string;
+  access_id: string;
+  admin_email: string;
+  accion: PortalAccessAuditEntry["accion"];
+  snapshot_antes: Json | null;
+  snapshot_despues: Json | null;
+  created_at: string;
+};
+
+type LogEntryRow = {
+  id: string;
+  usuario: string;
+  rbd: string;
+  accion: LogEntry["accion"];
+  detalle: string;
+  vista_origen: string;
+  created_at: string;
+};
+
 const roleOrder = ["Director", "Sostenedor", "Docente", "Asistente", "Estudiante", "Apoderado"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -109,6 +132,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeAccessMetadata(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
+}
+
+function normalizePortalAccessAuditSnapshot(value: unknown): PortalAccessAuditSnapshot | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const correoElectronico = typeof value.correo_electronico === "string" ? value.correo_electronico : "";
+  const emailNormalizado = typeof value.email_normalizado === "string" ? value.email_normalizado : "";
+  const rol = typeof value.rol === "string" ? value.rol : "";
+  const equipo = typeof value.equipo === "string" ? value.equipo : "";
+  const origen = typeof value.origen === "string" ? value.origen : "";
+
+  if (!correoElectronico || !emailNormalizado || !rol) {
+    return null;
+  }
+
+  return {
+    correo_electronico: correoElectronico,
+    email_normalizado: emailNormalizado,
+    rbd: typeof value.rbd === "string" ? value.rbd : null,
+    rol,
+    equipo,
+    origen,
+    metadata: normalizeAccessMetadata(value.metadata),
+    activo: typeof value.activo === "boolean" ? value.activo : false,
+  };
 }
 
 function normalizePortalUserAccess(row: PortalUserAccessRow): PortalUserAccess {
@@ -124,6 +174,30 @@ function normalizePortalUserAccess(row: PortalUserAccessRow): PortalUserAccess {
     activo: row.activo,
     created_at: row.created_at,
     updated_at: row.updated_at,
+  };
+}
+
+function normalizePortalAccessAudit(row: PortalAccessAuditRow): PortalAccessAuditEntry {
+  return {
+    id: row.id,
+    access_id: row.access_id,
+    admin_email: row.admin_email,
+    accion: row.accion,
+    snapshot_antes: normalizePortalAccessAuditSnapshot(row.snapshot_antes),
+    snapshot_despues: normalizePortalAccessAuditSnapshot(row.snapshot_despues),
+    created_at: row.created_at,
+  };
+}
+
+function normalizeLogEntry(row: LogEntryRow): LogEntry {
+  return {
+    id: row.id,
+    usuario: row.usuario,
+    rbd: row.rbd,
+    accion: row.accion,
+    detalle: row.detalle,
+    vista_origen: row.vista_origen,
+    created_at: row.created_at,
   };
 }
 
@@ -152,6 +226,24 @@ function humanizeUserAccessError(message: string) {
 
   if (normalized.includes("row-level security") || normalized.includes("permission denied")) {
     return "Tu sesión no tiene permisos para gestionar usuarios.";
+  }
+
+  return message;
+}
+
+function humanizeAuditError(message: string) {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) {
+    return "No fue posible cargar la auditoría del portal.";
+  }
+
+  if (normalized.includes("portal_access_audit") || normalized.includes("does not exist")) {
+    return "La migración de auditoría aún no está aplicada en Supabase.";
+  }
+
+  if (normalized.includes("row-level security") || normalized.includes("permission denied")) {
+    return "Tu sesión no tiene permisos para ver la auditoría del portal.";
   }
 
   return message;
@@ -729,6 +821,50 @@ export async function deactivatePortalUserAccess(accessId: string): Promise<Pers
   }
 
   return { ok: true };
+}
+
+export async function listPortalAccessAudit(limit = 50): Promise<{ data: PortalAccessAuditEntry[]; errorMessage?: string }> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { data: [], errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { data, error } = await supabase
+    .from("portal_access_audit")
+    .select("id, access_id, admin_email, accion, snapshot_antes, snapshot_despues, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error("listPortalAccessAudit", error.message);
+    return { data: [], errorMessage: humanizeAuditError(error.message) };
+  }
+
+  return {
+    data: ((data ?? []) as PortalAccessAuditRow[]).map(normalizePortalAccessAudit),
+  };
+}
+
+export async function listPortalLogs(limit = 50): Promise<{ data: LogEntry[]; errorMessage?: string }> {
+  const supabase = createClient();
+  if (!supabase) {
+    return { data: [], errorMessage: "Cliente Supabase no disponible." };
+  }
+
+  const { data, error } = await supabase
+    .from("logs")
+    .select("id, usuario, rbd, accion, detalle, vista_origen, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error("listPortalLogs", error.message);
+    return { data: [], errorMessage: humanizeAuditError(error.message) };
+  }
+
+  return {
+    data: ((data ?? []) as LogEntryRow[]).map(normalizeLogEntry),
+  };
 }
 
 export async function ensureExtraordinarySessionReason(

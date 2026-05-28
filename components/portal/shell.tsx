@@ -5,6 +5,7 @@ import React, { type PropsWithChildren, useEffect, useMemo, useRef, useState } f
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   ArrowRight,
   CalendarRange,
   ChevronDown,
@@ -37,6 +38,7 @@ const directorNavigation = [
 const adminNavigation = [
   { href: "/admin/", label: "Panel General", icon: LayoutGrid },
   { href: "/admin/usuarios/", label: "Usuarios", icon: Users },
+  { href: "/admin/auditoria/", label: "Auditoría", icon: Activity },
   { href: "/resumen/", label: "Resumen EE", icon: LayoutDashboard },
   { href: "/programacion/", label: "Programación", icon: CalendarRange },
   { href: "/actas/", label: "Actas", icon: FileText },
@@ -279,7 +281,7 @@ export function PortalShell({ children, profile, establishment }: PortalShellPro
   const assignedSchoolCount = accessibleRbds.length;
   const navigation = isAdmin
     ? adminNavigation
-      .filter((item) => canManageUsers || item.href !== "/admin/usuarios/")
+      .filter((item) => canManageUsers || (item.href !== "/admin/usuarios/" && item.href !== "/admin/auditoria/"))
       .map((item) => item.href === "/admin/"
         ? { ...item, label: isGlobalAdmin ? "Panel General" : isReadOnly ? "Panel lectura" : "Mi Territorio" }
         : item)

@@ -48,6 +48,29 @@ export interface PortalScope {
 
 export type PortalManagedAccessRole = "ADMIN" | "COLABORADOR" | "DIRECTOR" | "REPRESENTANTE";
 
+export type PortalAccessAuditAction = "CREADO" | "ACTUALIZADO" | "DESACTIVADO";
+
+export interface PortalAccessAuditSnapshot {
+  correo_electronico: string;
+  email_normalizado: string;
+  rbd: string | null;
+  rol: string;
+  equipo: string;
+  origen: string;
+  metadata: Record<string, unknown>;
+  activo: boolean;
+}
+
+export interface PortalAccessAuditEntry {
+  id: string;
+  access_id: string;
+  admin_email: string;
+  accion: PortalAccessAuditAction;
+  snapshot_antes: PortalAccessAuditSnapshot | null;
+  snapshot_despues: PortalAccessAuditSnapshot | null;
+  created_at: string;
+}
+
 export interface PortalUserAccess {
   id: string;
   correo_electronico: string;
