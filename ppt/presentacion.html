@@ -1614,6 +1614,7 @@
     if(isPresentation){
       stage.classList.add('presentation-mode');
       document.body.style.overflow = 'hidden';
+      agenda.style.display = 'none';
       modeBtn.textContent = 'Salir';
       slides.forEach(s => {
         s.style.removeProperty('--slide-scale');
@@ -1626,6 +1627,7 @@
     } else {
       stage.classList.remove('presentation-mode');
       document.body.style.overflow = '';
+      agenda.style.display = '';
       modeBtn.textContent = 'Presentación';
       slides.forEach(s => s.classList.remove('is-active'));
       updateScale();

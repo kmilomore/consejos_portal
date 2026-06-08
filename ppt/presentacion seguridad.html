@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Seguridad del Portal · SLEP Colchagua</title>
+<link rel="stylesheet" href="colors_and_type.css" />
+<style>
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;padding:0;
+    background:
+      radial-gradient(circle at top right, rgba(0,107,185,0.10) 0, transparent 28%),
+      radial-gradient(circle at left bottom, rgba(255,29,61,0.07) 0, transparent 24%),
+      linear-gradient(180deg, #FFFFFF 0%, var(--neutral-50) 100%);
+    font-family:var(--font-sans);
+    color:var(--fg-1)
+  }
+  body{min-height:100vh;overflow:auto}
+
+  /* Stage */
+  #stage{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:clamp(28px,4vh,56px);
+    min-height:100vh;
+    padding:40px 0;
+    background:transparent;
+    overflow-x:hidden;
+  }
+  #stage.presentation-mode{
+    justify-content:center;
+    overflow:hidden;
+    gap:0;
+    padding:0;
+    align-items:center;
+  }
+
+  /* Slide frame — clips horizontal overflow in scroll mode */
+  .slide-frame{
+    width:100%;
+    overflow:hidden;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    flex-shrink:0;
+  }
+  #stage.presentation-mode .slide-frame{
+    display:contents;
+  }
+
+  /* Slides */
+  section{
+    --safe-x:120px;
+    --safe-top:96px;
+    --safe-bottom:116px;
+    width:1920px;height:1080px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(237,240,245,0.98) 100%),
+      radial-gradient(circle at top right, rgba(0,107,185,0.08) 0, transparent 24%),
+      var(--bg-page);
+    position:relative;overflow:hidden;padding:var(--safe-top) var(--safe-x) var(--safe-bottom);
+    display:flex;flex-direction:column;
+    font-family:var(--font-sans);
+    transform:scale(var(--slide-scale,1));
+    transform-origin:top center;
+    border-radius:18px;
+    border:1px solid rgba(37,48,107,0.12);
+    box-shadow:0 28px 72px rgba(37,48,107,0.18);
+    flex-shrink:0;
+  }
+  #stage.presentation-mode section{display:none;margin-bottom:0;border-radius:0}
+  #stage.presentation-mode section.is-active{display:flex}
+
+  section::before{
+    content:"";position:absolute;left:0;right:0;top:0;height:6px;
+    background:linear-gradient(90deg, rgba(37,48,107,0.95) 68%, rgba(255,29,61,0.9) 68%);
+  }
+
+  /* Status bar */
+  .deck-status{
+    position:fixed;right:24px;bottom:20px;z-index:20;
+    display:flex;align-items:center;gap:12px;
+    padding:12px 18px;border-radius:999px;
+    background:rgba(37,48,107,0.92);color:#fff;
+    box-shadow:var(--shadow-lg);
+    font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+    backdrop-filter:blur(10px);cursor:default;
+  }
+  .deck-status strong{color:var(--coral-500)}
+  .deck-status span{color:rgba(255,255,255,0.7)}
+  .deck-status button{
+    background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.22);
+    color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;
+    cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;
+    transition:background 120ms;
+  }
+  .deck-status button:hover{background:rgba(255,255,255,0.22)}
+
+  /* Agenda */
+  .deck-agenda{
+    position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:20;
+    display:flex;flex-direction:column;gap:8px;
+    padding:14px 12px;border-radius:20px;
+    background:rgba(255,255,255,0.88);border:1px solid rgba(37,48,107,0.10);
+    box-shadow:var(--shadow-lg);backdrop-filter:blur(12px);
+  }
+  .deck-agenda .label{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--fg-3);font-weight:700;padding:0 6px 4px}
+  .deck-agenda .item{
+    display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+    color:var(--fg-3);font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+    cursor:pointer;transition:all 120ms;
+  }
+  .deck-agenda .item:hover{background:var(--navy-50);color:var(--navy-700)}
+  .deck-agenda .dot{width:9px;height:9px;border-radius:50%;background:var(--neutral-300);flex:none;transition:all 120ms}
+  .deck-agenda .item.is-done .dot{background:var(--royal-500)}
+  .deck-agenda .item.is-active{background:var(--navy-500);color:#fff}
+  .deck-agenda .item.is-active .dot{background:var(--coral-500);box-shadow:0 0 0 4px rgba(255,29,61,0.18)}
+  @media(max-width:1440px){.deck-agenda{display:none}}
+
+  /* Chrome */
+  .topbar{
+    position:absolute;top:40px;left:var(--safe-x);right:var(--safe-x);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:14px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-3);font-weight:700;
+  }
+  .topbar .brand{display:flex;align-items:center;gap:14px}
+  .topbar .brand img{width:40px;height:40px;border-radius:50%}
+  .topbar .brand .name{font-weight:900;color:var(--navy-500);letter-spacing:0.08em}
+  .footer{
+    position:absolute;bottom:34px;left:var(--safe-x);right:var(--safe-x);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:13px;color:var(--fg-3);
+    border-top:1px solid var(--border-1);padding-top:16px;
+    font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  }
+  .footer .accent{display:flex;align-items:center;gap:10px}
+  .footer .accent::before{content:"";width:16px;height:4px;background:var(--coral-500)}
+
+  /* Section covers */
+  .section-cover{
+    padding:110px 120px;justify-content:flex-end;
+    background:var(--grad-hero);color:#fff;
+  }
+  .section-cover::before{display:none}
+  .section-cover::after{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size:88px 88px;
+  }
+  .section-cover > *{position:relative;z-index:1}
+  .section-cover .chapter-mark{font-size:200px;line-height:0.85;font-weight:900;color:rgba(255,255,255,0.14);letter-spacing:-0.05em}
+  .section-cover .chapter-kicker{font-size:16px;letter-spacing:0.18em;text-transform:uppercase;color:var(--navy-100);font-weight:700}
+  .section-cover .chapter-title{font-size:80px;line-height:1.04;font-weight:900;letter-spacing:-0.03em;color:#fff;max-width:1200px;margin-top:16px}
+  .section-cover .chapter-title em{font-style:normal;color:var(--coral-500)}
+  .section-cover .chapter-body{font-size:26px;line-height:1.45;color:var(--navy-100);max-width:960px;margin-top:18px;font-weight:500}
+  .section-cover .chapter-stripe{width:80px;height:6px;border-radius:999px;background:var(--coral-500);margin-top:24px}
+
+  /* Cover slide */
+  section.cover{padding:0;display:grid;grid-template-columns:0.95fr 1.05fr;background:var(--bg-page)}
+  section.cover::before{display:none}
+  .cover .left{padding:110px 100px;background:var(--bg-page);display:flex;flex-direction:column;justify-content:center;gap:52px;position:relative}
+  .cover .left::after{content:"";position:absolute;bottom:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--navy-500) 65%,var(--coral-500) 65%)}
+  .cover .left .top{display:flex;align-items:center;gap:18px}
+  .cover .left .top img{width:64px;height:64px}
+  .cover .left .top .org{font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:var(--navy-500);font-weight:900;line-height:1.25}
+  .cover .left .top .org small{display:block;font-size:11px;font-weight:700;color:var(--fg-3);letter-spacing:0.16em}
+  .cover .left h1{font-size:118px;line-height:0.94;font-weight:900;letter-spacing:-0.025em;margin:0;color:var(--navy-500)}
+  .cover .left h1 b{color:var(--coral-500)}
+  .cover .meta{font-size:14px;color:var(--fg-3);letter-spacing:0.18em;text-transform:uppercase;font-weight:700}
+  .cover .right{background:var(--grad-hero);color:#fff;padding:100px 96px;display:flex;flex-direction:column;justify-content:center;gap:32px;position:relative;overflow:hidden}
+  .cover .right::before{
+    content:"";position:absolute;inset:0;
+    background-image:linear-gradient(to right,rgba(255,255,255,0.06) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.06) 1px,transparent 1px);
+    background-size:80px 80px;
+  }
+  .cover .right::after{content:"";position:absolute;width:560px;height:560px;border-radius:50%;bottom:-200px;right:-200px;background:var(--coral-500);opacity:0.18;filter:blur(20px)}
+  .cover .ribbon{display:flex;align-items:center;gap:14px;font-size:14px;letter-spacing:0.18em;text-transform:uppercase;color:#fff;font-weight:700;position:relative;z-index:1}
+  .cover .ribbon .bar{width:36px;height:4px;background:var(--coral-500)}
+  .cover .right .big{position:relative;z-index:1;font-weight:900;font-size:60px;line-height:1.04;letter-spacing:-0.02em;color:#fff;max-width:720px}
+  .cover .right .badge{position:relative;z-index:1;font-size:18px;color:#fff;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);padding:14px 22px;border-radius:8px;display:inline-block;font-weight:700;letter-spacing:0.06em;text-transform:uppercase}
+  .cover .hero-copy{display:flex;flex-direction:column;gap:24px;position:relative;z-index:1;max-width:780px}
+  .cover .cover-tail{font-size:12px;color:var(--navy-100);letter-spacing:0.16em;text-transform:uppercase;font-weight:700;position:relative;z-index:1}
+
+  /* Índice */
+  .toc{display:flex;flex-direction:column;gap:4px;margin-top:32px}
+  .toc-row{display:grid;grid-template-columns:90px 1fr 260px;align-items:center;gap:30px;padding:16px 0;border-bottom:1px solid var(--border-1)}
+  .toc-row .n{font-weight:900;font-size:30px;color:var(--coral-500);letter-spacing:-0.02em}
+  .toc-row .t{font-size:28px;color:var(--navy-500);font-weight:700;letter-spacing:-0.01em}
+  .toc-row .d{font-size:13px;color:var(--fg-3);text-align:right;text-transform:uppercase;letter-spacing:0.14em;font-weight:700}
+
+  /* Typography */
+  .eyebrow-lg{font-size:17px;letter-spacing:0.18em;text-transform:uppercase;color:var(--royal-500);font-weight:700}
+  h2.title{font-size:80px;line-height:1.05;font-weight:900;letter-spacing:-0.02em;margin:0;color:var(--navy-500)}
+  h2.title em{font-style:normal;color:var(--coral-500)}
+  h2.title b{font-weight:900;color:var(--royal-500)}
+  h3.sub{font-size:28px;font-weight:500;color:var(--fg-2);margin:0;line-height:1.35;max-width:1400px}
+  p.lede{font-size:26px;line-height:1.5;color:var(--fg-2);max-width:1500px;margin:0;font-weight:500}
+  .h-label{font-size:14px;letter-spacing:0.14em;text-transform:uppercase;color:var(--royal-500);font-weight:700}
+
+  /* Cards / grid */
+  .card{background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;padding:32px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-sm)}
+  .card.accent{border-top:4px solid var(--royal-500)}
+  .card.coral{border-top:4px solid var(--coral-500)}
+  .card.navy{border-top:4px solid var(--navy-500)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+
+  /* Tags / pills */
+  .tag{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--navy-500);background:var(--royal-50);border:1px solid var(--royal-100);padding:8px 14px;border-radius:999px;letter-spacing:0.04em}
+  .tag.coral{background:var(--coral-50);color:var(--coral-700);border-color:var(--coral-100)}
+  .tag.navy{background:var(--navy-50);color:var(--navy-700);border-color:var(--navy-100)}
+  .tag.green{background:#EAF7F0;color:#1F8A5B;border-color:#B0E0C8}
+  .tag.warn{background:#FFF8E8;color:#B86C00;border-color:#FFD88A}
+  .pill{display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border-radius:999px;font-size:16px;font-weight:700;border:1px solid var(--border-1);background:var(--bg-surface);color:var(--fg-2)}
+  .pill .d{width:10px;height:10px;border-radius:50%}
+
+  /* Split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1;align-items:stretch}
+  .panel{background:var(--bg-surface);border:1px solid var(--border-1);border-radius:12px;padding:36px;display:flex;flex-direction:column;gap:18px;box-shadow:var(--shadow-md)}
+  .panel.dark{background:var(--grad-deep-blue);color:#fff;border-color:transparent}
+  .panel.dark .h-label{color:var(--navy-100)}
+
+  /* Why grid */
+  .why-grid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:24px;flex:1}
+  .why{background:rgba(255,255,255,0.96);border:1px solid var(--border-1);border-radius:12px;padding:32px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:var(--shadow-md);border-left:4px solid var(--royal-500)}
+  .why:nth-child(2){border-left-color:var(--coral-500)}
+  .why:nth-child(3){border-left-color:var(--navy-500)}
+  .why:nth-child(4){border-left-color:var(--royal-500)}
+  .why .top{display:flex;align-items:center;gap:16px}
+  .why .ico{width:48px;height:48px;border-radius:10px;background:var(--royal-50);display:grid;place-items:center;color:var(--royal-500);font-weight:900;font-size:20px;flex:none}
+  .why h4{font-size:26px;margin:0;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em}
+  .why p{font-size:18px;line-height:1.5;color:var(--fg-2);margin:0;font-weight:500}
+
+  /* Stack */
+  .stack{display:flex;flex-direction:column;gap:14px}
+  .layer{display:flex;align-items:center;gap:24px;padding:24px 28px;border-radius:12px;border:1px solid var(--border-1);background:var(--bg-surface);box-shadow:var(--shadow-md)}
+  .layer .pip{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px;letter-spacing:0.05em;flex:none}
+  .layer .ttl{font-size:24px;font-weight:900;color:var(--navy-500)}
+  .layer .sub{font-size:17px;color:var(--fg-2);font-weight:500;margin-top:4px}
+  .layer .meta{margin-left:auto;font-size:13px;color:var(--fg-3);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-align:right;white-space:nowrap}
+  .stack .down{text-align:center;color:var(--coral-500);font-size:22px;font-weight:900}
+
+  /* Quote */
+  .quote{border-left:4px solid var(--coral-500);padding:6px 0 6px 28px;font-size:32px;line-height:1.3;color:var(--navy-500);font-weight:700;max-width:1200px;letter-spacing:-0.01em}
+
+  /* Lists */
+  ul.dots{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+  ul.dots li{font-size:19px;color:var(--fg-2);line-height:1.45;display:flex;gap:14px;align-items:flex-start;font-weight:500}
+  ul.dots li::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--royal-500);margin-top:9px;flex:none}
+  ul.checks{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+  ul.checks li{font-size:18px;color:var(--fg-2);line-height:1.45;display:flex;gap:14px;align-items:flex-start;font-weight:500}
+  ul.checks li::before{content:"✓";color:#1F8A5B;font-weight:900;font-size:20px;flex:none;width:22px;line-height:1.2}
+
+  /* Stats */
+  .stats{display:grid;border-top:1px solid var(--border-1);border-bottom:1px solid var(--border-1);margin-top:36px;background:rgba(255,255,255,0.92);border-radius:12px;box-shadow:var(--shadow-md)}
+  .stat{padding:28px;border-right:1px solid var(--border-1)}
+  .stat:last-child{border-right:none}
+  .stat .v{font-size:62px;line-height:1;color:var(--royal-500);font-weight:900;letter-spacing:-0.02em}
+  .stat .l{font-size:13px;color:var(--fg-3);letter-spacing:0.12em;text-transform:uppercase;margin-top:8px;font-weight:700}
+
+  /* Steps */
+  .steps{display:flex;flex-direction:column;gap:0;flex:1;margin-top:24px}
+  .step{display:flex;gap:28px;align-items:flex-start;padding:20px 0;border-bottom:1px solid var(--border-1)}
+  .step:last-child{border-bottom:none}
+  .step .num{width:48px;height:48px;border-radius:50%;background:var(--navy-500);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:900;flex:none}
+  .step .num.coral{background:var(--coral-500)}
+  .step .num.royal{background:var(--royal-500)}
+  .step-body .ttl{font-size:22px;font-weight:900;color:var(--navy-500);letter-spacing:-0.01em}
+  .step-body .desc{font-size:17px;color:var(--fg-2);margin-top:4px;font-weight:500;line-height:1.45}
+
+  /* Closing */
+  .closing{background:var(--grad-hero);color:#fff;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;padding:0}
+  .closing::before{content:"";position:absolute;inset:0;background-image:linear-gradient(to right,rgba(255,255,255,0.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.05) 1px,transparent 1px);background-size:80px 80px}
+  .closing::after{content:"";position:absolute;width:480px;height:480px;border-radius:50%;top:-160px;right:-160px;background:var(--coral-500);opacity:0.22;filter:blur(20px)}
+  .closing > *{position:relative;z-index:1}
+  .closing-shell{display:grid;grid-template-columns:1fr 1fr;min-height:100%}
+  .closing-left{padding:110px 96px;display:flex;flex-direction:column;justify-content:space-between}
+  .closing-right{padding:96px;background:rgba(255,255,255,0.08);border-left:1px solid rgba(255,255,255,0.10);display:flex;flex-direction:column;justify-content:space-between}
+  .closing-top{display:flex;align-items:center;gap:18px}
+  .closing-top img{width:64px;height:64px;border-radius:50%}
+  .closing-org{font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#fff;font-weight:900;line-height:1.25}
+  .closing-org small{display:block;font-size:11px;font-weight:700;color:var(--navy-100);letter-spacing:0.16em}
+  .closing-kicker{font-size:14px;letter-spacing:0.18em;text-transform:uppercase;color:var(--navy-100);font-weight:700;margin-top:40px}
+  .closing h2{font-size:110px;line-height:0.95;font-weight:900;letter-spacing:-0.025em;color:#fff;margin:0}
+  .closing h2 b{color:var(--coral-500)}
+  .closing p{color:var(--navy-100);font-size:24px;max-width:800px;margin-top:28px;font-weight:500;line-height:1.5}
+  .closing .badge{font-size:17px;color:#fff;border:1px solid rgba(255,255,255,0.20);background:rgba(255,255,255,0.08);padding:14px 22px;border-radius:8px;display:inline-block;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;align-self:flex-start}
+  .closing-big{font-size:52px;line-height:1.06;font-weight:900;letter-spacing:-0.025em;color:#fff;max-width:700px}
+  .closing .row{display:flex;gap:36px;margin-top:48px;flex-wrap:wrap}
+  .closing .row .item{font-size:17px;color:#fff;display:flex;align-items:center;gap:14px;letter-spacing:0.10em;text-transform:uppercase;font-weight:700}
+  .closing .row .item .b{width:8px;height:26px;background:var(--coral-500)}
+
+  /* Banner */
+  .banner{padding:22px 28px;border-radius:12px;background:var(--grad-deep-blue);color:#fff;display:flex;align-items:center;gap:20px;box-shadow:var(--shadow-md)}
+  .banner .copy{font-size:22px;font-weight:700;line-height:1.35;color:#fff}
+
+  /* Misc */
+  .mt-l{margin-top:48px}
+  .mt-m{margin-top:28px}
+  .mt-s{margin-top:16px}
+  .section-head{display:flex;align-items:flex-end;gap:36px;justify-content:space-between}
+  .accent-bar{width:72px;height:5px;border-radius:999px;background:var(--coral-500);margin-top:20px}
+
+  /* Code chip */
+  .code-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;background:var(--navy-500);color:#fff;letter-spacing:0.02em}
+  .code-chip.sm{font-size:13px;padding:6px 11px}
+
+  /* Animations */
+  @keyframes revealUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes revealScale{from{opacity:0;transform:translateY(16px) scale(0.987)}to{opacity:1;transform:translateY(0) scale(1)}}
+  #stage.presentation-mode section.is-active .topbar,
+  #stage.presentation-mode section.is-active .footer,
+  #stage.presentation-mode section.is-active .section-cover .chapter-kicker,
+  #stage.presentation-mode section.is-active .section-cover .chapter-title,
+  #stage.presentation-mode section.is-active .section-cover .chapter-body,
+  #stage.presentation-mode section.is-active .section-cover .chapter-stripe,
+  #stage.presentation-mode section.is-active .cover .left,
+  #stage.presentation-mode section.is-active .cover .right,
+  #stage.presentation-mode section.is-active .closing-shell{animation:revealUp 480ms var(--ease-emphasis) both}
+  #stage.presentation-mode section.is-active .card,
+  #stage.presentation-mode section.is-active .panel,
+  #stage.presentation-mode section.is-active .why,
+  #stage.presentation-mode section.is-active .layer,
+  #stage.presentation-mode section.is-active .stat,
+  #stage.presentation-mode section.is-active .toc-row,
+  #stage.presentation-mode section.is-active .step{animation:revealScale 440ms var(--ease-standard) both}
+  #stage.presentation-mode section.is-active .grid-3 > *:nth-child(1),
+  #stage.presentation-mode section.is-active .grid-2 > *:nth-child(1),
+  #stage.presentation-mode section.is-active .why-grid > *:nth-child(1),
+  #stage.presentation-mode section.is-active .steps > *:nth-child(1),
+  #stage.presentation-mode section.is-active .toc .toc-row:nth-child(1){animation-delay:60ms}
+  #stage.presentation-mode section.is-active .grid-3 > *:nth-child(2),
+  #stage.presentation-mode section.is-active .grid-2 > *:nth-child(2),
+  #stage.presentation-mode section.is-active .why-grid > *:nth-child(2),
+  #stage.presentation-mode section.is-active .steps > *:nth-child(2),
+  #stage.presentation-mode section.is-active .toc .toc-row:nth-child(2){animation-delay:120ms}
+  #stage.presentation-mode section.is-active .grid-3 > *:nth-child(3),
+  #stage.presentation-mode section.is-active .why-grid > *:nth-child(3),
+  #stage.presentation-mode section.is-active .steps > *:nth-child(3),
+  #stage.presentation-mode section.is-active .toc .toc-row:nth-child(3){animation-delay:180ms}
+  #stage.presentation-mode section.is-active .why-grid > *:nth-child(4),
+  #stage.presentation-mode section.is-active .steps > *:nth-child(4),
+  #stage.presentation-mode section.is-active .toc .toc-row:nth-child(4){animation-delay:240ms}
+  #stage.presentation-mode section.is-active .toc .toc-row:nth-child(5){animation-delay:300ms}
+  #stage.presentation-mode section.is-active .toc .toc-row:nth-child(6){animation-delay:360ms}
+</style>
+</head>
+<body>
+
+<!-- Barra de estado -->
+<div class="deck-status">
+  <strong id="curr">1</strong>
+  <span>/ <span id="total">16</span></span>
+  <span id="label-text" style="font-size:11px;color:rgba(255,255,255,0.6);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+  <button onclick="prevSlide()">← Atrás</button>
+  <button onclick="nextSlide()">Siguiente →</button>
+  <button onclick="toggleMode()" id="mode-btn">Presentación</button>
+</div>
+
+<!-- Agenda lateral -->
+<nav class="deck-agenda" id="agenda">
+  <div class="label">Secciones</div>
+</nav>
+
+<div id="stage">
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 1 — Portada
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Portada" class="cover">
+  <div class="left">
+    <div class="top">
+      <img src="../public/SLEPCOLCHAGUA.webp" alt="SLEP Colchagua" />
+      <div class="org">SERVICIO LOCAL DE<br/>EDUCACIÓN PÚBLICA<br/><small>Colchagua</small></div>
+    </div>
+    <h1>Seguridad<br/>del <b>Portal.</b></h1>
+    <div>
+      <div class="meta">Postura de seguridad · Portal de Consejos Escolares</div>
+      <div class="meta" style="margin-top:8px;color:var(--royal-500)">Revisión técnica · Mayo 2026</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="ribbon"><span class="bar"></span> SLEP · Colchagua</div>
+    <div class="hero-copy">
+      <div class="badge">Actualización: 2026-05-27</div>
+      <div class="big">
+        ¿Qué tan seguro es el portal? Controles aplicados, riesgos identificados y correcciones efectuadas.
+      </div>
+    </div>
+    <div class="cover-tail">
+      Autenticación · Autorización · RLS · Hardening · Datos
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 2 — Índice
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Índice">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>Índice · Seguridad</div>
+  </div>
+  <div style="margin-top:80px">
+    <div class="eyebrow-lg">Contenido</div>
+    <h2 class="title" style="margin-top:16px">Postura de <b>seguridad del portal</b>.</h2>
+  </div>
+  <div class="toc">
+    <div class="toc-row"><div class="n">01</div><div class="t">Principio rector</div><div class="d">Seguridad por defecto</div></div>
+    <div class="toc-row"><div class="n">02</div><div class="t">Autenticación y control de dominio</div><div class="d">Quién puede entrar</div></div>
+    <div class="toc-row"><div class="n">03</div><div class="t">Autorización efectiva y RLS</div><div class="d">Qué puede ver cada uno</div></div>
+    <div class="toc-row"><div class="n">04</div><div class="t">Endurecimiento aplicado</div><div class="d">Migración 2026-05-27</div></div>
+    <div class="toc-row"><div class="n">05</div><div class="t">Exposición pública corregida</div><div class="d">Lectura anon eliminada</div></div>
+    <div class="toc-row"><div class="n">06</div><div class="t">Riesgos identificados</div><div class="d">Pendientes y próximos pasos</div></div>
+  </div>
+  <div class="footer"><div class="accent">Portal de Consejos · Seguridad</div><div>02 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 3 — Capítulo 1
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cap. 1: Principio rector" class="section-cover">
+  <div class="chapter-kicker">Capítulo 1 · Base de la seguridad</div>
+  <div class="chapter-mark">01</div>
+  <div class="chapter-title">El portal debe operar con<br/><em>seguridad por defecto</em>.</div>
+  <div class="chapter-body">La seguridad no es una capa que se agrega al final. Está integrada en cada consulta a la base de datos, en cada regla de acceso y en cada decisión de arquitectura del portal.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>03 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 4 — Principio rector: las 3 reglas
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Las 3 reglas">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>01 · Principio rector</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">01 · Seguridad por defecto</div>
+    <h2 class="title" style="margin-top:16px">Tres reglas que <b>no tienen excepciones</b>.</h2>
+    <h3 class="sub" style="margin-top:16px">Toda decisión de seguridad del portal se apoya en estas tres premisas.</h3>
+  </div>
+  <div class="why-grid mt-l">
+    <div class="why" style="border-left-color:var(--royal-500)">
+      <div class="top">
+        <div class="ico" style="background:var(--royal-50);font-size:22px">🚫</div>
+        <h4>No confiar en el navegador</h4>
+      </div>
+      <p>El navegador no es fuente de verdad de acceso. Lo que muestra el frontend no define qué datos puede ver o modificar un usuario. Cualquier dato sensible se valida en el servidor.</p>
+      <div class="tag" style="margin-top:auto;align-self:flex-start">Regla 1</div>
+    </div>
+    <div class="why" style="border-left-color:var(--coral-500)">
+      <div class="top">
+        <div class="ico" style="background:var(--coral-50);font-size:22px">🔒</div>
+        <h4>Autorización real en backend y RLS</h4>
+      </div>
+      <p>El acceso efectivo lo resuelven las funciones de Supabase y las políticas de Row Level Security. El frontend solo consume el resultado de ese contrato, no lo define.</p>
+      <div class="tag coral" style="margin-top:auto;align-self:flex-start">Regla 2</div>
+    </div>
+    <div class="why" style="border-left-color:var(--navy-500)">
+      <div class="top">
+        <div class="ico" style="background:var(--navy-50);font-size:22px">🎯</div>
+        <h4>Mínimo privilegio en datos y permisos</h4>
+      </div>
+      <p>Solo se expone lo estrictamente necesario. Sin acceso público a datos operativos. Sin permisos amplios donde bastan permisos acotados. El alcance de cada usuario es el mínimo para cumplir su función.</p>
+      <div class="tag navy" style="margin-top:auto;align-self:flex-start">Regla 3</div>
+    </div>
+    <div class="why" style="border-left-color:var(--royal-500);grid-column:span 1">
+      <div class="top">
+        <div class="ico" style="background:#EAF7F0;font-size:22px">✅</div>
+        <h4>Consecuencia directa</h4>
+      </div>
+      <p>Un director no puede ver datos de otro establecimiento aunque conozca la URL. Un usuario sin dominio institucional no puede obtener ningún alcance aunque se autentique con Google. Los controles se aplican antes de entregar cualquier dato.</p>
+      <div class="tag green" style="margin-top:auto;align-self:flex-start">Resultado</div>
+    </div>
+  </div>
+  <div class="footer"><div class="accent">Principio rector</div><div>04 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 5 — Capítulo 2
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cap. 2: Autenticación" class="section-cover">
+  <div class="chapter-kicker">Capítulo 2 · Quién puede entrar</div>
+  <div class="chapter-mark">02</div>
+  <div class="chapter-title">Google OAuth más validación<br/>de <em>dominio institucional en backend</em>.</div>
+  <div class="chapter-body">La autenticación usa Google como proveedor de identidad, pero no basta con tener una cuenta Google: el portal exige que el correo pertenezca al dominio institucional y esté registrado con acceso real.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>05 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 6 — Autenticación
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Autenticación">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>02 · Autenticación</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">02 · Cómo funciona la autenticación</div>
+    <h2 class="title" style="margin-top:16px">Google OAuth + <b>validación de dominio</b><br/>en el servidor.</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:36px;flex:1;margin-top:32px;align-items:stretch">
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="panel" style="padding:28px;gap:14px">
+        <div class="h-label">Mecanismo de autenticación</div>
+        <div class="steps" style="margin-top:0">
+          <div class="step" style="padding:16px 0">
+            <div class="num" style="width:40px;height:40px;font-size:17px">1</div>
+            <div class="step-body">
+              <div class="ttl">El usuario inicia sesión con Google OAuth</div>
+              <div class="desc">Supabase Auth gestiona el flujo OAuth. La sesión se resuelve en el cliente y es validada por Supabase en cada operación posterior.</div>
+            </div>
+          </div>
+          <div class="step" style="padding:16px 0">
+            <div class="num royal" style="width:40px;height:40px;font-size:17px">2</div>
+            <div class="step-body">
+              <div class="ttl">Se verifica el dominio institucional en backend</div>
+              <div class="desc">La función <span style="font-family:monospace;font-weight:700;color:var(--navy-500)">is_portal_allowed_email()</span> comprueba que el correo pertenece al dominio institucional configurado antes de otorgar cualquier acceso.</div>
+            </div>
+          </div>
+          <div class="step" style="padding:16px 0">
+            <div class="num coral" style="width:40px;height:40px;font-size:17px">3</div>
+            <div class="step-body">
+              <div class="ttl">Solo entonces se resuelve el alcance real</div>
+              <div class="desc">Si el correo pasa la validación de dominio, se evalúan los roles registrados en <span style="font-family:monospace;font-weight:700;color:var(--navy-500)">usuario_establecimiento_roles</span>. Sin registro, no hay acceso.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div style="padding:28px;border-radius:14px;background:rgba(255,195,0,0.06);border:1px solid rgba(184,108,0,0.22);box-shadow:var(--shadow-md)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <span style="font-size:26px">⚠️</span>
+          <div style="font-size:16px;font-weight:900;color:#B86C00;letter-spacing:0.04em;text-transform:uppercase">Hallazgo importante</div>
+        </div>
+        <div style="font-size:18px;font-weight:700;color:var(--navy-500);margin-bottom:8px">El parámetro <span style="font-family:monospace;color:var(--coral-500)">hd</span> de Google solo es una sugerencia de frontend</div>
+        <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">Google permite pasar el parámetro <span style="font-family:monospace;font-weight:700">hd</span> para pre-filtrar el dominio en la pantalla de login. Pero ese parámetro no es una garantía de seguridad: un usuario con correo de otro dominio puede igualmente completar el flujo OAuth.</div>
+        <div class="tag warn" style="margin-top:14px">No es un control de seguridad</div>
+      </div>
+      <div style="padding:24px 28px;border-radius:14px;background:#EAF7F0;border:1px solid #B0E0C8;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">✅</span>
+          <div style="font-size:15px;font-weight:900;color:#1F8A5B;text-transform:uppercase;letter-spacing:0.06em">Control real</div>
+        </div>
+        <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.5">La validación de dominio es una función del servidor (<span style="font-family:monospace;font-weight:700">portal_allowed_email_domain()</span>). Si el correo no pertenece al dominio institucional, ninguna función de acceso devuelve alcance real, independientemente de cómo llegó el usuario al sistema.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footer"><div class="accent">Autenticación · Google OAuth + dominio</div><div>06 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 7 — Capítulo 3
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cap. 3: Autorización y RLS" class="section-cover">
+  <div class="chapter-kicker">Capítulo 3 · Qué puede ver cada usuario</div>
+  <div class="chapter-mark">03</div>
+  <div class="chapter-title">La autorización real vive<br/>en el <em>servidor, no en el cliente</em>.</div>
+  <div class="chapter-body">Un conjunto de funciones de base de datos define qué puede ver y hacer cada usuario. El frontend no decide el acceso: solo muestra el resultado de lo que el backend aprueba.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>07 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 8 — Autorización efectiva
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Autorización efectiva">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>03 · Autorización</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">03 · Funciones de autorización</div>
+    <h2 class="title" style="margin-top:14px">Siete funciones que definen<br/><b>todo el alcance del portal</b>.</h2>
+    <h3 class="sub" style="margin-top:14px">Estas funciones se ejecutan en Supabase y determinan qué datos puede ver o modificar cada usuario.</h3>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;margin-top:28px;align-items:stretch">
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--royal-50);display:grid;place-items:center;font-size:18px;flex:none">⚙️</div>
+        <div>
+          <div style="font-family:monospace;font-size:17px;font-weight:700;color:var(--navy-500)">is_global_admin()</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">¿Es el usuario administrador global del SLEP?</div>
+        </div>
+      </div>
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--royal-50);display:grid;place-items:center;font-size:18px;flex:none">👁️</div>
+        <div>
+          <div style="font-family:monospace;font-size:17px;font-weight:700;color:var(--navy-500)">has_global_readonly_access()</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">¿Tiene acceso de solo lectura a todo el territorio?</div>
+        </div>
+      </div>
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--coral-50);display:grid;place-items:center;font-size:18px;flex:none">🏫</div>
+        <div>
+          <div style="font-family:monospace;font-size:17px;font-weight:700;color:var(--navy-500)">current_accessible_rbds()</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">Lista de RBD a los que el usuario tiene acceso real</div>
+        </div>
+      </div>
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--coral-50);display:grid;place-items:center;font-size:18px;flex:none">🔍</div>
+        <div>
+          <div style="font-family:monospace;font-size:17px;font-weight:700;color:var(--navy-500)">has_school_scope_access(rbd)</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">¿Puede el usuario leer datos de este establecimiento?</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--navy-50);display:grid;place-items:center;font-size:18px;flex:none">✏️</div>
+        <div>
+          <div style="font-family:monospace;font-size:17px;font-weight:700;color:var(--navy-500)">has_school_write_access(rbd)</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">¿Puede escribir o modificar datos de este establecimiento?</div>
+        </div>
+      </div>
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--navy-50);display:grid;place-items:center;font-size:18px;flex:none">🗂️</div>
+        <div>
+          <div style="font-family:monospace;font-size:17px;font-weight:700;color:var(--navy-500)">get_current_portal_scope()</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">Devuelve el alcance completo del usuario en el portal</div>
+        </div>
+      </div>
+      <div style="padding:18px 22px;border-radius:12px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:16px">
+        <div style="width:44px;height:44px;border-radius:10px;background:#EAF7F0;display:grid;place-items:center;font-size:18px;flex:none">👤</div>
+        <div>
+          <div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">usuario_establecimiento_roles</div>
+          <div style="font-size:14px;color:var(--fg-2);margin-top:3px;font-weight:500">Tabla fuente: asocia correos con RBD y rol asignado</div>
+        </div>
+      </div>
+      <div style="padding:18px 22px;border-radius:14px;background:var(--grad-deep-blue);color:#fff;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:16px;margin-top:auto">
+        <div style="font-size:24px;flex:none">🔐</div>
+        <div style="font-size:15px;font-weight:600;color:#fff;line-height:1.5">El frontend solo consume el resultado de este contrato. No puede simular ni saltar estas funciones desde el cliente.</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footer"><div class="accent">Funciones de autorización</div><div>08 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 9 — RLS por tablas
+═══════════════════════════════════════════════════════════ -->
+<section data-label="RLS por tablas">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>03 · Row Level Security</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">03 · Alcance por datos</div>
+    <h2 class="title" style="margin-top:14px">Las políticas RLS filtran <b>cada fila</b><br/>antes de entregarla al usuario.</h2>
+    <h3 class="sub" style="margin-top:14px">No es solo control de pantalla: la base de datos aplica el alcance en cada consulta, independientemente del cliente que la haga.</h3>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;margin-top:28px;align-items:stretch">
+
+    <div style="border-radius:16px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:var(--navy-500);padding:22px 28px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">📖</span>
+        <div style="font-size:22px;font-weight:900;color:#fff">Políticas de lectura</div>
+        <div style="margin-left:auto;font-size:12px;font-weight:700;color:var(--navy-100);letter-spacing:0.12em;text-transform:uppercase">Requieren alcance real de escuela</div>
+      </div>
+      <div style="padding:24px 28px;display:flex;flex-direction:column;gap:10px;flex:1">
+        <div style="font-size:14px;color:var(--fg-3);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px">Tablas protegidas</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)"><div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">establecimientos</div></div>
+          <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)"><div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">programacion</div></div>
+          <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)"><div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">actas</div></div>
+          <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)"><div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">actas_invitados</div></div>
+          <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)"><div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">logs</div></div>
+          <div style="padding:12px 16px;border-radius:8px;background:var(--royal-50);border:1px solid var(--royal-100)"><div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">storage.objects</div><div style="font-size:12px;color:var(--fg-3);margin-top:2px">bucket evidencias_actas</div></div>
+        </div>
+        <div style="margin-top:auto;padding:14px 18px;border-radius:10px;background:var(--royal-50);border:1px solid var(--royal-100)">
+          <div style="font-size:15px;color:var(--navy-500);font-weight:600;line-height:1.45">La lectura pasa por <span style="font-family:monospace">has_school_scope_access(rbd)</span> o por permisos globales controlados. Sin alcance válido, la consulta devuelve cero filas.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-radius:16px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:var(--coral-500);padding:22px 28px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">✏️</span>
+        <div style="font-size:22px;font-weight:900;color:#fff">Políticas de escritura</div>
+        <div style="margin-left:auto;font-size:12px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:0.12em;text-transform:uppercase">Requieren acceso de escritura</div>
+      </div>
+      <div style="padding:24px 28px;display:flex;flex-direction:column;gap:16px;flex:1">
+        <div style="padding:20px;border-radius:12px;background:var(--coral-50);border:1px solid var(--coral-100)">
+          <div style="font-size:15px;font-weight:700;color:var(--navy-500);margin-bottom:8px">Control de escritura</div>
+          <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.5">La escritura se limita a usuarios con permisos reales sobre la escuela objetivo. Se verifica mediante <span style="font-family:monospace;font-weight:700">has_school_write_access(rbd)</span> antes de cualquier INSERT o UPDATE.</div>
+        </div>
+        <div style="padding:20px;border-radius:12px;background:#fff;border:1px solid var(--border-1)">
+          <div style="font-size:15px;font-weight:700;color:var(--navy-500);margin-bottom:8px">Storage: evidencias_actas</div>
+          <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.5">La lectura y escritura de archivos PDF en el bucket <span style="font-family:monospace;font-weight:700">evidencias_actas</span> se alinea con el alcance real del usuario, no con el estado del cliente ni con la URL del archivo.</div>
+        </div>
+        <div style="margin-top:auto;padding:18px;border-radius:12px;background:var(--grad-deep-blue);color:#fff">
+          <div style="font-size:14px;font-weight:700;color:var(--navy-100);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Garantía</div>
+          <div style="font-size:15px;font-weight:500;line-height:1.45;color:#fff">Un director no puede modificar actas de otro establecimiento aunque intente hacerlo directamente contra la API de Supabase.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footer"><div class="accent">RLS · Alcance por filas</div><div>09 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 10 — Capítulo 4
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cap. 4: Endurecimiento" class="section-cover">
+  <div class="chapter-kicker">Capítulo 4 · Controles reforzados</div>
+  <div class="chapter-mark">04</div>
+  <div class="chapter-title">Migración de hardening<br/>aplicada el <em>27 de mayo 2026</em>.</div>
+  <div class="chapter-body">Se identificaron brechas en la validación de dominio y en la gestión manual de accesos. La migración de hardening cierra esas brechas redefiniendo todas las funciones críticas de autorización.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>10 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 11 — Endurecimiento aplicado
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Endurecimiento 2026-05-27">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>04 · Hardening aplicado</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">04 · Migración de seguridad</div>
+    <h2 class="title" style="margin-top:14px">Tres cambios que <b>cierran las brechas</b><br/>de autorización del portal.</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;flex:1;margin-top:28px;align-items:stretch">
+
+    <div style="border-radius:16px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:var(--navy-500);padding:20px 24px">
+        <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--navy-100)">Cambio 1</div>
+        <div style="font-size:22px;font-weight:900;color:#fff;margin-top:6px;line-height:1.15">Dominio institucional exigido en backend</div>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:12px;flex:1">
+        <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.55">Se definen dos funciones nuevas que son la fuente única de verdad sobre el dominio permitido:</div>
+        <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)">
+          <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--navy-500)">portal_allowed_email_domain()</div>
+          <div style="font-size:13px;color:var(--fg-3);margin-top:4px">Retorna el dominio institucional configurado</div>
+        </div>
+        <div style="padding:12px 16px;border-radius:8px;background:var(--navy-50);border:1px solid var(--navy-100)">
+          <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--navy-500)">is_portal_allowed_email(email)</div>
+          <div style="font-size:13px;color:var(--fg-3);margin-top:4px">Valida si un correo pertenece al dominio institucional</div>
+        </div>
+        <div style="margin-top:auto;padding:14px;border-radius:10px;background:#EAF7F0;border:1px solid #B0E0C8">
+          <div style="font-size:14px;color:#1F8A5B;font-weight:600;line-height:1.4">Ninguna función de acceso otorga alcance a correos fuera del dominio, sin importar cómo llegaron al sistema.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-radius:16px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:var(--royal-500);padding:20px 24px">
+        <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--navy-100)">Cambio 2</div>
+        <div style="font-size:22px;font-weight:900;color:#fff;margin-top:6px;line-height:1.15">Todas las funciones de acceso redefinidas</div>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:10px;flex:1">
+        <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.45;margin-bottom:4px">Se redefinen para incluir la validación de dominio como precondición:</div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="padding:9px 12px;border-radius:7px;background:var(--royal-50);border:1px solid var(--royal-100);font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">is_global_admin()</div>
+          <div style="padding:9px 12px;border-radius:7px;background:var(--royal-50);border:1px solid var(--royal-100);font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">has_global_readonly_access()</div>
+          <div style="padding:9px 12px;border-radius:7px;background:var(--royal-50);border:1px solid var(--royal-100);font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">current_accessible_rbds()</div>
+          <div style="padding:9px 12px;border-radius:7px;background:var(--royal-50);border:1px solid var(--royal-100);font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">has_school_scope_access()</div>
+          <div style="padding:9px 12px;border-radius:7px;background:var(--royal-50);border:1px solid var(--royal-100);font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">has_school_write_access()</div>
+          <div style="padding:9px 12px;border-radius:7px;background:var(--royal-50);border:1px solid var(--royal-100);font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">get_current_portal_scope()</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-radius:16px;border:1px solid var(--border-1);background:#fff;box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:var(--coral-500);padding:20px 24px">
+        <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,0.7)">Cambio 3</div>
+        <div style="font-size:22px;font-weight:900;color:#fff;margin-top:6px;line-height:1.15">Gestión manual de accesos endurecida</div>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:14px;flex:1">
+        <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.55">Dos funciones de gestión también se refuerzan:</div>
+        <div style="padding:12px 16px;border-radius:8px;background:var(--coral-50);border:1px solid var(--coral-100)">
+          <div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">bootstrap_current_user_profile<br/>_from_base_escuelas()</div>
+          <div style="font-size:13px;color:var(--fg-3);margin-top:4px">Creación de perfil inicial del usuario</div>
+        </div>
+        <div style="padding:12px 16px;border-radius:8px;background:var(--coral-50);border:1px solid var(--coral-100)">
+          <div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--navy-500)">upsert_usuario_establecimiento_rol()</div>
+          <div style="font-size:13px;color:var(--fg-3);margin-top:4px">Asignación manual de roles a usuarios</div>
+        </div>
+        <div style="margin-top:auto;padding:14px;border-radius:10px;background:var(--navy-50);border:1px solid var(--navy-100)">
+          <div style="font-size:14px;color:var(--navy-500);font-weight:600;line-height:1.45">La carga manual de accesos ya no puede registrar correos fuera del dominio institucional configurado.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footer"><div class="accent">Hardening · Migración 2026-05-27</div><div>11 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 12 — Capítulo 5
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cap. 5: Exposición pública" class="section-cover">
+  <div class="chapter-kicker">Capítulo 5 · Hallazgo y corrección</div>
+  <div class="chapter-mark">05</div>
+  <div class="chapter-title">Se encontró lectura pública<br/>de datos operativos. <em>Fue corregida</em>.</div>
+  <div class="chapter-body">Una migración previa habilitaba acceso de lectura anónima a tablas con datos reales del portal. La migración de hardening elimina esas políticas y restaura el principio de mínimo privilegio.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>12 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 13 — Exposición pública corregida
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Exposición pública corregida">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>05 · Exposición de datos</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">05 · Hallazgo documentado y resuelto</div>
+    <h2 class="title" style="margin-top:14px">Acceso anónimo a datos operativos:<br/><b>identificado y eliminado</b>.</h2>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1;margin-top:28px;align-items:stretch">
+
+    <div style="border-radius:16px;border:1px solid rgba(255,29,61,0.25);background:rgba(255,29,61,0.02);box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:var(--coral-500);padding:22px 28px;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">⚠️</span>
+        <div>
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,0.75)">Situación anterior</div>
+          <div style="font-size:22px;font-weight:900;color:#fff;margin-top:4px">Lectura pública habilitada</div>
+        </div>
+      </div>
+      <div style="padding:28px;display:flex;flex-direction:column;gap:16px;flex:1">
+        <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">La migración <span style="font-family:monospace;font-weight:700;color:var(--coral-500)">20260416_consejos_public_read_anon.sql</span> habilitaba políticas de lectura <span style="font-family:monospace;font-weight:700">anon</span> sobre datos operativos del portal.</div>
+        <div style="font-size:15px;font-weight:700;color:var(--navy-500);text-transform:uppercase;letter-spacing:0.08em">Tablas expuestas públicamente</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="padding:12px 16px;border-radius:8px;background:rgba(255,29,61,0.07);border:1px solid rgba(255,29,61,0.18);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">establecimientos</span>
+            <span style="font-size:12px;font-weight:700;color:var(--coral-500);letter-spacing:0.1em;text-transform:uppercase">Lectura anon</span>
+          </div>
+          <div style="padding:12px 16px;border-radius:8px;background:rgba(255,29,61,0.07);border:1px solid rgba(255,29,61,0.18);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">programacion</span>
+            <span style="font-size:12px;font-weight:700;color:var(--coral-500);letter-spacing:0.1em;text-transform:uppercase">Lectura anon</span>
+          </div>
+          <div style="padding:12px 16px;border-radius:8px;background:rgba(255,29,61,0.07);border:1px solid rgba(255,29,61,0.18);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">actas</span>
+            <span style="font-size:12px;font-weight:700;color:var(--coral-500);letter-spacing:0.1em;text-transform:uppercase">Lectura anon</span>
+          </div>
+          <div style="padding:12px 16px;border-radius:8px;background:rgba(255,29,61,0.07);border:1px solid rgba(255,29,61,0.18);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy-500)">actas_invitados</span>
+            <span style="font-size:12px;font-weight:700;color:var(--coral-500);letter-spacing:0.1em;text-transform:uppercase">Lectura anon</span>
+          </div>
+        </div>
+        <div style="margin-top:auto;padding:14px;border-radius:10px;background:rgba(255,29,61,0.08);border:1px solid rgba(255,29,61,0.20)">
+          <div style="font-size:14px;color:var(--coral-500);font-weight:700;line-height:1.4">Cualquier usuario sin autenticar podía consultar estos datos directamente desde la API de Supabase.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-radius:16px;border:1px solid #B0E0C8;background:#EAF7F0;box-shadow:var(--shadow-md);display:flex;flex-direction:column;overflow:hidden">
+      <div style="background:#1F8A5B;padding:22px 28px;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">✅</span>
+        <div>
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,0.75)">Corrección aplicada</div>
+          <div style="font-size:22px;font-weight:900;color:#fff;margin-top:4px">Políticas públicas eliminadas</div>
+        </div>
+      </div>
+      <div style="padding:28px;display:flex;flex-direction:column;gap:18px;flex:1">
+        <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">La migración de hardening ejecuta <span style="font-family:monospace;font-weight:700;color:var(--navy-500)">DROP POLICY IF EXISTS</span> para cada política pública y las reemplaza con políticas que exigen autenticación y alcance real.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="padding:14px 18px;border-radius:10px;background:#fff;border:1px solid #B0E0C8;display:flex;align-items:flex-start;gap:12px">
+            <span style="font-size:18px;flex:none">🔒</span>
+            <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.45">Ninguna tabla operativa devuelve datos sin sesión válida y alcance real asignado.</div>
+          </div>
+          <div style="padding:14px 18px;border-radius:10px;background:#fff;border:1px solid #B0E0C8;display:flex;align-items:flex-start;gap:12px">
+            <span style="font-size:18px;flex:none">🎯</span>
+            <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.45">Se restaura el principio de mínimo privilegio: lo que no está explícitamente permitido está denegado.</div>
+          </div>
+          <div style="padding:14px 18px;border-radius:10px;background:#fff;border:1px solid #B0E0C8;display:flex;align-items:flex-start;gap:12px">
+            <span style="font-size:18px;flex:none">📝</span>
+            <div style="font-size:15px;color:var(--fg-2);font-weight:500;line-height:1.45">El cambio queda documentado en la migración <span style="font-family:monospace;font-weight:700">20260527_consejos_security_defaults_hardening.sql</span>.</div>
+          </div>
+        </div>
+        <div style="margin-top:auto;padding:18px;border-radius:12px;background:#fff;border:1px solid #B0E0C8;box-shadow:var(--shadow-sm)">
+          <div style="font-size:14px;font-weight:700;color:#1F8A5B;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px">Estado actual</div>
+          <div style="font-size:15px;color:var(--fg-2);font-weight:600;line-height:1.45">El portal no expone datos públicamente. Solo usuarios autenticados con correo institucional y roles asignados pueden consultar información operativa.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="footer"><div class="accent">Exposición pública · Corregida</div><div>13 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 14 — Capítulo 6
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cap. 6: Riesgos pendientes" class="section-cover">
+  <div class="chapter-kicker">Capítulo 6 · Trabajo pendiente</div>
+  <div class="chapter-mark">06</div>
+  <div class="chapter-title">Los controles aplicados son sólidos.<br/>Quedan <em>cuatro validaciones pendientes</em>.</div>
+  <div class="chapter-body">El portal tiene una postura de seguridad robusta, pero hay aspectos que dependen de la configuración del entorno de despliegue y requieren verificación fuera del repositorio.</div>
+  <div class="chapter-stripe"></div>
+  <div class="footer"><div class="accent">Apertura de capítulo</div><div>14 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 15 — Riesgos pendientes
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Riesgos pendientes">
+  <div class="topbar">
+    <div class="brand"><img src="../public/SLEPCOLCHAGUA.webp" alt=""/><span class="name">SLEP COLCHAGUA</span></div>
+    <div>06 · Riesgos y próximos pasos</div>
+  </div>
+  <div style="margin-top:70px">
+    <div class="eyebrow-lg">06 · Pendientes identificados</div>
+    <h2 class="title" style="margin-top:14px">Cuatro validaciones <b>fuera del código</b><br/>que deben confirmarse.</h2>
+    <h3 class="sub" style="margin-top:14px">Estos riesgos no dependen del código del portal sino de la configuración del entorno de producción.</h3>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1;margin-top:32px;align-items:stretch">
+
+    <div style="padding:28px 32px;border-radius:16px;border:1px solid rgba(184,108,0,0.25);background:rgba(255,195,0,0.04);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;border-left:5px solid #B86C00">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:28px">🗄️</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#B86C00">Riesgo 1</div>
+          <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:2px">Migraciones en entorno real</div>
+        </div>
+      </div>
+      <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">Confirmar que todas las migraciones de permisos y storage están aplicadas en la base de datos de producción. Una migración no ejecutada deja el entorno en estado anterior al hardening.</div>
+      <div class="tag warn" style="margin-top:auto;align-self:flex-start">Verificar en producción</div>
+    </div>
+
+    <div style="padding:28px 32px;border-radius:16px;border:1px solid rgba(184,108,0,0.25);background:rgba(255,195,0,0.04);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;border-left:5px solid #B86C00">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:28px">🌐</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#B86C00">Riesgo 2</div>
+          <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:2px">Configuración CORS</div>
+        </div>
+      </div>
+      <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">El portal es estático: CORS no se controla desde el código de la app sino desde Supabase, el hosting y el CDN. Revisar que los orígenes permitidos son correctos y no permiten acceso desde dominios no autorizados.</div>
+      <div class="tag warn" style="margin-top:auto;align-self:flex-start">Configurar en Supabase y hosting</div>
+    </div>
+
+    <div style="padding:28px 32px;border-radius:16px;border:1px solid rgba(0,107,185,0.18);background:rgba(0,107,185,0.03);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;border-left:5px solid var(--royal-500)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:28px">🛡️</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--royal-500)">Riesgo 3</div>
+          <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:2px">Content Security Policy (CSP)</div>
+        </div>
+      </div>
+      <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">El portal no tiene una política CSP definida. Un CSP compatible con export estático reduciría el riesgo de inyección de scripts externos. React mitiga XSS por defecto, pero no reemplaza una política global de hardening de cabeceras HTTP.</div>
+      <div class="tag" style="margin-top:auto;align-self:flex-start">Evaluar e implementar</div>
+    </div>
+
+    <div style="padding:28px 32px;border-radius:16px;border:1px solid rgba(0,107,185,0.18);background:rgba(0,107,185,0.03);box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;border-left:5px solid var(--royal-500)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:28px">🔐</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--royal-500)">Riesgo 4</div>
+          <div style="font-size:22px;font-weight:900;color:var(--navy-500);margin-top:2px">Lecturas públicas en nuevas tablas</div>
+        </div>
+      </div>
+      <div style="font-size:16px;color:var(--fg-2);font-weight:500;line-height:1.55">Si el portal se declara como sistema autenticado, debe evitarse que futuras migraciones vuelvan a habilitar acceso anónimo a datos operativos. El patrón corregido debe replicarse como práctica por defecto en cada nueva tabla.</div>
+      <div class="tag" style="margin-top:auto;align-self:flex-start">Disciplina en futuros cambios</div>
+    </div>
+
+  </div>
+  <div class="footer"><div class="accent">Riesgos pendientes</div><div>15 / 16</div></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SLIDE 16 — Cierre
+═══════════════════════════════════════════════════════════ -->
+<section data-label="Cierre" class="closing">
+  <div class="closing-shell">
+    <div class="closing-left">
+      <div>
+        <div class="closing-top">
+          <img src="../public/SLEPCOLCHAGUA.webp" alt="SLEP Colchagua" />
+          <div class="closing-org">SERVICIO LOCAL DE EDUCACIÓN PÚBLICA<small>Colchagua</small></div>
+        </div>
+        <div class="closing-kicker">Seguridad del Portal de Consejos · 2026</div>
+        <h2 style="margin-top:18px">Postura <b>sólida</b>.</h2>
+        <p>El portal aplica controles de autenticación, autorización por backend, RLS en todas las tablas operativas y dominio institucional forzado en el servidor. Los hallazgos identificados fueron corregidos. Quedan cuatro validaciones de entorno pendientes.</p>
+      </div>
+      <div class="row">
+        <div class="item"><div class="b"></div>Autenticación Google OAuth</div>
+        <div class="item"><div class="b"></div>RLS en 6 tablas</div>
+        <div class="item"><div class="b"></div>Hardening 2026-05-27</div>
+      </div>
+    </div>
+    <div class="closing-right">
+      <div>
+        <div class="badge">Resumen de controles aplicados</div>
+        <div style="margin-top:28px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <span style="font-size:20px;flex:none">✅</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:0.04em">Dominio institucional validado en backend</div>
+              <div style="font-size:16px;color:var(--navy-100);font-weight:500;margin-top:2px">Correos fuera del dominio no obtienen alcance real</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <span style="font-size:20px;flex:none">✅</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:0.04em">Autorización completa en Supabase</div>
+              <div style="font-size:16px;color:var(--navy-100);font-weight:500;margin-top:2px">7 funciones de acceso, no manipulables desde el cliente</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <span style="font-size:20px;flex:none">✅</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:0.04em">RLS aplicada en todas las tablas operativas</div>
+              <div style="font-size:16px;color:var(--navy-100);font-weight:500;margin-top:2px">Datos filtrados por fila antes de ser entregados</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <span style="font-size:20px;flex:none">✅</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:0.04em">Lectura pública eliminada</div>
+              <div style="font-size:16px;color:var(--navy-100);font-weight:500;margin-top:2px">Políticas anon removidas, mínimo privilegio restaurado</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <span style="font-size:20px;flex:none">⏳</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#fff;letter-spacing:0.04em">Pendientes: CORS, CSP, verificación en producción</div>
+              <div style="font-size:16px;color:var(--navy-100);font-weight:500;margin-top:2px">Dependen del entorno de despliegue, no del código</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--navy-100);letter-spacing:0.14em;text-transform:uppercase;font-weight:700">
+        Portal de Consejos Escolares · SLEP Colchagua · 2026
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /stage -->
+
+<script>
+(function(){
+  const stage = document.getElementById('stage');
+  const slides = Array.from(stage.querySelectorAll('section'));
+  const curr = document.getElementById('curr');
+  const total = document.getElementById('total');
+  const labelText = document.getElementById('label-text');
+  const modeBtn = document.getElementById('mode-btn');
+  const agenda = document.getElementById('agenda');
+
+  let current = 0;
+  let isPresentation = false;
+
+  total.textContent = slides.length;
+
+  // Wrap each section in a .slide-frame for overflow clipping in scroll mode
+  slides.forEach(s => {
+    const frame = document.createElement('div');
+    frame.className = 'slide-frame';
+    s.parentNode.insertBefore(frame, s);
+    frame.appendChild(s);
+  });
+
+  // Build agenda
+  slides.forEach((s, i) => {
+    const lbl = s.dataset.label || ('Slide ' + (i+1));
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = '<div class="dot"></div>' + lbl;
+    item.addEventListener('click', () => goTo(i));
+    agenda.appendChild(item);
+  });
+
+  // Scale slides to fit viewport in scroll mode
+  function updateScale(){
+    const stageW = stage.clientWidth;
+    const scale = Math.min(1, stageW / 1920);
+    const scaledH = Math.round(1080 * scale);
+    slides.forEach(s => {
+      s.style.setProperty('--slide-scale', scale);
+      s.style.marginBottom = '';
+      const frame = s.parentElement;
+      if(frame && frame.classList.contains('slide-frame')){
+        frame.style.height = scaledH + 'px';
+      }
+    });
+  }
+
+  function goTo(n){
+    current = Math.max(0, Math.min(slides.length - 1, n));
+    curr.textContent = current + 1;
+    labelText.textContent = slides[current].dataset.label || '';
+
+    const items = agenda.querySelectorAll('.item');
+    items.forEach((item, i) => {
+      item.classList.remove('is-active','is-done');
+      if(i === current) item.classList.add('is-active');
+      else if(i < current) item.classList.add('is-done');
+    });
+
+    if(isPresentation){
+      slides.forEach((s,i) => {
+        s.classList.remove('is-active');
+        if(i === current) s.classList.add('is-active');
+      });
+    } else {
+      // Scroll to active frame in scroll mode
+      const frame = slides[current].parentElement;
+      const target = frame && frame.classList.contains('slide-frame') ? frame : slides[current];
+      target.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  }
+
+  function nextSlide(){ goTo(current + 1); }
+  function prevSlide(){ goTo(current - 1); }
+  window.nextSlide = nextSlide;
+  window.prevSlide = prevSlide;
+
+  function toggleMode(){
+    isPresentation = !isPresentation;
+    if(isPresentation){
+      stage.classList.add('presentation-mode');
+      document.body.style.overflow = 'hidden';
+      agenda.style.display = 'none';
+      modeBtn.textContent = 'Salir';
+      slides.forEach(s => {
+        s.style.removeProperty('--slide-scale');
+        s.style.marginBottom = '';
+        const frame = s.parentElement;
+        if(frame && frame.classList.contains('slide-frame')) frame.style.height = '';
+      });
+      slides.forEach(s => s.classList.remove('is-active'));
+      slides[current].classList.add('is-active');
+    } else {
+      stage.classList.remove('presentation-mode');
+      document.body.style.overflow = '';
+      agenda.style.display = '';
+      modeBtn.textContent = 'Presentación';
+      slides.forEach(s => s.classList.remove('is-active'));
+      updateScale();
+      const frame = slides[current].parentElement;
+      const target = frame && frame.classList.contains('slide-frame') ? frame : slides[current];
+      setTimeout(() => target.scrollIntoView({behavior:'smooth', block:'start'}), 50);
+    }
+  }
+  window.toggleMode = toggleMode;
+
+  document.addEventListener('keydown', e => {
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevSlide(); }
+    if(e.key === 'f' || e.key === 'F') toggleMode();
+    if(e.key === 'Escape' && isPresentation) toggleMode();
+  });
+
+  window.addEventListener('resize', () => { if(!isPresentation) updateScale(); });
+
+  updateScale();
+  goTo(0);
+})();
+</script>
+</body>
+</html>

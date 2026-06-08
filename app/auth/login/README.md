@@ -93,6 +93,8 @@ Este es el único flujo activo del login.
 
 Si falta cualquiera de esas variables, la autenticación queda inoperante en el navegador.
 
+El cliente debe tener `flowType: "pkce"` explícito. Con `@supabase/supabase-js` v2 y `detectSessionInUrl: false`, el flujo OAuth cae en implicit si no se fuerza PKCE. Ver incidente 2026-06-01 en diagnóstico operativo.
+
 ### Contexto de autenticación
 
 [lib/auth/context.tsx](lib/auth/context.tsx) centraliza:
@@ -223,6 +225,34 @@ Se corrigieron dos incoherencias operativas en el fallback de acceso:
 - desde el ajuste del 2026-05-27, el login ya no llama `bootstrap_current_user_profile_from_base_escuelas()` para crear acceso implícito durante el ingreso.
 
 Esto deja una regla más dura: Google autentica identidad, pero la autorización final solo existe si la base del portal ya tiene acceso activo para ese correo.
+
+### Incidente 2026-06-01 — implicit flow silencioso con `detectSessionInUrl: false`
+
+Severidad: crítica (login completamente inoperante en producción)
+
+Síntoma observado:
+
+- el usuario completaba el flujo Google OAuth sin error visible;
+- Supabase redirigía a `/auth/login/#access_token=eyJ...` con el token JWT completo en el hash;
+- la página de login no procesaba nada y devolvía al usuario al formulario de ingreso sin mensaje.
+
+Causa raíz:
+
+- `@supabase/supabase-js` v2 con `detectSessionInUrl: false` no fuerza automáticamente PKCE;
+- sin `flowType: "pkce"` explícito, la biblioteca usa implicit flow;
+- en implicit flow, Supabase devuelve `#access_token=...` en el hash en lugar de `?code=...` en la query string;
+- `AuthCallbackHandler` busca `code` en la URL y no lo encuentra → no llama `exchangeCodeForSession` → sesión nunca creada;
+- `detectSessionInUrl: false` impide además que el cliente procese el hash automáticamente.
+
+Corrección aplicada:
+
+Se agregó `flowType: "pkce"` en la creación del cliente en [lib/supabase/client.ts](lib/supabase/client.ts). Con PKCE activo, Supabase redirige con `?code=...` en la query string, que `AuthCallbackHandler` sí captura y procesa correctamente con `exchangeCodeForSession(code)`.
+
+Regla derivada:
+
+- `flowType: "pkce"` y `detectSessionInUrl: false` deben coexistir en el cliente;
+- `detectSessionInUrl: false` evita el procesamiento automático del hash (necesario para control manual del flujo);
+- `flowType: "pkce"` garantiza que Supabase use el flujo correcto y devuelva un código intercambiable, no un token directo.
 
 ### Evaluación general
 
