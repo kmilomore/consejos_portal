@@ -78,6 +78,63 @@ function downloadFile(content: BlobPart, fileName: string, contentType: string) 
   URL.revokeObjectURL(objectUrl);
 }
 
+type ExcelExportRow = {
+  establecimiento: string,
+  sesion: number,
+  tipoSesion: string,
+  fecha: string,
+  linkActa: string,
+};
+
+function downloadExcelExport(rows: ExcelExportRow[], fileName: string) {
+  if (rows.length === 0) {
+    return;
+  }
+
+  const tableRows = rows.map((row) => {
+    const cells = [
+      escapeHtml(row.establecimiento),
+      escapeHtml(row.sesion),
+      escapeHtml(row.tipoSesion),
+      escapeHtml(row.fecha),
+      row.linkActa
+        ? `<a href="${escapeHtml(row.linkActa)}" target="_blank" rel="noopener noreferrer">Abrir acta</a>`
+        : "",
+    ];
+
+    return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
+  }).join("");
+
+  const workbook = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #d4d4d8; padding: 6px 8px; vertical-align: top; }
+      th { background: #f4f4f5; font-weight: 700; }
+      a { color: #0f5f8f; }
+    </style>
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>Establecimiento educacional</th>
+          <th>Numero de sesion</th>
+          <th>Tipo de sesion</th>
+          <th>Fecha</th>
+          <th>Hipervinculo al acta</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </body>
+</html>`;
+
+  downloadFile(`\uFEFF${workbook}`, fileName, "application/vnd.ms-excel;charset=utf-8;");
+}
+
 export default function ActasPage() {
   const { snapshot, status, refresh } = usePortalSnapshot();
   const { isGlobalAdmin, isReadOnly } = usePortalAuth();
@@ -190,6 +247,16 @@ export default function ActasPage() {
     }));
   }, [filteredRows, establishmentMap]);
 
+  const allActasExportRows = useMemo(() => {
+    return rows.map((acta) => ({
+      establecimiento: establishmentMap.get(acta.rbd) ?? acta.rbd,
+      sesion: acta.sesion,
+      tipoSesion: acta.tipo_sesion,
+      fecha: formatDate(acta.fecha),
+      linkActa: acta.link_acta ?? "",
+    }));
+  }, [rows, establishmentMap]);
+
   const visibleSummary = useMemo(() => {
     const completas = filteredRows.filter((acta) => acta.modo_registro === "ACTA_COMPLETA").length;
     const documentales = filteredRows.length - completas;
@@ -278,61 +345,27 @@ export default function ActasPage() {
     if (exportRows.length === 0) {
       return;
     }
+    downloadExcelExport(
+      exportRows.map((row) => ({
+        establecimiento: row.establecimiento || row.rbd,
+        sesion: row.sesion,
+        tipoSesion: row.tipoSesion,
+        fecha: row.fecha,
+        linkActa: row.linkActa,
+      })),
+      `actas-${new Date().toISOString().slice(0, 10)}.xls`,
+    );
+  }
 
-    const tableRows = exportRows.map((row) => {
-      const cells = [
-        escapeHtml(row.sesion),
-        escapeHtml(row.tipoSesion),
-        escapeHtml(row.modoRegistro),
-        escapeHtml(row.fecha),
-        escapeHtml(row.horario),
-        escapeHtml(row.establecimiento),
-        escapeHtml(row.rbd),
-        escapeHtml(row.comuna),
-        escapeHtml(row.formato),
-        escapeHtml(row.lugar),
-        row.linkActa
-          ? `<a href="${escapeHtml(row.linkActa)}" target="_blank" rel="noopener noreferrer">Abrir acta</a>`
-          : "",
-      ];
+  function exportAllActasExcel() {
+    if (allActasExportRows.length === 0) {
+      return;
+    }
 
-      return `<tr>${cells.map((cell) => `<td>${cell}</td>`).join("")}</tr>`;
-    }).join("");
-
-    const workbook = `<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <style>
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border: 1px solid #d4d4d8; padding: 6px 8px; vertical-align: top; }
-      th { background: #f4f4f5; font-weight: 700; }
-      a { color: #0f5f8f; }
-    </style>
-  </head>
-  <body>
-    <table>
-      <thead>
-        <tr>
-          <th>Sesion</th>
-          <th>Tipo de sesion</th>
-          <th>Modo de registro</th>
-          <th>Fecha</th>
-          <th>Horario</th>
-          <th>Establecimiento</th>
-          <th>RBD</th>
-          <th>Comuna</th>
-          <th>Formato</th>
-          <th>Lugar</th>
-          <th>Hipervinculo acta</th>
-        </tr>
-      </thead>
-      <tbody>${tableRows}</tbody>
-    </table>
-  </body>
-</html>`;
-
-    downloadFile(`\uFEFF${workbook}`, `actas-${new Date().toISOString().slice(0, 10)}.xls`, "application/vnd.ms-excel;charset=utf-8;");
+    downloadExcelExport(
+      allActasExportRows,
+      `actas-todas-${new Date().toISOString().slice(0, 10)}.xls`,
+    );
   }
 
   async function handleDelete() {
@@ -431,6 +464,9 @@ export default function ActasPage() {
             </select>
             {hasActiveFilters && (
               <Button variant="secondary" onClick={clearFilters}>Limpiar filtros</Button>
+            )}
+            {isGlobalAdmin && rows.length > 0 && (
+              <Button variant="secondary" onClick={exportAllActasExcel}>Exportar todas las actas</Button>
             )}
             {filteredRows.length > 0 && (
               <>

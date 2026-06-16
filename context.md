@@ -933,6 +933,16 @@ Resultado:
 - `PortalSnapshotProvider` debe permanecer como envoltura exterior de todas las ramas autenticadas en `AppFrame`. No moverlo dentro de ramas condicionales.
 - La clase `panel-reveal` sigue disponible en CSS para usos puntuales (primera carga, animaciones de modales), pero no debe aplicarse a componentes que se remontan en cada navegación.
 
+### 9.x Hallazgo 2026-06-08 — proyecto Supabase compartido con `portal-participacion`
+
+Auditoría de acceso (originada por errores RLS al subir evidencias de actas) reveló que el proyecto Supabase `csxgnabxblkqkgpxcpyw` **no es exclusivo de Consejos**: también lo usa `portal-participacion` (47 migraciones propias: `tareas`, `gmail_metrics_cache`, `auth_users_roles`, etc.). Ambos portales autentican contra el mismo `auth.users` (`@slepcolchagua.cl`).
+
+- **Riesgo crítico activo:** la tabla `public."BASE DE DATOS ESCUELAS SLEP"` (planilla maestra de la que Consejos sincroniza `establecimientos`/`usuario_establecimiento_roles`) tiene una política RLS de `UPDATE` creada por `portal-participacion` (`20260406_consejos_storage_evidencias...` → en realidad `20260406_base_escuelas_rls_update.sql` de ese repo) con `USING (true) WITH CHECK (true)` — **sin filtro de rol**. Cualquier usuario autenticado de cualquiera de los dos portales puede editar `CORREO REPRESENTANTE`, `REPRESENTANTE CONSEJO ESCOLAR`, `DIRECTOR/A`, RBD, etc., y esos cambios se propagan a `usuario_establecimiento_roles` de Consejos, otorgando/revocando acceso a escuelas de forma silenciosa. (En portal-participacion, la edición de esos campos sí es una función legítima de `DirectorioPage.tsx`, gateada solo en el cliente para roles `admin/coordinador/fi/be` — la RLS abierta es lo que sobra.)
+- **Bug de login de directores (relacionado, no idéntico):** documentado en `20260528_consejos_fix_director_accessible_rbds.sql` — diferencias de normalización de correo entre la planilla y el JWT (alias de dominio, espacios, codificación) dejan a directores sin fila en `usuario_establecimiento_roles` → `current_accessible_rbds()` vacío → pantalla de error sin shell. Hay un fallback parcial vía `usuarios_perfiles.rbd`, pero ese campo también se llena vía emparejamiento contra la misma planilla.
+- **Decisión tomada:** no migrar a un proyecto Supabase nuevo (el costo real estaría en migrar `auth.users`, no en el esquema). En su lugar, **completar la independencia de datos que ya existe en gran parte**: el runtime de login (`get_current_portal_scope()`) ya solo lee de `establecimientos` / `usuario_establecimiento_roles` / `usuarios_perfiles` — tablas propias de Consejos. El acoplamiento real que queda son las funciones `sync_establecimientos_from_base_escuelas()`, `sync_usuario_establecimiento_roles_from_base_escuelas()` y `bootstrap_current_user_profile_from_base_escuelas()`.
+- **Plan de corte (pendiente de ejecutar):** (1) importar una última vez desde la planilla a las tablas propias, auditando y corrigiendo en ese momento los correos de cada director/representante (usando el correo real de login, no el de la planilla); (2) dejar de invocar las funciones `sync_*_from_base_escuelas`; (3) gestionar altas/bajas en adelante solo vía el panel de admin (`upsert_usuario_establecimiento_rol`, ya implementado y con auditoría vía `portal_access_audit_trigger`); (4) opcionalmente revocar el acceso de Consejos sobre `BASE DE DATOS ESCUELAS SLEP` y retirar las funciones de sync.
+- Mientras no se ejecute ese corte, **cualquier "problema serio de acceso"** reportado debe revisarse primero contra `usuario_establecimiento_roles` (¿existe la fila?, ¿el correo está bien normalizado respecto al de login real?) antes de asumir que es un bug nuevo de RLS.
+
 ---
 
 ## 10. Modelo de Datos y Dominio
@@ -948,7 +958,7 @@ Resultado:
 | `actas` | Actas oficiales de sesiones |
 | `actas_invitados` | Invitados externos por acta |
 | `logs` | Registro de acciones del portal |
-| `BASE DE DATOS ESCUELAS SLEP` | Tabla maestra (fuente de verdad para establecimientos y usuarios) |
+| `BASE DE DATOS ESCUELAS SLEP` | Planilla maestra **compartida con `portal-participacion`** (mismo proyecto Supabase); fuente histórica de sincronización, en proceso de dejar de ser dependencia en runtime — ver §9.x |
 
 ### Tipos funcionales expuestos al frontend (`types/domain.ts`)
 
@@ -979,7 +989,9 @@ type PortalManagedAccessRole = "ADMIN" | "COLABORADOR" | "DIRECTOR" | "REPRESENT
 
 ## 9. Integración con la Base Maestra de Escuelas
 
-La autenticación depende operativamente de `public."BASE DE DATOS ESCUELAS SLEP"`.
+> **Actualización 2026-06-08:** esta integración está marcada para retiro — ver §9.x "Hallazgo 2026-06-08" más abajo. La tabla es compartida con `portal-participacion` (mismo proyecto Supabase), tiene RLS de escritura abierta a cualquier autenticado, y es la causa raíz tanto del riesgo de acceso cruzado entre portales como del bug de login de directores por desajuste de normalización de correo. El runtime de login (`get_current_portal_scope()`) **ya no depende de ella** — solo quedan las funciones de sincronización descritas abajo, que deben dejar de invocarse una vez completada la migración a gestión 100% manual vía `usuario_establecimiento_roles`.
+
+La autenticación depende operativamente de `public."BASE DE DATOS ESCUELAS SLEP"` (dependencia heredada, en proceso de eliminarse).
 
 ### Funciones SQL de integración
 
