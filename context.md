@@ -413,6 +413,8 @@ Ruta 5 — mejorar permisos o acceso por correo:
 | `20260424_consejos_representante_scope.sql` | Primera versión del alcance por representante; reemplazada operacionalmente por `20260514_consejos_usuario_establecimiento_roles.sql` |
 | `20260514_consejos_usuario_establecimiento_roles.sql` | Tabla única `usuario_establecimiento_roles`, sync desde base maestra, bootstrap y RLS por alcance |
 | `20260526_consejos_reassert_storage_evidencias_scope.sql` | Reimpone RLS de `storage.objects` para `evidencias_actas` usando `has_school_scope_access()` |
+| `20260526_consejos_storage_scope_normalized_rbd.sql` | Crea `has_school_scope_access_storage_key()` con normalización de RBD (`/`↔`-`) y la asigna a las cuatro políticas de `evidencias_actas`; función base requerida por `20260619` |
+| `20260619_consejos_storage_write_allow_representante_domain.sql` | **Fix definitivo de storage** — revierte las cuatro políticas de `evidencias_actas` a `has_school_scope_access_storage_key()`; corrige la regresión de `20260608` donde uploads fallaban en el storage service de Supabase pese a datos correctos |
 
 ---
 
@@ -1092,12 +1094,13 @@ Nota operativa:
 ### Storage
 
 - Bucket: `evidencias_actas`
-- Path: `{rbd}/{año}/{actaId}.pdf`
-- El primer segmento del path debe ser el RBD del usuario
-- Escritura restringida por RLS en `storage.objects` usando `public.has_school_scope_access(split_part(name, '/', 1))`
-- Lectura pública resuelta por bucket público compatible con `getPublicUrl()`
-- Si la migración `20260526_consejos_reassert_storage_evidencias_scope.sql` no está aplicada, usuarios con scope parcial pueden guardar el acta pero fallar al subir el PDF con `new row violates row-level security policy`
-- Como el frontend genera el path de upload con el primer segmento normalizado (`/` -> `-`), la migración `20260526_consejos_storage_scope_normalized_rbd.sql` debe estar aplicada para que Storage reconozca RBDS como `6301405/33884-2` frente a claves `6301405-33884-2`
+- Path: `{rbd}/{año}/{actaId}.pdf` — `buildActaDocumentPath()` reemplaza `/` por `-` en el RBD (`6301404/33883-4` → `6301404-33883-4`)
+- **Las cuatro políticas de `evidencias_actas` (SELECT/INSERT/UPDATE/DELETE) deben usar `public.has_school_scope_access_storage_key(nullif(split_part(name, '/', 1), ''))`** — esta función maneja la normalización de RBD con `/` y funciona correctamente en el contexto del storage service de Supabase
+- Lectura resuelta con `getPublicUrl()` desde el bucket
+- La migración definitiva es `20260619_consejos_storage_write_allow_representante_domain.sql`; consolida las cuatro políticas en `has_school_scope_access_storage_key`
+- **Invariante crítica de storage (lección 2026-06-19)**: nunca crear una función helper separada para escritura en `storage.objects` con condiciones adicionales sobre la de lectura. El storage service de Supabase tiene un contexto de ejecución diferente a PostgREST — funciones que pasan en el SQL Editor pueden fallar sistemáticamente en uploads aunque todos los datos sean correctos (rol activo, email coincidente, RBD normalizado). La única función probada como confiable en ese contexto es `has_school_scope_access_storage_key`. Si se sospecha un bug de RLS en storage y el diagnóstico de datos es correcto, revisar la función de la política, no los datos
+- Si `20260526_consejos_storage_scope_normalized_rbd.sql` no está aplicada, `has_school_scope_access_storage_key` no existe y las políticas de `20260619` no se pueden crear
+- Si `20260619_consejos_storage_write_allow_representante_domain.sql` no está aplicada, escuelas con RBD tipo anexo (`/`) reciben `new row violates row-level security policy` en cualquier upload y `400` en GET de archivo
 
 ---
 

@@ -126,6 +126,15 @@ type LogEntryRow = {
 
 const roleOrder = ["Director", "Sostenedor", "Docente", "Asistente", "Estudiante", "Apoderado"];
 
+function maskEmail(email: string | null | undefined) {
+  if (!email) return null;
+
+  const [localPart, domain] = email.split("@");
+  if (!domain) return email;
+  if (localPart.length <= 2) return `${localPart[0] ?? "*"}***@${domain}`;
+  return `${localPart.slice(0, 2)}***@${domain}`;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -695,6 +704,29 @@ export async function uploadActaDocument(
   if (!supabase) return { url: null, errorMessage: "Cliente Supabase no disponible." };
   const storageBucket = "evidencias_actas";
   const safePath = buildActaDocumentPath(actaId, rbd, file.name, actaYear);
+  const { data: authUserData, error: authUserError } = await supabase.auth.getUser();
+  const { data: authSessionData, error: authSessionError } = await supabase.auth.getSession();
+  const authUser = authUserData.user;
+  const authSession = authSessionData.session;
+
+  logger.info("uploadActaDocument", "Starting storage upload", {
+    actaId,
+    rbd,
+    storageBucket,
+    safePath,
+    fileName: file.name,
+    fileType: file.type || "application/octet-stream",
+    fileSize: file.size,
+    authUserId: authUser?.id ?? null,
+    authEmail: maskEmail(authUser?.email),
+    authUserError: authUserError?.message ?? null,
+    hasSession: Boolean(authSession),
+    sessionUserId: authSession?.user?.id ?? null,
+    sessionEmail: maskEmail(authSession?.user?.email),
+    hasAccessToken: Boolean(authSession?.access_token),
+    tokenExpiresAt: authSession?.expires_at ?? null,
+    authSessionError: authSessionError?.message ?? null,
+  });
 
   onProgress?.(50);
 
@@ -703,13 +735,38 @@ export async function uploadActaDocument(
     .upload(safePath, file, { upsert: true, contentType: file.type || "application/octet-stream" });
 
   if (error) {
-    logger.error("uploadActaDocument", error.message);
+    logger.error("uploadActaDocument", error.message, {
+      actaId,
+      rbd,
+      storageBucket,
+      safePath,
+      authUserId: authUser?.id ?? null,
+      authEmail: maskEmail(authUser?.email),
+      hasSession: Boolean(authSession),
+      sessionUserId: authSession?.user?.id ?? null,
+      sessionEmail: maskEmail(authSession?.user?.email),
+      hasAccessToken: Boolean(authSession?.access_token),
+      errorName: error.name ?? null,
+    });
     onProgress?.(0);
     return { url: null, errorMessage: error.message };
   }
 
   onProgress?.(100);
   const { data } = supabase.storage.from(storageBucket).getPublicUrl(safePath);
+  logger.info("uploadActaDocument", "Storage upload completed", {
+    actaId,
+    rbd,
+    storageBucket,
+    safePath,
+    authUserId: authUser?.id ?? null,
+    authEmail: maskEmail(authUser?.email),
+    hasSession: Boolean(authSession),
+    sessionUserId: authSession?.user?.id ?? null,
+    sessionEmail: maskEmail(authSession?.user?.email),
+    hasAccessToken: Boolean(authSession?.access_token),
+    publicUrl: data.publicUrl,
+  });
   return { url: data.publicUrl, errorMessage: null };
 }
 

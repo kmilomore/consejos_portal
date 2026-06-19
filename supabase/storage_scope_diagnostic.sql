@@ -6,7 +6,7 @@
 -- 2. Ejecuta el script en Supabase SQL Editor.
 -- 3. Revisa si el usuario tiene alcance real en `usuario_establecimiento_roles`
 --    y si las politicas activas de `storage.objects` siguen alineadas con
---    `has_school_scope_access()`.
+--    `has_school_scope_access_storage_key()` / `has_school_write_access_storage_key()`.
 
 with params as (
   select
@@ -135,6 +135,27 @@ from params
 union all
 
 select
+  'storage_helper_functions' as check_name,
+  jsonb_build_object(
+    'has_school_scope_access_storage_key_exists', exists (
+      select 1
+      from pg_proc proc
+      join pg_namespace ns on ns.oid = proc.pronamespace
+      where ns.nspname = 'public'
+        and proc.proname = 'has_school_scope_access_storage_key'
+    ),
+    'has_school_write_access_storage_key_exists', exists (
+      select 1
+      from pg_proc proc
+      join pg_namespace ns on ns.oid = proc.pronamespace
+      where ns.nspname = 'public'
+        and proc.proname = 'has_school_write_access_storage_key'
+    )
+  ) as details
+
+union all
+
+select
   'storage_policies' as check_name,
   coalesce(
     jsonb_agg(
@@ -143,7 +164,12 @@ select
         'cmd', policy.cmd,
         'roles', policy.roles,
         'qual', policy.qual,
-        'with_check', policy.with_check
+        'with_check', policy.with_check,
+        'uses_normalized_read_helper',
+          coalesce(policy.qual, '') like '%has_school_scope_access_storage_key%',
+        'uses_normalized_write_helper',
+          coalesce(policy.qual, '') like '%has_school_write_access_storage_key%'
+          or coalesce(policy.with_check, '') like '%has_school_write_access_storage_key%'
       )
       order by policy.policyname
     ),
