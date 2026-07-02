@@ -1,11 +1,12 @@
 # Contexto del Proyecto: Consejos
 
-> **Última actualización:** 2026-05-26  
+> **Última actualización:** 2026-07-02  
 > **Fuente de verdad:** este archivo. El README.md está desactualizado.
 > **Centro de documentación:** ver `docs/README.md` para navegar toda la documentación desde un solo lugar.
 > **Contexto general unificado:** ver `docs/contexto-general.md` para una vista consolidada del sistema.
 > **Seguridad:** ver `docs/seguridad.md` para autenticación, autorización, RLS y endurecimientos recientes.
 > **Contexto específico de programación:** ver `context_programacion.md` para el detalle operativo completo del módulo `programacion/`, sus invariantes, flujos y criterios para iterar con IA.
+> **Contexto de la landing pública:** ver `components/landing/context-landing.md` para la landing en `/`, las páginas legales y sus invariantes.
 
 ---
 
@@ -15,17 +16,25 @@
 
 El portal opera como aplicación autenticada por correo institucional usando Supabase Auth, con segmentación por establecimiento escolar y resolución automática de perfil desde la base maestra `BASE DE DATOS ESCUELAS SLEP`.
 
-Experiencia principal:
-1. Pantalla de acceso única (Google OAuth con correo institucional vía Supabase)
+Desde 2026-07-02 el sitio tiene dos superficies:
+
+1. **Sitio público** en `/`: landing informativa sobre los Consejos Escolares (qué son, integrantes, funciones, normativa, recursos, videos) más páginas legales (`/terminos/`, `/privacidad/`, `/cookies/`). Sin sesión, sin datos de Supabase. Ver `components/landing/context-landing.md`.
+2. **Portal autenticado**: la experiencia de gestión existente.
+
+Experiencia principal del portal:
+1. Acceso en `/auth/login/` (Google OAuth con correo institucional vía Supabase), enlazado desde la landing con el botón "Acceder al Portal"
 2. Vínculo automático del usuario con su escuela
 3. Acceso a módulos de resumen, programación, actas y métricas según perfil y RBD
 
 ---
 
-## 2. Estado Actual del Producto (2026-05-26)
+## 2. Estado Actual del Producto (2026-07-02)
 
 ### Ya implementado y funcional
 
+- Landing pública en `/` sobre Consejos Escolares con acceso al portal en el menú (2026-07-02)
+- Páginas legales públicas `/terminos/`, `/privacidad/` y `/cookies/` según normativa chilena (Leyes 19.628, 21.719, 21.663, 21.459)
+- Rutas públicas declaradas en `AppFrame` (`isPublicRoute`); rutas protegidas sin sesión redirigen a `/auth/login/`
 - Export estático con Next.js App Router (`output: "export"`)
 - Autenticación con Google OAuth vía Supabase Auth para cuentas institucionales
 - Callback OAuth explícito en `/auth/login/` con intercambio PKCE por `exchangeCodeForSession(code)`
@@ -256,8 +265,11 @@ Complemento importante tras el hallazgo 2026-05-12:
 
 | Ruta | Descripción |
 |---|---|
-| `/` | Pantalla de acceso pura |
-| `/auth/login/` | Callback y entrada alternativa de auth |
+| `/` | Landing pública informativa sobre Consejos Escolares (sin sesión) |
+| `/terminos/` | Términos y Condiciones (pública) |
+| `/privacidad/` | Política de Privacidad (pública) |
+| `/cookies/` | Política de Cookies (pública) |
+| `/auth/login/` | Pantalla de acceso + callback OAuth |
 | `/resumen/` | Resumen autenticado |
 | `/programacion/` | Planificación de sesiones |
 | `/actas/` | Actas y revisión |
@@ -290,6 +302,10 @@ Invariantes operativas:
 | `app/layout.tsx` | Layout global, fuente local, `<Toaster>` |
 | `app/globals.css` | Fondo global, estilos base, `@media print` |
 | `app/auth/login/page.tsx` | Callback explícito de Supabase |
+| `app/page.tsx` | Monta la landing pública (`LandingPage`) |
+| `components/landing/landing-page.tsx` | Landing pública: header, hero, secciones informativas, footer |
+| `components/landing/legal-page.tsx` | Layout compartido de páginas legales |
+| `app/terminos/page.tsx`, `app/privacidad/page.tsx`, `app/cookies/page.tsx` | Contenido legal |
 | `app/actas/page.tsx` | Listado de actas con búsqueda, filtros y acciones |
 | `components/auth/auth-screen.tsx` | UI de acceso actual |
 | `components/portal/app-frame.tsx` | Guard, redirecciones, `PortalSnapshotProvider` |
@@ -315,6 +331,7 @@ Usar esta sección como mapa operativo para ubicar rápido dónde tocar según e
 
 | Quieres cambiar... | Empieza en... | Apoyo secundario |
 |---|---|---|
+| Landing pública, contenido informativo, páginas legales | `components/landing/landing-page.tsx` | `components/landing/context-landing.md`, `components/landing/legal-page.tsx`, `app/globals.css` |
 | Login, OTP, magic link, sesión | `components/auth/auth-screen.tsx` | `lib/auth/context.tsx`, `app/auth/login/page.tsx` |
 | Redirecciones y guardias globales | `components/portal/app-frame.tsx` | `lib/auth/context.tsx` |
 | Navegación lateral, logo, selector de escuela, header contextual | `components/portal/shell.tsx` | `lib/hooks/use-slep-directorio.ts`, `lib/auth/context.tsx` |
@@ -476,9 +493,10 @@ Desde 2026-05-26 el bootstrap y la resolución de scope admiten cuatro casos sob
 
 | Condición | Acción |
 |---|---|
-| Sin sesión + ruta no es acceso | Redirige a `/` |
-| Con sesión + ruta es `/` o `/auth/login/` | Redirige a `/resumen/` |
-| Resolviendo sesión | Estado de loading |
+| Ruta pública (`/`, `/auth/login/`, `/terminos/`, `/privacidad/`, `/cookies/`) | Renderiza siempre, con o sin sesión |
+| Sin sesión + ruta protegida | Redirige a `/auth/login/` |
+| Con sesión + `/auth/login/` | La propia página de login redirige a `landingRoute` |
+| Resolviendo sesión (ruta protegida) | Estado de loading |
 | Sesión ok + falla perfil/establecimiento | Tarjeta de error de acceso |
 
 ### 7.6 Restricción pendiente fuera del código
@@ -912,6 +930,50 @@ Validación ejecutada:
 
 Resultado:
 - compilación Next.js exitosa con el loader restaurado y el flujo híbrido activo
+
+---
+
+## 8.2 Avances 2026-07-02 — Landing pública y páginas legales
+
+### Avance 19 — Landing pública sobre Consejos Escolares
+
+Se creó una landing pública en `/` para difundir qué es un Consejo Escolar y servir de puerta de entrada al portal. El login dejó de vivir en `/` y quedó consolidado en `/auth/login/`.
+
+Archivos intervenidos:
+- `components/landing/landing-page.tsx` → **nuevo** — landing completa (header sticky, hero, qué es, integrantes, funciones, normativa, recursos, videos, banda del portal, footer)
+- `app/page.tsx` → ahora monta `LandingPage` en lugar de `AuthScreen`
+- `components/portal/app-frame.tsx` → concepto `isPublicRoute`; rutas protegidas sin sesión redirigen a `/auth/login/`
+- `app/globals.css` → scroll suave scoped a la landing
+
+Detalle operativo:
+- el botón "Acceder al Portal" (ícono `LogIn`) del menú y del footer enlaza `/auth/login/`
+- el callback OAuth no cambió: sigue llegando a `/auth/login/`
+- los links del menú usan anchors absolutos (`/#que-es`) para funcionar desde las páginas legales
+- contenido normativo enlazado a Ley Chile (BCN): Ley 19.979, Decreto 24/2005, Ley 20.845, LGE 20.370, Ley 21.040
+
+Hallazgo importante (no repetir):
+- `app/colors_and_type.css` pinta `h1`–`h5`, `p` y `a` con selectores de elemento que le ganan al color heredado; sobre fondos oscuros todo texto debe llevar clase de color explícita (`text-white`, `text-inherit`)
+- el export estático se ve sin estilos si se abre `out\index.html` vía `file://`; siempre servir por HTTP (`npm run dev` o `npm run preview`)
+
+### Avance 20 — Páginas legales según normativa chilena
+
+Se crearon `/terminos/`, `/privacidad/` y `/cookies/` como rutas públicas estáticas, redactadas según Leyes 19.628, 21.719 (vigencia plena dic. 2026), 21.663 (Marco de Ciberseguridad), 21.459 (delitos informáticos), 21.096, 21.180, 20.285 y 17.336.
+
+Archivos intervenidos:
+- `components/landing/legal-page.tsx` → **nuevo** — layout artículo compartido
+- `app/terminos/page.tsx`, `app/privacidad/page.tsx`, `app/cookies/page.tsx` → **nuevos**
+- `app/globals.css` → estilos `.legal-article`
+- `components/landing/landing-page.tsx` → enlaces legales en el footer
+
+Detalle operativo:
+- la política de cookies documenta el almacenamiento real (`consejos-portal`, `consejos.portal.selected-rbd`, `consejos.portal.auth-state.v1`, snapshots) — si cambian las claves, actualizar `/cookies/`
+- no hay cookies propias ni analítica → no se requiere banner de consentimiento; si se agrega analítica, pedir consentimiento (Ley 21.719)
+- correo de contacto provisional `contacto@slepcolchagua.cl` en las tres páginas — **confirmar canal oficial**
+
+Documentación del módulo: `components/landing/context-landing.md`
+
+Validación ejecutada:
+- `npx tsc --noEmit`, `npx eslint` y `npm run build` sin errores; rutas verificadas sobre HTTP con `serve out`
 
 ---
 
@@ -1459,7 +1521,9 @@ Reglas aplicadas sistemáticamente:
 - Toda acción destructiva desde UI: usar `ConfirmDialog` con `tone="danger"`.
 - Todo feedback post-mutación: usar `toast()`.
 - Toda UI que podría tener cambios no guardados: implementar dirty guard con `initialFormRef`.
-- Mantener la pantalla de acceso como pantalla pura, sin contenido informativo.
+- Mantener la pantalla de acceso (`/auth/login/`) como pantalla pura, sin contenido informativo; el contenido informativo público vive en la landing (`/`).
+- Toda nueva página pública debe declararse en `isPublicRoute` de `components/portal/app-frame.tsx`.
+- Sobre fondos oscuros, todo `h*`, `p` y `a` debe llevar clase de color explícita (ver `components/landing/context-landing.md`).
 - `DataBanner` solo para errores reales — no silenciar errores reales, no mostrar éxito ni vacío.
 - Los borradores de formulario van a `localStorage` — solo para formularios de creación, no edición.
 

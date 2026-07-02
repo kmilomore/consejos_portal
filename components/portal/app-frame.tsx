@@ -9,36 +9,24 @@ import { usePortalAuth } from "@/lib/auth/context";
 import { PortalSnapshotProvider } from "@/lib/hooks/use-portal-snapshot";
 import { PortalShell } from "@/components/portal/shell";
 
-function normalizePath(path: string) {
-  if (!path || path === "/") {
-    return "/";
-  }
-
-  return path.endsWith("/") ? path : `${path}/`;
-}
-
 export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, profile, establishment, isLoading, isSessionReady, accessError, signOut, landingRoute } = usePortalAuth();
-  const isAuthEntry = pathname === "/" || pathname.startsWith("/auth/login");
+  const { session, profile, establishment, isLoading, isSessionReady, accessError, signOut } = usePortalAuth();
+  // "/" is the public landing page — always rendered, with or without session.
+  const isLandingRoute = pathname === "/";
   const isLoginRoute = pathname.startsWith("/auth/login");
-  const normalizedPathname = normalizePath(pathname);
+  const isLegalRoute =
+    pathname.startsWith("/terminos") || pathname.startsWith("/privacidad") || pathname.startsWith("/cookies");
+  const isPublicRoute = isLandingRoute || isLoginRoute || isLegalRoute;
 
   useEffect(() => {
     if (!isSessionReady || isLoading) return;
 
-    if (!session && !isAuthEntry) {
-      router.replace("/");
-      return;
+    if (!session && !isPublicRoute) {
+      router.replace("/auth/login/");
     }
-
-    if (session && isAuthEntry && !isLoginRoute) {
-      if (normalizedPathname !== landingRoute) {
-        router.replace(landingRoute);
-      }
-    }
-  }, [isAuthEntry, isLoading, isLoginRoute, isSessionReady, landingRoute, normalizedPathname, router, session]);
+  }, [isLoading, isPublicRoute, isSessionReady, router, session]);
 
   useEffect(() => {
     if (!session || !accessError) {
@@ -48,30 +36,9 @@ export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) 
     toast(accessError, "error");
   }, [accessError, session]);
 
-  // Auth entry: render login page directly. No loader, no banners.
-  if (isAuthEntry) {
-    if (isLoginRoute) {
-      return <>{children}</>;
-    }
-
-    if (session) {
-      return (
-        <div className="flex min-h-screen items-center justify-center px-6">
-          <div className="max-w-md rounded-modal border border-neutral-200 bg-white p-8 text-center shadow-lg">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">Acceso</p>
-            <p className="mt-4 text-lg font-semibold text-ink">Redirigiendo al portal</p>
-            <p className="mt-2 text-sm text-neutral-500">
-              Tu sesión ya fue validada. Si la navegación no avanza, abre directamente la ruta {landingRoute}.
-            </p>
-            {normalizedPathname !== landingRoute && (
-              <div className="mt-6">
-                <Button onClick={() => router.replace(landingRoute)}>Entrar ahora</Button>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
+  // Public routes (landing + login) render directly. No loader, no banners.
+  // The login page handles its own redirect when a session already exists.
+  if (isPublicRoute) {
     return <>{children}</>;
   }
 
@@ -103,7 +70,7 @@ export function AppFrame({ children }: Readonly<{ children: React.ReactNode }>) 
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button onClick={() => void signOut()}>Cerrar sesión</Button>
-              <Button variant="secondary" onClick={() => router.replace("/")}>Volver al ingreso</Button>
+              <Button variant="secondary" onClick={() => router.replace("/auth/login/")}>Volver al ingreso</Button>
             </div>
           </div>
         </div>

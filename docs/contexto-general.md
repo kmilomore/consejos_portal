@@ -1,6 +1,6 @@
 # Contexto General Unificado
 
-> Ultima actualizacion: 2026-05-27
+> Ultima actualizacion: 2026-07-02
 > Objetivo: ofrecer una vista unica del portal para entender arquitectura, modulos, datos, permisos e invariantes sin tener que abrir todos los contextos desde cero.
 
 ---
@@ -42,6 +42,13 @@ El portal se exporta como sitio estatico. Por eso no debe depender de API routes
 
 ## 3. Flujo general del portal
 
+Desde 2026-07-02 el sitio tiene una superficie publica y una autenticada:
+
+- `/` es una landing publica informativa sobre Consejos Escolares, con paginas legales en `/terminos/`, `/privacidad/` y `/cookies/`. No consulta Supabase ni requiere sesion.
+- El acceso al portal vive en `/auth/login/`, enlazado desde la landing.
+
+Flujo autenticado:
+
 1. El usuario inicia sesion con Google.
 2. El cliente obtiene la sesion de Supabase.
 3. El backend resuelve el acceso efectivo usando el email del JWT y las tablas de acceso.
@@ -52,6 +59,13 @@ El portal se exporta como sitio estatico. Por eso no debe depender de API routes
 ---
 
 ## 4. Modulos principales
+
+### Landing publica y paginas legales
+
+Sitio publico en `/` que explica que es un Consejo Escolar (integrantes, funciones, normativa, recursos, videos) y presenta el portal con acceso al login. Incluye terminos y condiciones, politica de privacidad y politica de cookies segun normativa chilena (Leyes 19.628, 21.719, 21.663, 21.459).
+
+Documento operativo:
+- [Contexto de la landing publica](../components/landing/context-landing.md)
 
 ### Usuarios
 

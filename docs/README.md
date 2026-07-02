@@ -1,6 +1,6 @@
 # Centro de Documentacion
 
-> Ultima actualizacion: 2026-05-27
+> Ultima actualizacion: 2026-07-02
 > Objetivo: concentrar en un solo lugar la documentacion del portal, enlazar los contextos operativos y ofrecer una ruta rapida para trabajo funcional, tecnico y de seguridad.
 
 ---
@@ -25,6 +25,10 @@ Si necesitas una sola puerta de entrada para entender el proyecto, comienza por 
 ### Seguridad
 
 - [Seguridad del portal](./seguridad.md)
+
+### Sitio publico
+
+- [Contexto de la landing publica y paginas legales](../components/landing/context-landing.md)
 
 ### Modulos operativos
 

@@ -1,6 +1,6 @@
 # Seguridad del Portal
 
-> Ultima actualizacion: 2026-05-27
+> Ultima actualizacion: 2026-07-02
 > Objetivo: concentrar en un solo documento la postura de seguridad del portal, sus controles efectivos, riesgos identificados y referencias tecnicas relacionadas.
 
 ---
@@ -129,6 +129,22 @@ Ese archivo creaba lectura publica para:
 
 La nueva migracion de hardening elimina esas politicas publicas mediante `drop policy if exists ...` para restaurar el principio de minimo privilegio.
 
+### Superficie publica intencional (2026-07-02)
+
+Desde 2026-07-02 existen rutas publicas por diseno, sin sesion:
+
+- `/` (landing informativa), `/terminos/`, `/privacidad/` y `/cookies/`
+
+Caracteristicas de seguridad de esa superficie:
+
+- contenido 100% estatico: no consulta Supabase, no expone tablas ni RPC, no guarda datos del visitante
+- las rutas publicas se declaran explicitamente en `isPublicRoute` de `components/portal/app-frame.tsx`; cualquier otra ruta sin sesion redirige a `/auth/login/`
+- las paginas legales documentan el tratamiento de datos y el almacenamiento local real del portal (Leyes 19.628, 21.719 y 21.663); si cambia el storage del cliente o se agrega analitica, `/cookies/` debe actualizarse en el mismo cambio
+- la Ley 21.663 (Marco de Ciberseguridad) queda declarada como marco de reporte de incidentes; el canal publicado es provisional (`contacto@slepcolchagua.cl`) y debe confirmarse
+
+Documento operativo:
+- [Contexto de la landing publica](../components/landing/context-landing.md)
+
 ---
 
 ## 7. Storage
@@ -195,6 +211,7 @@ Esto debe revisarse fuera del repo cuando se valide el despliegue real.
 
 ### Modulos
 
+- [Contexto de la landing publica](../components/landing/context-landing.md)
 - [Contexto de usuarios](../app/admin/context-usuarios.md)
 - [Contexto de programacion](../app/programacion/context_programacion.md)
 - [Contexto de actas](../app/actas/context-actas.md)
