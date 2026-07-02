@@ -742,6 +742,7 @@ export function ActaForm({
   const [draftRestored, setDraftRestored] = useState(false);
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLElement>(null);
   const pendingFile = useRef<File | null>(null);
   const initialFormRef = useRef<FormState | null>(null); // #25 dirty tracking
   const lastSaveTimeRef = useRef<number>(0); // #4 rate limit
@@ -855,6 +856,18 @@ export function ActaForm({
     setEstablishmentQuery(initial.nombre_establecimiento ? buildEstablishmentDisplayValue(initial) : "");
     pendingFile.current = null;
   }, [actas, activeRbd, buildActiveSchoolFormPatch, draftStorageKey, editActa, extraordinarySessionReasons, initialProgramacion, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      modalRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || editActa || initialProgramacion || form.rbd || !activeRbd) {
@@ -1440,7 +1453,10 @@ export function ActaForm({
         />
 
         {/* Modal */}
-        <aside className="relative my-0 flex w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl max-h-[92vh]">
+        <aside
+          ref={modalRef}
+          className="relative my-0 flex max-h-[92vh] w-full max-w-5xl flex-col rounded-3xl bg-white shadow-2xl"
+        >
           {/* Header */}
           <div className="flex flex-shrink-0 items-start justify-between border-b border-neutral-200/80 px-6 py-4">
             <div>

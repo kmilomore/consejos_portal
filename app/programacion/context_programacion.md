@@ -1,6 +1,6 @@
 # Contexto Operativo: Programacion
 
-> Ultima actualizacion: 2026-05-26  
+> Ultima actualizacion: 2026-07-02  
 > Objetivo: este documento es la fuente de verdad operativa de la seccion `programacion/` y esta pensado para iterar con IA sin tener que redescubrir el modulo en cada sesion.
 > Contexto general del portal: ver `../../context.md` para arquitectura global, decisiones transversales y estado general del producto.
 
@@ -41,6 +41,7 @@ La experiencia esta pensada para trabajar sobre una escuela activa, no como un b
 
 - `components/portal/acta-form.tsx`
   Recibe `initialProgramacion` para abrir una acta ya precargada desde una programacion.
+  Desde 2026-07-02, cuando se abre desde `programacion`, hace scroll automatico al contenedor del modal para que el formulario quede visible de inmediato.
 
 - `components/portal/acta-detail.tsx`
   Se reutiliza desde programacion para ver una acta ya vinculada en modo lectura.
@@ -259,8 +260,9 @@ Ruta actual:
 2. se abre `ActaForm` con `initialProgramacion`
 3. `acta-form.tsx` usa `programacionToForm(initialProgramacion, ...)`
 4. el form queda precargado con tipo, fecha, hora, lugar, formato y origen
-5. al guardar, `upsertActa()` recibe `programacion_origen_id`
-6. `upsertActa()` actualiza la programacion origen con:
+5. al abrirse el modal, la UI hace scroll suave hasta el formulario para evitar que el usuario quede mirando la misma seccion de la pagina de fondo
+6. al guardar, `upsertActa()` recibe `programacion_origen_id`
+7. `upsertActa()` actualiza la programacion origen con:
    - `acta_vinculada_id = savedId`
    - `estado = REALIZADA`
 

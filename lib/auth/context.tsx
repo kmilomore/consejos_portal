@@ -357,7 +357,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       }
 
       if (error) {
-        setAccessError(error.message);
+        logger.error("auth.bootstrap", "Session bootstrap failed", { error: error.message });
+        setAccessError(normalizeAccessErrorMessage(error.message));
       }
 
       setSession(data.session ?? null);

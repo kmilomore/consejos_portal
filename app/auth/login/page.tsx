@@ -109,6 +109,10 @@ function AuthCallbackHandler({
       if (code) {
         const { error } = await authClient.auth.exchangeCodeForSession(code);
 
+        // The code is single-use either way; drop it from the URL and history
+        // so a failed exchange doesn't leave it behind.
+        clearOAuthParams(url);
+
         if (error) {
           logger.error("auth.callback", "OAuth code exchange failed", {
             pathname: url.pathname,
@@ -123,11 +127,6 @@ function AuthCallbackHandler({
           pathname: url.pathname,
         });
         onError(null);
-
-        if (!error) {
-          clearOAuthParams(url);
-        }
-
         onSettled();
 
         return;

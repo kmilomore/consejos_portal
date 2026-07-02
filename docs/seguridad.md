@@ -217,6 +217,19 @@ El control real depende de:
 
 Esto debe revisarse fuera del repo cuando se valide el despliegue real.
 
+### Cabeceras HTTP y CSP (desde 2026-07-02)
+
+Las cabeceras de seguridad quedaron versionadas en `public/.htaccess` (Next las copia a `out/` en cada build; Apache debe tener `AllowOverride` con `FileInfo` habilitado para honrarlas — verificar tras el primer deploy).
+
+El archivo replica las cabeceras que ya servia produccion (HSTS con preload, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, COOP) y agrega la **Content-Security-Policy**:
+
+- `script-src 'self' 'unsafe-inline'` — el `'unsafe-inline'` es requisito del export estatico de Next (scripts inline de hidratacion sin nonce posible)
+- `connect-src 'self' https://csxgnabxblkqkgpxcpyw.supabase.co` — todo fetch/XHR queda limitado al propio origen y a Supabase; aunque se inyectara un script, no puede exfiltrar el token de sesion a un dominio externo
+- `img-src 'self' data: blob:` — requerido por html2canvas/jspdf (exportes del portal)
+- `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'self'`
+
+**Invariante:** si se agrega un recurso externo embebido (analitica, fuentes remotas, iframes de video, avatares de Google), la CSP de `public/.htaccess` debe ampliarse en el mismo cambio; de lo contrario el recurso sera bloqueado silenciosamente.
+
 ---
 
 ## 10. Estado verificado en produccion (auditoria en vivo 2026-07-02)
@@ -240,7 +253,7 @@ Auditoria directa contra el proyecto Supabase via Management API (detalle del me
 - **validar los 69 correos de la lista blanca de directores** contra sus cuentas Google reales (caso detectado: `ximena.lopez` en la lista vs `ximena.pino` en Auth para el mismo RBD)
 - ejecutar el plan de corte del sync con la planilla maestra (`context.md` §9.x)
 - revisar configuracion real de CORS en Supabase y hosting
-- evaluar una politica CSP compatible con export estatico
+- verificar tras el proximo deploy que Apache honra `public/.htaccess` (CSP presente en las respuestas) y que ningun recurso legitimo queda bloqueado
 
 ---
 
