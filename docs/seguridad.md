@@ -129,6 +129,21 @@ Ese archivo creaba lectura publica para:
 
 La nueva migracion de hardening elimina esas politicas publicas mediante `drop policy if exists ...` para restaurar el principio de minimo privilegio.
 
+### Hallazgo cerrado en auditoria en vivo (2026-07-02)
+
+Pese al hardening del 2026-05-27, en produccion existian politicas SELECT creadas fuera de las migraciones de Consejos (proyecto Supabase compartido con `portal-participacion`):
+
+- `anon_select_directorio` sobre `actas` (`USING true`, rol `anon`): las 125 actas eran legibles sin sesion con la anon key del frontend
+- `actas_select_portal_authenticated` (`USING true`, rol `authenticated`): lectura amplia para cualquier sesion institucional
+
+Correccion aplicada el mismo dia (migracion `20260702_consejos_close_anon_actas_and_base_escuelas_write.sql`, ya en produccion):
+
+- eliminada la politica `anon` de `actas`; verificado via REST que anon recibe 0 filas
+- la lectura de actas queda **solo con sesion autenticada** (decision explicita: se conserva `actas_select_portal_authenticated` para usuarios institucionales logueados, mas `Leer actas por rbd` como alcance acotado)
+- la escritura nunca estuvo comprometida (`has_school_write_access` intacta)
+
+En la misma migracion se cerro la escritura abierta de `"BASE DE DATOS ESCUELAS SLEP"` (UPDATE/INSERT con `true` para cualquier autenticado): ahora la gobierna `is_base_escuelas_editor()` (roles `admin/coordinador/fi/be` de `auth_users_roles` de portal-participacion + admin global de Consejos). Esto protege la lista blanca de directores de alteraciones silenciosas via sync.
+
 ### Superficie publica intencional (2026-07-02)
 
 Desde 2026-07-02 existen rutas publicas por diseno, sin sesion:
@@ -192,16 +207,31 @@ Esto debe revisarse fuera del repo cuando se valide el despliegue real.
 
 ---
 
-## 10. Riesgos pendientes
+## 10. Estado verificado en produccion (auditoria en vivo 2026-07-02)
 
-- confirmar en entorno real que todas las migraciones de permisos y storage estan aplicadas
-- revisar configuracion real de CORS en Supabase y hosting
-- evaluar una politica CSP compatible con export estatico
-- seguir evitando lecturas publicas si el producto se declara autenticado
+Auditoria directa contra el proyecto Supabase via Management API (detalle del metodo y hallazgos completos en `context.md` §9.y):
+
+- RLS activo en las 9 tablas; todas las funciones RLS en su version final (gate de dominio, separacion lectura/escritura, fallback de director)
+- politicas de storage de `evidencias_actas` = migracion definitiva `20260619`
+- todas las migraciones de permisos listadas antes como "por confirmar" estan aplicadas
+- trigger `portal_access_audit_trigger` activo
+- Supabase Auth: `disable_signup: false` + Google OAuth habilitado; el flujo *lista blanca primero, registro automatico en el primer login* funciona de punta a punta; redirect de Consejos en la allow-list
+- deny by default verificado: usuarios de Auth sin rol en Consejos no ven datos
 
 ---
 
-## 11. Documentos relacionados
+## 11. Riesgos pendientes
+
+- **bucket `evidencias_actas` es publico** (131 PDFs descargables por URL sin sesion); cerrarlo requiere bucket privado + `createSignedUrl()` en `lib/supabase/queries.ts`
+- **`"BASE DE DATOS ESCUELAS SLEP"` sigue legible por `anon`** (correos de directores/representantes expuestos); confirmar con portal-participacion antes de cerrar su SELECT
+- **validar los 69 correos de la lista blanca de directores** contra sus cuentas Google reales (caso detectado: `ximena.lopez` en la lista vs `ximena.pino` en Auth para el mismo RBD)
+- ejecutar el plan de corte del sync con la planilla maestra (`context.md` §9.x)
+- revisar configuracion real de CORS en Supabase y hosting
+- evaluar una politica CSP compatible con export estatico
+
+---
+
+## 12. Documentos relacionados
 
 ### Vista global
 
@@ -220,4 +250,5 @@ Esto debe revisarse fuera del repo cuando se valide el despliegue real.
 ### SQL relevante
 
 - [Hardening de seguridad](../supabase/migrations/20260527_consejos_security_defaults_hardening.sql)
+- [Cierre de lectura anon en actas y escritura de planilla maestra](../supabase/migrations/20260702_consejos_close_anon_actas_and_base_escuelas_write.sql)
 - [Lectura publica anon historica](../supabase/migrations/20260416_consejos_public_read_anon.sql)

@@ -110,15 +110,16 @@ Experiencia principal del portal:
 - Eliminar PDF en storage al borrar acta (el DELETE en BD sí funciona)
 - Eliminación dura de programaciones (hoy existe edición + cancelación lógica, no delete físico)
 - Columna `correo` en `actas_invitados` (capturado en UI, no persiste)
-- Confirmar en entorno real que la migración `20260526_consejos_reassert_storage_evidencias_scope.sql` quedó aplicada; sin ella pueden fallar uploads documentales para usuarios de equipo con scope parcial
 - Validación MIME real del PDF en servidor
 - Activar `save_acta_complete` en el cliente (migración SQL lista)
-- Aplicar en Supabase la migración `20260424_consejos_actas_registro_documental.sql` si aún no está corrida
 - Cierre de redirect si Supabase Auth sigue apuntando al portal antiguo
 - Endurecimiento de métricas según reglas de negocio finales
-- Aplicar en Supabase la migración `20260514_consejos_usuario_establecimiento_roles.sql` si aún no está corrida
-- Aplicar en Supabase la migración `20260526_consejos_admin_user_management_rls.sql` si aún no está corrida
-- Aplicar en Supabase la migración `20260526_consejos_colaborador_readonly.sql` si aún no está corrida
+- **Bucket `evidencias_actas` sigue público** (verificado 2026-07-02, 131 PDFs descargables por URL sin sesión); cerrarlo requiere bucket privado + migrar `getPublicUrl()` → `createSignedUrl()` en `lib/supabase/queries.ts`
+- **La planilla maestra sigue legible por `anon`** (contiene correos de directores/representantes); antes de cerrar su SELECT hay que confirmar que `portal-participacion` no la lee sin sesión
+- **Validar los 69 correos de la lista blanca de directores** contra las cuentas Google reales antes del lanzamiento; caso ya detectado: RBD `6301401/33879-6` tiene rol para `ximena.lopez@slepcolchagua.cl` pero en Auth existe `ximena.pino@slepcolchagua.cl` sin rol
+- Ejecutar el plan de corte de la planilla maestra (§9.x): dejar de invocar los `sync_*_from_base_escuelas` y gestionar accesos solo vía panel admin
+
+> **Nota 2026-07-02:** la auditoría en vivo (ver §9.y) confirmó que las migraciones antes listadas como "aplicar si aún no está corrida" (`20260424_actas_registro_documental`, `20260514_usuario_establecimiento_roles`, `20260526_admin_user_management_rls`, `20260526_colaborador_readonly`, storage `20260619`) **están todas aplicadas en producción** y las funciones RLS viven en su versión final.
 
 ---
 
@@ -432,6 +433,7 @@ Ruta 5 — mejorar permisos o acceso por correo:
 | `20260526_consejos_reassert_storage_evidencias_scope.sql` | Reimpone RLS de `storage.objects` para `evidencias_actas` usando `has_school_scope_access()` |
 | `20260526_consejos_storage_scope_normalized_rbd.sql` | Crea `has_school_scope_access_storage_key()` con normalización de RBD (`/`↔`-`) y la asigna a las cuatro políticas de `evidencias_actas`; función base requerida por `20260619` |
 | `20260619_consejos_storage_write_allow_representante_domain.sql` | **Fix definitivo de storage** — revierte las cuatro políticas de `evidencias_actas` a `has_school_scope_access_storage_key()`; corrige la regresión de `20260608` donde uploads fallaban en el storage service de Supabase pese a datos correctos |
+| `20260702_consejos_close_anon_actas_and_base_escuelas_write.sql` | **Ya aplicada en producción (2026-07-02)** — elimina la lectura `anon` de `actas` (lectura solo con sesión autenticada), restringe UPDATE/INSERT de `BASE DE DATOS ESCUELAS SLEP` a editores legítimos vía `is_base_escuelas_editor()` (roles `admin/coordinador/fi/be` de `auth_users_roles` + admin global Consejos), y desactiva la fila ADMIN con typo `camilo.serra@slepcolchagua.c` |
 
 ---
 
@@ -1001,11 +1003,34 @@ Validación ejecutada:
 
 Auditoría de acceso (originada por errores RLS al subir evidencias de actas) reveló que el proyecto Supabase `csxgnabxblkqkgpxcpyw` **no es exclusivo de Consejos**: también lo usa `portal-participacion` (47 migraciones propias: `tareas`, `gmail_metrics_cache`, `auth_users_roles`, etc.). Ambos portales autentican contra el mismo `auth.users` (`@slepcolchagua.cl`).
 
-- **Riesgo crítico activo:** la tabla `public."BASE DE DATOS ESCUELAS SLEP"` (planilla maestra de la que Consejos sincroniza `establecimientos`/`usuario_establecimiento_roles`) tiene una política RLS de `UPDATE` creada por `portal-participacion` (`20260406_consejos_storage_evidencias...` → en realidad `20260406_base_escuelas_rls_update.sql` de ese repo) con `USING (true) WITH CHECK (true)` — **sin filtro de rol**. Cualquier usuario autenticado de cualquiera de los dos portales puede editar `CORREO REPRESENTANTE`, `REPRESENTANTE CONSEJO ESCOLAR`, `DIRECTOR/A`, RBD, etc., y esos cambios se propagan a `usuario_establecimiento_roles` de Consejos, otorgando/revocando acceso a escuelas de forma silenciosa. (En portal-participacion, la edición de esos campos sí es una función legítima de `DirectorioPage.tsx`, gateada solo en el cliente para roles `admin/coordinador/fi/be` — la RLS abierta es lo que sobra.)
+- **Riesgo crítico ~~activo~~ CERRADO el 2026-07-02** (migración `20260702_consejos_close_anon_actas_and_base_escuelas_write.sql`, ya aplicada en producción): UPDATE e INSERT de la planilla quedaron restringidos a `is_base_escuelas_editor()`; la lectura `anon` de `actas` también fue eliminada ese día. Descripción original del riesgo: la tabla `public."BASE DE DATOS ESCUELAS SLEP"` (planilla maestra de la que Consejos sincroniza `establecimientos`/`usuario_establecimiento_roles`) tiene una política RLS de `UPDATE` creada por `portal-participacion` (`20260406_consejos_storage_evidencias...` → en realidad `20260406_base_escuelas_rls_update.sql` de ese repo) con `USING (true) WITH CHECK (true)` — **sin filtro de rol**. Cualquier usuario autenticado de cualquiera de los dos portales puede editar `CORREO REPRESENTANTE`, `REPRESENTANTE CONSEJO ESCOLAR`, `DIRECTOR/A`, RBD, etc., y esos cambios se propagan a `usuario_establecimiento_roles` de Consejos, otorgando/revocando acceso a escuelas de forma silenciosa. (En portal-participacion, la edición de esos campos sí es una función legítima de `DirectorioPage.tsx`, gateada solo en el cliente para roles `admin/coordinador/fi/be` — la RLS abierta es lo que sobra.)
 - **Bug de login de directores (relacionado, no idéntico):** documentado en `20260528_consejos_fix_director_accessible_rbds.sql` — diferencias de normalización de correo entre la planilla y el JWT (alias de dominio, espacios, codificación) dejan a directores sin fila en `usuario_establecimiento_roles` → `current_accessible_rbds()` vacío → pantalla de error sin shell. Hay un fallback parcial vía `usuarios_perfiles.rbd`, pero ese campo también se llena vía emparejamiento contra la misma planilla.
 - **Decisión tomada:** no migrar a un proyecto Supabase nuevo (el costo real estaría en migrar `auth.users`, no en el esquema). En su lugar, **completar la independencia de datos que ya existe en gran parte**: el runtime de login (`get_current_portal_scope()`) ya solo lee de `establecimientos` / `usuario_establecimiento_roles` / `usuarios_perfiles` — tablas propias de Consejos. El acoplamiento real que queda son las funciones `sync_establecimientos_from_base_escuelas()`, `sync_usuario_establecimiento_roles_from_base_escuelas()` y `bootstrap_current_user_profile_from_base_escuelas()`.
 - **Plan de corte (pendiente de ejecutar):** (1) importar una última vez desde la planilla a las tablas propias, auditando y corrigiendo en ese momento los correos de cada director/representante (usando el correo real de login, no el de la planilla); (2) dejar de invocar las funciones `sync_*_from_base_escuelas`; (3) gestionar altas/bajas en adelante solo vía el panel de admin (`upsert_usuario_establecimiento_rol`, ya implementado y con auditoría vía `portal_access_audit_trigger`); (4) opcionalmente revocar el acceso de Consejos sobre `BASE DE DATOS ESCUELAS SLEP` y retirar las funciones de sync.
 - Mientras no se ejecute ese corte, **cualquier "problema serio de acceso"** reportado debe revisarse primero contra `usuario_establecimiento_roles` (¿existe la fila?, ¿el correo está bien normalizado respecto al de login real?) antes de asumir que es un bug nuevo de RLS.
+
+### 9.y Auditoría en vivo 2026-07-02 — estado real de producción y cierres aplicados
+
+Auditoría directa contra el proyecto Supabase (`csxgnabxblkqkgpxcpyw`) vía Management API (`POST /v1/projects/{ref}/database/query`, autenticada con el token del CLI que vive en el Administrador de Credenciales de Windows bajo `Supabase CLI:supabase`; `supabase db dump` no sirve sin Docker).
+
+**Confirmado correcto en producción:**
+
+- RLS activo en las 9 tablas del portal; funciones RLS (`has_school_scope_access`, `has_school_write_access`, `current_accessible_rbds`, `is_global_admin`, `has_school_scope_access_storage_key`) en su versión final (gate de dominio + separación lectura/escritura + fallback de director por perfil)
+- Las 4 políticas de storage de `evidencias_actas` coinciden con la migración definitiva `20260619`
+- Trigger de auditoría `portal_access_audit_trigger` activo sobre `usuario_establecimiento_roles`
+- Lista blanca cargada: 69 filas `DIRECTOR` activas (una por establecimiento, 69 establecimientos), 4 representantes cubren las 69 escuelas, 0 correos malformados
+- Supabase Auth: `disable_signup: false` + Google OAuth habilitado → el "registro" de directores ocurre automáticamente en el primer login (lógica *whitelist primero, registro automático después* validada de punta a punta); redirect `https://consejos.colchaguaparticipa.app/auth/login/` en la allow-list
+- Los 4 usuarios de Auth sin rol en Consejos no ven ningún dato (deny by default verificado)
+
+**Hallazgos cerrados ese mismo día** (migración `20260702_consejos_close_anon_actas_and_base_escuelas_write.sql`, aplicada en producción):
+
+1. `actas` tenía política SELECT `anon` con `USING (true)` (`anon_select_directorio`, patrón de portal-participacion): las 125 actas eran legibles sin sesión con la anon key. Eliminada; verificado por REST que anon ahora recibe 0 filas. La lectura queda solo con sesión autenticada (`actas_select_portal_authenticated` amplia + `Leer actas por rbd` acotada). Atenuante verificado: `asistentes` estaba vacío (`[]`) en las 125 actas, sin datos personales en tabla.
+2. UPDATE e INSERT de `"BASE DE DATOS ESCUELAS SLEP"` abiertos a cualquier autenticado: restringidos a `is_base_escuelas_editor()` (roles `admin/coordinador/fi/be` de `auth_users_roles` — el gate que la UI de portal-participacion aplicaba solo en cliente — más admin global de Consejos).
+3. Fila ADMIN con typo `camilo.serra@slepcolchagua.c` desactivada.
+
+**Hallazgos abiertos** (ver "Pendiente o parcial" en §2): bucket `evidencias_actas` público, planilla maestra legible por `anon`, validación de correos reales de directores (caso `ximena.lopez`/`ximena.pino`), plan de corte del sync.
+
+La misma política `anon_select_directorio` sigue existiendo sobre tablas de portal-participacion (`actas_inteligencia`, `matricula_mensual`, `ive_sinae_escolar`, `base_establecimiento_cargos`, `encargados_beneficios`); no se tocaron por ser de ese portal.
 
 ---
 
