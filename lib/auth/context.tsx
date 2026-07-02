@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { logPortalEvent } from "@/lib/supabase/audit";
 import { toast } from "@/components/ui/toast";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { logger } from "@/lib/logger";
@@ -55,7 +56,7 @@ function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
     return "Tu cuenta autenticó, pero no tiene permisos para abrir este portal."
   }
 
-  return `No fue posible abrir el portal: ${message}`;
+  return "No fue posible abrir el portal. Por favor, intenta nuevamente.";
 }
 
 function maskEmail(email: string | null | undefined) {
@@ -83,22 +84,6 @@ function toAuthDiagnostic(scope: PortalScope, profile: Profile | null) {
     profileRole: profile?.rol ?? null,
     profileRbd: profile?.rbd ?? null,
   };
-}
-
-function buildAuthUiTrace(label: string, scope: PortalScope, detail?: string | null) {
-  const fields = [
-    `rol=${scope.role_text}`,
-    `ruta=${scope.landing_route}`,
-    `soloLectura=${scope.is_read_only ? "si" : "no"}`,
-    `rbds=${scope.accessible_rbds.length}`,
-    `defaultRbd=${scope.default_rbd ?? "null"}`,
-  ];
-
-  if (detail) {
-    fields.push(`detalle=${detail}`);
-  }
-
-  return `${label} · ${fields.join(" · ")}`;
 }
 
 interface AuthStateCache {
@@ -425,6 +410,47 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
   const userId = session?.user?.id ?? null;
   const userEmail = session?.user?.email ?? null;
 
+  // Bitácora de ingreso: un evento LOGIN por inicio de sesión real. El marcador
+  // usa last_sign_in_at, que solo cambia con un nuevo login (no con refresh de
+  // token ni recargas de página), y se persiste en localStorage entre pestañas.
+  const loginEventMarkerRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const user = session?.user;
+    if (!user) {
+      return;
+    }
+
+    const marker = `${user.id}:${user.last_sign_in_at ?? ""}`;
+    if (loginEventMarkerRef.current === marker) {
+      return;
+    }
+
+    let storedMarker: string | null = null;
+    try {
+      storedMarker = window.localStorage.getItem(STORAGE_KEYS.LOGIN_EVENT);
+    } catch {
+      // localStorage may be unavailable; fall back to in-memory dedupe only
+    }
+
+    loginEventMarkerRef.current = marker;
+
+    if (storedMarker === marker) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.LOGIN_EVENT, marker);
+    } catch {
+      // ignore storage write failures
+    }
+
+    logPortalEvent("LOGIN", {
+      detalle: "Inicio de sesión en el portal.",
+      vistaOrigen: "auth",
+    });
+  }, [session]);
+
   useEffect(() => {
     if (!supabase) {
       return;
@@ -560,11 +586,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           || resolvedScope.accessible_rbds.length > 0;
 
         if (!hasPortalScope) {
-          const deniedTrace = buildAuthUiTrace(
-            "Acceso portal rechazado en scope fallback",
-            resolvedScope,
-            bootstrapErrorMessage ?? profileError?.message ?? scopeResult.error?.message ?? "sin alcance portal",
-          );
           logger.error("auth.bootstrap", "Access denied after scope fallback", {
             userId: uid,
             email: maskEmail(userEmail),
@@ -572,14 +593,15 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
             profileError: profileError?.message ?? null,
             bootstrapError: bootstrapErrorMessage,
           });
-          toast(deniedTrace, "error");
-          setProfile(null);
-          setEstablishment(null);
-          setAccessError(normalizeAccessErrorMessage(
+          const deniedMessage = normalizeAccessErrorMessage(
             bootstrapErrorMessage
               ?? profileError?.message
               ?? "No existe un acceso portal activo para este usuario en la base de datos.",
-          ));
+          );
+          toast(deniedMessage, "error");
+          setProfile(null);
+          setEstablishment(null);
+          setAccessError(deniedMessage);
           profileLoaded.current = true;
           setIsLoading(false);
           return;
@@ -599,7 +621,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           email: maskEmail(userEmail),
           ...toAuthDiagnostic(resolvedScope, nextProfile),
         });
-        toast(buildAuthUiTrace("Acceso portal validado por scope", resolvedScope), "info");
       }
 
       // Run scope resolution and establishment fetch in parallel when the rbd
@@ -661,7 +682,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           email: maskEmail(userEmail),
           ...toAuthDiagnostic(resolvedScope, nextProfile),
         });
-        toast(buildAuthUiTrace("Acceso portal sin establecimiento fijo", resolvedScope), "info");
         setEstablishment(null);
         profileLoaded.current = true;
         setIsLoading(false);
@@ -684,11 +704,6 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       const estError = (rawEstResult as { error?: { message: string } | null } | null)?.error;
 
       if (!estData) {
-        const establishmentTrace = buildAuthUiTrace(
-          "Acceso portal sin establecimiento resoluble",
-          resolvedScope,
-          estError?.message ?? "establecimiento no encontrado",
-        );
         logger.error("auth.bootstrap", "Failed to load establishment for scoped user", {
           userId: uid,
           email: maskEmail(userEmail),
@@ -696,11 +711,12 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
           ...toAuthDiagnostic(resolvedScope, nextProfile),
           establishmentError: estError?.message ?? null,
         });
-        toast(establishmentTrace, "error");
-        setEstablishment(null);
-        setAccessError(normalizeAccessErrorMessage(
+        const establishmentMessage = normalizeAccessErrorMessage(
           estError?.message ?? "No se encontró el establecimiento asociado al perfil autenticado.",
-        ));
+        );
+        toast(establishmentMessage, "error");
+        setEstablishment(null);
+        setAccessError(establishmentMessage);
         profileLoaded.current = true;
         setIsLoading(false);
         return;
@@ -797,7 +813,7 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
 
   async function signInWithGoogle(): Promise<AuthResult> {
     if (!supabase) {
-      return { error: "Supabase no está disponible en este navegador." };
+      return { error: "No pudimos iniciar el ingreso en este navegador. Actualiza la página e intenta nuevamente." };
     }
 
     const allowedDomain = (process.env.NEXT_PUBLIC_AUTH_ALLOWED_DOMAIN ?? "")
@@ -817,7 +833,8 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     });
 
     if (error) {
-      return { error: error.message };
+      logger.error("auth.bootstrap", "Google sign-in could not start", { error: error.message });
+      return { error: "No pudimos iniciar el ingreso con Google. Por favor, intenta nuevamente." };
     }
 
     return {};

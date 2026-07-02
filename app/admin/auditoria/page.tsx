@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, KeyRound, RefreshCcw, Search, ShieldCheck } from "lucide-react";
+import { Activity, KeyRound, RefreshCcw, Search, ShieldCheck, UserPlus } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,12 +147,26 @@ function getPortalActionLabel(log: LogEntry) {
   switch (log.accion) {
     case "LOGIN":
       return "Ingresó al portal";
+    case "CREAR_CUENTA":
+      return "Creó cuenta";
     case "CREAR_ACTA":
       return "Creó acta";
     case "EDITAR_ACTA":
       return "Editó acta";
     case "ELIMINAR_ACTA":
       return "Eliminó acta";
+    case "SUBIR_EVIDENCIA":
+      return "Subió evidencia";
+    case "ELIMINAR_EVIDENCIA":
+      return "Eliminó evidencia";
+    case "PROGRAMAR_SESION":
+      return "Programó sesión";
+    case "EDITAR_PROGRAMACION":
+      return "Editó programación";
+    case "CANCELAR_PROGRAMACION":
+      return "Canceló programación";
+    case "EXPORTAR_ACTAS":
+      return "Exportó actas";
     default:
       return log.accion;
   }
@@ -167,7 +181,11 @@ function mapPortalLog(log: LogEntry, schoolMap: Map<string, string>): AuditTimel
     occurredAt: log.created_at,
     actor: log.usuario,
     actionLabel: getPortalActionLabel(log),
-    subject: schoolName ? `${schoolName} · RBD ${log.rbd}` : `RBD ${log.rbd}`,
+    subject: schoolName
+      ? `${schoolName} · RBD ${log.rbd}`
+      : log.rbd
+        ? `RBD ${log.rbd}`
+        : "Portal completo",
     detail: log.detalle,
     context: log.vista_origen,
   };
@@ -273,6 +291,7 @@ export default function AdminAuditoriaPage() {
   const portalEventCount = rows.filter((row) => row.source === "portal").length;
   const accessChangeCount = rows.filter((row) => row.source === "access").length;
   const loginCount = rows.filter((row) => row.actionLabel === "Ingresó al portal").length;
+  const accountCount = rows.filter((row) => row.actionLabel === "Creó cuenta").length;
 
   if (!isGlobalAdmin) {
     return null;
@@ -294,10 +313,11 @@ export default function AdminAuditoriaPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Eventos portal" value={portalEventCount} sub="logs operativos visibles" icon={Activity} />
         <StatCard label="Cambios de acceso" value={accessChangeCount} sub="altas, cambios y desactivaciones" icon={ShieldCheck} />
         <StatCard label="Ingresos detectados" value={loginCount} sub="eventos LOGIN en la bitácora" icon={KeyRound} />
+        <StatCard label="Cuentas creadas" value={accountCount} sub="registros nuevos en auth.users" icon={UserPlus} />
       </div>
 
       <section className="rounded-modal border border-neutral-200/80 bg-white shadow-lg">

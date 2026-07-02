@@ -108,6 +108,18 @@ Se apoya en:
 
 - `has_school_write_access(...)`
 
+### Bitacora de eventos (`logs`) — desde 2026-07-02
+
+La escritura de la bitacora no depende del alcance por RBD: pasa por la RPC `log_portal_event()` (`SECURITY DEFINER`, grant solo a `authenticated`), definida en `20260702_consejos_portal_event_log.sql` y aplicada en produccion.
+
+Propiedades de seguridad:
+
+- el actor (`usuario`) se deriva siempre del email del JWT en el servidor; el payload del cliente no puede suplantar identidad
+- whitelist de acciones dentro de la funcion; `CREAR_CUENTA` esta excluido y solo lo escribe el trigger `trg_log_new_auth_user` sobre `auth.users`
+- ese trigger silencia toda excepcion: un fallo de bitacora jamas bloquea un signup
+- dedupe de `LOGIN` en servidor (ventana de 5 minutos por usuario) para evitar inflar la bitacora
+- la lectura sigue gobernada por la policy existente (admin global via la pantalla `/admin/auditoria/`)
+
 ---
 
 ## 6. Exposicion publica de datos
@@ -215,6 +227,7 @@ Auditoria directa contra el proyecto Supabase via Management API (detalle del me
 - politicas de storage de `evidencias_actas` = migracion definitiva `20260619`
 - todas las migraciones de permisos listadas antes como "por confirmar" estan aplicadas
 - trigger `portal_access_audit_trigger` activo
+- tuberia de eventos de auditoria verificada el mismo dia: enum `log_action` con 11 valores, RPC `log_portal_event` con grants correctos (`authenticated`, sin `anon`) y trigger `trg_log_new_auth_user` activo sobre `auth.users`
 - Supabase Auth: `disable_signup: false` + Google OAuth habilitado; el flujo *lista blanca primero, registro automatico en el primer login* funciona de punta a punta; redirect de Consejos en la allow-list
 - deny by default verificado: usuarios de Auth sin rol en Consejos no ven datos
 

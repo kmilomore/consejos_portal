@@ -32,6 +32,7 @@ Experiencia principal del portal:
 
 ### Ya implementado y funcional
 
+- Tubería de eventos de auditoría completa (2026-07-02): RPC `log_portal_event()`, trigger `CREAR_CUENTA` sobre `auth.users`, e instrumentación de LOGIN, actas, evidencias, programación y export alimentando `/admin/auditoria/` — ver §9.z y `app/admin/context-auditoria.md`
 - Landing pública en `/` sobre Consejos Escolares con acceso al portal en el menú (2026-07-02)
 - Páginas legales públicas `/terminos/`, `/privacidad/` y `/cookies/` según normativa chilena (Leyes 19.628, 21.719, 21.663, 21.459)
 - Rutas públicas declaradas en `AppFrame` (`isPublicRoute`); rutas protegidas sin sesión redirigen a `/auth/login/`
@@ -1032,6 +1033,26 @@ Auditoría directa contra el proyecto Supabase (`csxgnabxblkqkgpxcpyw`) vía Man
 
 La misma política `anon_select_directorio` sigue existiendo sobre tablas de portal-participacion (`actas_inteligencia`, `matricula_mensual`, `ive_sinae_escolar`, `base_establecimiento_cargos`, `encargados_beneficios`); no se tocaron por ser de ese portal.
 
+### 9.z Tubería de eventos de auditoría 2026-07-02 — de pantalla vacía a trazabilidad real
+
+Hasta este cambio, la pantalla `/admin/auditoria/` leía la tabla `logs` pero **ningún código escribía en ella**: la bitácora operativa estaba estructuralmente vacía (solo `portal_access_audit` tenía datos reales vía su trigger). Se implementó la tubería completa (migración `20260702_consejos_portal_event_log.sql`, **aplicada y verificada en producción el 2026-07-02** vía Management API):
+
+**Contrato SQL:**
+
+- enum `log_action` ampliado de 4 a 11 valores: se suman `CREAR_CUENTA`, `SUBIR_EVIDENCIA`, `ELIMINAR_EVIDENCIA`, `PROGRAMAR_SESION`, `EDITAR_PROGRAMACION`, `CANCELAR_PROGRAMACION`, `EXPORTAR_ACTAS`
+- RPC `log_portal_event(p_accion, p_rbd, p_detalle, p_vista_origen)` — `SECURITY DEFINER`, grant solo a `authenticated`. El actor (`usuario`) se deriva **siempre** del email del JWT en el servidor: el cliente no puede suplantar a otro usuario. Whitelist de acciones en la función; `CREAR_CUENTA` está excluido (reservado al trigger). Dedupe de `LOGIN` en servidor: se ignora en silencio si el mismo usuario ya registró uno en los últimos 5 minutos
+- trigger `trg_log_new_auth_user` (`AFTER INSERT` sobre `auth.users`) registra `CREAR_CUENTA` con el proveedor OAuth; su función silencia cualquier excepción para **nunca bloquear un signup**
+
+**Instrumentación en frontend (fire-and-forget, nunca rompe el flujo principal):**
+
+- helper `logPortalEvent()` en `lib/supabase/audit.ts`
+- `LOGIN`: `lib/auth/context.tsx`, dedupe en cliente por `userId + last_sign_in_at` en localStorage (clave `consejos.portal.login-event.v1`) — no se duplica por recargas ni refresh de token
+- `CREAR_ACTA`/`EDITAR_ACTA`: `components/portal/acta-form.tsx` (distingue por `isNewActa`)
+- `ELIMINAR_ACTA` y `EXPORTAR_ACTAS` (CSV y Excel): `app/actas/page.tsx`
+- `SUBIR_EVIDENCIA`/`ELIMINAR_EVIDENCIA` y `PROGRAMAR_SESION`/`EDITAR_PROGRAMACION`/`CANCELAR_PROGRAMACION`: dentro de las mutaciones de `lib/supabase/queries.ts` (`cancelProgramacion` ahora acepta `rbd` opcional para contexto)
+
+**Límites aceptados:** no se registra navegación por vistas ni LOGOUT; si la RPC falla el evento se pierde en silencio; borrar localStorage >5 min después de ingresar puede producir un LOGIN duplicado cosmético. Detalle completo en `app/admin/context-auditoria.md`.
+
 ---
 
 ## 10. Modelo de Datos y Dominio
@@ -1046,7 +1067,7 @@ La misma política `anon_select_directorio` sigue existiendo sobre tablas de por
 | `programacion` | Planificación de sesiones de Consejo |
 | `actas` | Actas oficiales de sesiones |
 | `actas_invitados` | Invitados externos por acta |
-| `logs` | Registro de acciones del portal |
+| `logs` | Bitácora de eventos del portal (login, cuentas, actas, evidencias, programación, export); se escribe vía RPC `log_portal_event()` y trigger sobre `auth.users` — ver §9.z |
 | `BASE DE DATOS ESCUELAS SLEP` | Planilla maestra **compartida con `portal-participacion`** (mismo proyecto Supabase); fuente histórica de sincronización, en proceso de dejar de ser dependencia en runtime — ver §9.x |
 
 ### Tipos funcionales expuestos al frontend (`types/domain.ts`)
@@ -1167,7 +1188,7 @@ Nota operativa:
 | `programacion` | Por RBD o admin | Por RBD o admin |
 | `actas` | Por RBD o admin | Por RBD o admin |
 | `actas_invitados` | Ligado al acta visible | Ligado al acta del RBD |
-| `logs` | Por alcance correspondiente | Por alcance correspondiente |
+| `logs` | Por alcance correspondiente | Vía RPC `log_portal_event()` (SECURITY DEFINER, actor desde JWT) y trigger de `auth.users`; el insert directo sigue gobernado por la policy por RBD |
 
 ### Capas de protección en el módulo de actas
 

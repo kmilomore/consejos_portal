@@ -1,6 +1,6 @@
 # Contexto Operativo: Auditoria admin
 
-> Ultima actualizacion: 2026-05-28  
+> Ultima actualizacion: 2026-07-02  
 > Objetivo: formalizar la pantalla `/admin/auditoria/` como punto unico de trazabilidad para eventos operativos del portal y cambios de acceso administrativos.  
 > Contexto general del portal: ver `../../context.md` para arquitectura global, seguridad y contratos transversales.
 
@@ -32,14 +32,29 @@ Guardias vigentes:
 
 ### Que cubre hoy
 
-- eventos de `logs` ya existentes en el portal (`LOGIN`, `CREAR_ACTA`, `EDITAR_ACTA`, `ELIMINAR_ACTA`)
+- eventos de `logs` del portal:
+  - `LOGIN` (registrado desde `lib/auth/context.tsx` con dedupe por `last_sign_in_at`)
+  - `CREAR_CUENTA` (trigger `trg_log_new_auth_user` sobre `auth.users`)
+  - `CREAR_ACTA`, `EDITAR_ACTA` (desde `components/portal/acta-form.tsx`)
+  - `ELIMINAR_ACTA`, `EXPORTAR_ACTAS` (desde `app/actas/page.tsx`)
+  - `SUBIR_EVIDENCIA`, `ELIMINAR_EVIDENCIA` (desde `lib/supabase/queries.ts`)
+  - `PROGRAMAR_SESION`, `EDITAR_PROGRAMACION`, `CANCELAR_PROGRAMACION` (desde `lib/supabase/queries.ts`)
 - cambios de acceso sobre `usuario_establecimiento_roles` a traves de `portal_access_audit`
+
+### Como se escriben los eventos
+
+- todo evento de cliente pasa por la RPC `log_portal_event(p_accion, p_rbd, p_detalle, p_vista_origen)` (security definer):
+  - el actor (`usuario`) se deriva SIEMPRE del JWT en el servidor; el cliente no puede suplantarlo
+  - `CREAR_CUENTA` esta excluido de la whitelist de la RPC: solo lo escribe el trigger de `auth.users`
+  - el trigger de signup silencia errores para no bloquear jamas la creacion de cuentas
+- el helper de cliente es `logPortalEvent()` en `lib/supabase/audit.ts`: fire-and-forget, nunca rompe el flujo que lo invoca
 
 ### Que no cubre aun
 
 - navegación fina por cada click o vista abierta
 - diffs exhaustivos de JSON libre dentro de `metadata`
 - observabilidad centralizada fuera de Supabase
+- cierres de sesión (LOGOUT) y sesiones expiradas
 
 ---
 
@@ -55,6 +70,8 @@ Guardias vigentes:
 - `lib/supabase/queries.ts`
   - `listPortalLogs(limit?)`
   - `listPortalAccessAudit(limit?)`
+- `lib/supabase/audit.ts`
+  - `logPortalEvent(accion, { rbd?, detalle?, vistaOrigen? })` — escritura de eventos vía RPC
 
 ### Tipos de dominio
 
@@ -67,6 +84,7 @@ Guardias vigentes:
 
 - `supabase/migrations/20260415_consejos_escolares.sql` — tabla `logs`
 - `supabase/migrations/20260528_consejos_portal_access_audit.sql` — tabla, trigger y policy de `portal_access_audit`
+- `supabase/migrations/20260702_consejos_portal_event_log.sql` — enum ampliado, RPC `log_portal_event()` y trigger `trg_log_new_auth_user` (aplicada en producción el 2026-07-02)
 
 ---
 
@@ -185,6 +203,7 @@ Validación mínima esperada:
 ## 9. Riesgos y límites actuales
 
 - `logs` depende de que las mutaciones operativas realmente inserten eventos; la pantalla no inventa historial faltante
-- `LOGIN` aparece solo si ese evento se registra en la tabla `logs`
+- el registro de eventos es fire-and-forget: si la RPC falla (red, sesión expirada) el evento se pierde en silencio; la operación principal no se bloquea
+- `LOGIN` se deduplica en dos capas: en cliente por `userId + last_sign_in_at` (localStorage) y en servidor la RPC ignora un LOGIN del mismo usuario si ya existe otro en los últimos 5 minutos; el caso residual es un usuario que borra localStorage más de 5 minutos después de ingresar (un LOGIN extra, cosmético)
 - la comparación de cambios de acceso resume campos principales; no presenta un diff profundo del JSON `metadata`
 - si se consulta desde una base sin la migración nueva, el módulo mostrará carga parcial hasta aplicarla

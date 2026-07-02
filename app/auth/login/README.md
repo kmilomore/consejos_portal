@@ -44,6 +44,8 @@ Si el intercambio resulta exitoso:
 - elimina `code` de la URL;
 - usa `window.history.replaceState(...)` para evitar que el código quede visible en historial o copias de URL.
 
+Desde el ajuste del 2026-07-02, el callback ya no emite toasts informativos con detalle técnico del flujo ("OAuth recibido...", "OAuth validado. Cargando permisos del portal..."). Mientras el callback está pendiente —o cuando ya existe sesión válida lista para redirigir— la página muestra una pantalla neutra con el texto "Cargando datos…", sin exponer etapas internas de autenticación. Los errores sí se siguen mostrando mediante toast y mensaje persistente en la UI, pero con textos amigables y sin detalle técnico: los mensajes crudos (Supabase, scope, trazas `rol=... · rbds=...`) ya no llegan a pantalla y quedan solo en `logger.error(...)` / `logger.warn(...)` para diagnóstico. En [lib/auth/context.tsx](lib/auth/context.tsx) se eliminó `buildAuthUiTrace` y los toasts de bootstrap ahora usan `normalizeAccessErrorMessage(...)`.
+
 La sesión efectiva y la resolución de acceso no se cierran en esta página. Después del callback, [lib/auth/context.tsx](lib/auth/context.tsx) confirma la sesión real con Supabase, carga `usuarios_perfiles`, resuelve el alcance con `get_current_portal_scope` y recién entonces deja estabilizada la navegación hacia `/admin/` o `/resumen/`.
 
 Desde el ajuste del 2026-05-27, el cliente ya no intenta bootstrapear perfiles automáticamente durante el login. Un usuario autenticado con Google solo obtiene acceso útil si la base del portal ya le resuelve alcance real mediante `usuario_establecimiento_roles` y `get_current_portal_scope()`.

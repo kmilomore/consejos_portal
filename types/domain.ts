@@ -158,7 +158,18 @@ export interface LogEntry {
   id: string;
   usuario: string;
   rbd: string;
-  accion: "CREAR_ACTA" | "EDITAR_ACTA" | "ELIMINAR_ACTA" | "LOGIN";
+  accion:
+    | "CREAR_ACTA"
+    | "EDITAR_ACTA"
+    | "ELIMINAR_ACTA"
+    | "LOGIN"
+    | "CREAR_CUENTA"
+    | "SUBIR_EVIDENCIA"
+    | "ELIMINAR_EVIDENCIA"
+    | "PROGRAMAR_SESION"
+    | "EDITAR_PROGRAMACION"
+    | "CANCELAR_PROGRAMACION"
+    | "EXPORTAR_ACTAS";
   detalle: string;
   vista_origen: string;
   created_at: string;

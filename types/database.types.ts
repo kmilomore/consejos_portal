@@ -2010,6 +2010,15 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      log_portal_event: {
+        Args: {
+          p_accion: string
+          p_detalle?: string
+          p_rbd?: string
+          p_vista_origen?: string
+        }
+        Returns: undefined
+      }
       is_admin_user: { Args: { email_value?: string }; Returns: boolean }
       is_global_admin: { Args: never; Returns: boolean }
       normalize_portal_email: { Args: { raw_email: string }; Returns: string }
@@ -2058,7 +2067,18 @@ export type Database = {
       }
     }
     Enums: {
-      log_action: "CREAR_ACTA" | "EDITAR_ACTA" | "ELIMINAR_ACTA" | "LOGIN"
+      log_action:
+        | "CREAR_ACTA"
+        | "EDITAR_ACTA"
+        | "ELIMINAR_ACTA"
+        | "LOGIN"
+        | "CREAR_CUENTA"
+        | "SUBIR_EVIDENCIA"
+        | "ELIMINAR_EVIDENCIA"
+        | "PROGRAMAR_SESION"
+        | "EDITAR_PROGRAMACION"
+        | "CANCELAR_PROGRAMACION"
+        | "EXPORTAR_ACTAS"
       planning_status: "PROGRAMADA" | "REALIZADA" | "CANCELADA"
       session_format: "Presencial" | "Online" | "Híbrido"
       session_type: "Ordinaria" | "Extraordinaria"
@@ -2190,7 +2210,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      log_action: ["CREAR_ACTA", "EDITAR_ACTA", "ELIMINAR_ACTA", "LOGIN"],
+      log_action: [
+        "CREAR_ACTA",
+        "EDITAR_ACTA",
+        "ELIMINAR_ACTA",
+        "LOGIN",
+        "CREAR_CUENTA",
+        "SUBIR_EVIDENCIA",
+        "ELIMINAR_EVIDENCIA",
+        "PROGRAMAR_SESION",
+        "EDITAR_PROGRAMACION",
+        "CANCELAR_PROGRAMACION",
+        "EXPORTAR_ACTAS",
+      ],
       planning_status: ["PROGRAMADA", "REALIZADA", "CANCELADA"],
       session_format: ["Presencial", "Online", "Híbrido"],
       session_type: ["Ordinaria", "Extraordinaria"],

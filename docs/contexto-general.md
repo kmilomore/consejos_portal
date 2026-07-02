@@ -76,7 +76,7 @@ Documento operativo:
 
 ### Auditoria
 
-Consolida eventos operativos del portal y cambios de acceso para dar trazabilidad a ingresos, acciones y modificaciones administrativas.
+Consolida eventos operativos del portal y cambios de acceso para dar trazabilidad a ingresos, acciones y modificaciones administrativas. Desde 2026-07-02 la bitacora `logs` se alimenta de verdad: LOGIN, creacion de cuentas (trigger en `auth.users`), actas, evidencias, programacion y exportaciones, todo via la RPC `log_portal_event()` que deriva el actor del JWT.
 
 Documento operativo:
 - [Contexto de auditoria](../app/admin/context-auditoria.md)

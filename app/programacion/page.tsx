@@ -346,7 +346,7 @@ export default function ProgramacionPage() {
 
     setIsCancelling(true);
     const { cancelProgramacion } = await import("@/lib/supabase/queries");
-    const result = await cancelProgramacion(cancelTarget.id);
+    const result = await cancelProgramacion(cancelTarget.id, cancelTarget.rbd);
     setIsCancelling(false);
 
     if (!result.ok) {

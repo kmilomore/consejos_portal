@@ -339,6 +339,13 @@ export default function ActasPage() {
     ));
 
     downloadFile(`\uFEFF${[header.map((value) => escapeCsvValue(value)).join(","), ...body].join("\n")}`, `actas-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv;charset=utf-8;");
+
+    void import("@/lib/supabase/audit").then(({ logPortalEvent }) => {
+      logPortalEvent("EXPORTAR_ACTAS", {
+        detalle: `Exportaci\u00F3n CSV de ${exportRows.length} acta${exportRows.length === 1 ? "" : "s"}.`,
+        vistaOrigen: "actas",
+      });
+    });
   }
 
   function exportExcel() {
@@ -355,6 +362,13 @@ export default function ActasPage() {
       })),
       `actas-${new Date().toISOString().slice(0, 10)}.xls`,
     );
+
+    void import("@/lib/supabase/audit").then(({ logPortalEvent }) => {
+      logPortalEvent("EXPORTAR_ACTAS", {
+        detalle: `Exportación Excel de ${exportRows.length} acta${exportRows.length === 1 ? "" : "s"}.`,
+        vistaOrigen: "actas",
+      });
+    });
   }
 
   function exportAllActasExcel() {
@@ -366,6 +380,13 @@ export default function ActasPage() {
       allActasExportRows,
       `actas-todas-${new Date().toISOString().slice(0, 10)}.xls`,
     );
+
+    void import("@/lib/supabase/audit").then(({ logPortalEvent }) => {
+      logPortalEvent("EXPORTAR_ACTAS", {
+        detalle: `Exportación Excel completa de ${allActasExportRows.length} acta${allActasExportRows.length === 1 ? "" : "s"}.`,
+        vistaOrigen: "actas",
+      });
+    });
   }
 
   async function handleDelete() {
@@ -375,7 +396,15 @@ export default function ActasPage() {
     const ok = await deleteActa(deleteTarget.id);
     setDeleting(false);
     setDeleteTarget(null);
-    if (ok) refresh();
+    if (ok) {
+      const { logPortalEvent } = await import("@/lib/supabase/audit");
+      logPortalEvent("ELIMINAR_ACTA", {
+        rbd: deleteTarget.rbd,
+        detalle: `Acta ${deleteTarget.tipo_sesion} N°${deleteTarget.sesion} del ${deleteTarget.fecha} eliminada.`,
+        vistaOrigen: "actas",
+      });
+      refresh();
+    }
   }
 
   return (

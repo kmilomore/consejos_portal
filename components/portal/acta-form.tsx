@@ -1399,6 +1399,14 @@ export function ActaForm({
     // #4 — Record last save timestamp
     lastSaveTimeRef.current = Date.now();
 
+    void import("@/lib/supabase/audit").then(({ logPortalEvent }) => {
+      logPortalEvent(isNewActa ? "CREAR_ACTA" : "EDITAR_ACTA", {
+        rbd: form.rbd,
+        detalle: `${isDocumentalMode ? "Registro documental" : "Acta"} ${form.tipo_sesion} N°${Number(form.sesion) || 1} del ${form.fecha}${draft ? " (guardado como avance)" : ""}.`,
+        vistaOrigen: "acta-form",
+      });
+    });
+
     // #12 — Clear local draft after a successful save; the saved row becomes the continuation source.
     try {
       localStorage.removeItem(draftStorageKey);

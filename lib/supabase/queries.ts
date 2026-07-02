@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { logPortalEvent } from "@/lib/supabase/audit";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { logger } from "@/lib/logger";
 import type { Json } from "@/types/database.types";
@@ -502,6 +503,12 @@ export async function createProgramacion(input: ProgramacionUpsertInput): Promis
 
   bumpPortalSnapshotVersion();
 
+  logPortalEvent("PROGRAMAR_SESION", {
+    rbd: input.rbd,
+    detalle: `Sesión ${input.tipo_sesion} N°${nextSessionResult.value} programada para el ${input.fecha_programada}.`,
+    vistaOrigen: "programacion",
+  });
+
   return { id: (data as { id: string }).id };
 }
 
@@ -547,10 +554,16 @@ export async function updateProgramacion(input: ProgramacionUpsertInput): Promis
 
   bumpPortalSnapshotVersion();
 
+  logPortalEvent("EDITAR_PROGRAMACION", {
+    rbd: input.rbd,
+    detalle: `Programación de sesión ${input.tipo_sesion} N°${numeroSesion} actualizada (fecha ${input.fecha_programada}).`,
+    vistaOrigen: "programacion",
+  });
+
   return { id: input.id };
 }
 
-export async function cancelProgramacion(programacionId: string): Promise<PersistenceStepResult> {
+export async function cancelProgramacion(programacionId: string, rbd?: string): Promise<PersistenceStepResult> {
   const supabase = createClient();
   if (!supabase) {
     return { ok: false, errorMessage: "Cliente Supabase no disponible." };
@@ -566,6 +579,12 @@ export async function cancelProgramacion(programacionId: string): Promise<Persis
   }
 
   bumpPortalSnapshotVersion();
+
+  logPortalEvent("CANCELAR_PROGRAMACION", {
+    rbd: rbd ?? "",
+    detalle: `Programación ${programacionId} cancelada.`,
+    vistaOrigen: "programacion",
+  });
 
   return { ok: true };
 }
@@ -767,6 +786,13 @@ export async function uploadActaDocument(
     hasAccessToken: Boolean(authSession?.access_token),
     publicUrl: data.publicUrl,
   });
+
+  logPortalEvent("SUBIR_EVIDENCIA", {
+    rbd,
+    detalle: `Documento de respaldo "${file.name}" subido para el acta ${actaId}.`,
+    vistaOrigen: "actas",
+  });
+
   return { url: data.publicUrl, errorMessage: null };
 }
 
@@ -782,6 +808,12 @@ export async function deleteActaDocument(actaId: string, rbd: string, fileName: 
     logger.error("deleteActaDocument", error.message);
     return false;
   }
+
+  logPortalEvent("ELIMINAR_EVIDENCIA", {
+    rbd,
+    detalle: `Documento de respaldo "${fileName}" eliminado del acta ${actaId}.`,
+    vistaOrigen: "actas",
+  });
 
   return true;
 }

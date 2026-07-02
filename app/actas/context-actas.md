@@ -428,6 +428,11 @@ No tocar sin revisar primero:
 - shape de `PortalSnapshot`
 - compatibilidad con `modo_registro`, `observacion_documental`, `rut`, `actasByMode`
 
+Bitácora de auditoría (desde 2026-07-02):
+- las mutaciones del módulo emiten eventos a la tabla `logs` vía `logPortalEvent()` (`lib/supabase/audit.ts`), fire-and-forget: nunca deben bloquear ni romper la operación principal
+- `CREAR_ACTA`/`EDITAR_ACTA` se emiten desde `acta-form.tsx` (distingue por `isNewActa`); `ELIMINAR_ACTA` y `EXPORTAR_ACTAS` desde `app/actas/page.tsx`; `SUBIR_EVIDENCIA`/`ELIMINAR_EVIDENCIA` dentro de `uploadActaDocument()`/`deleteActaDocument()` en `queries.ts`
+- si agregas o mueves una mutación, conserva su evento de bitácora; contrato completo en `app/admin/context-auditoria.md`
+
 ---
 
 ## 7. Hallazgos y Aciertos del Módulo

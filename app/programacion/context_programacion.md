@@ -370,6 +370,8 @@ Si se necesita mas data:
 
 El cliente puede anticipar estados y bloquear botones, pero la mutacion final debe seguir centralizada en `lib/supabase/queries.ts`.
 
+Nota de auditoria (desde 2026-07-02): `createProgramacion()`, `updateProgramacion()` y `cancelProgramacion()` emiten eventos `PROGRAMAR_SESION`, `EDITAR_PROGRAMACION` y `CANCELAR_PROGRAMACION` a la bitacora `logs` via `logPortalEvent()` (fire-and-forget). `cancelProgramacion()` acepta un segundo parametro `rbd` opcional para dar contexto al evento; el caller de `app/programacion/page.tsx` ya lo pasa. Si agregas mutaciones nuevas, mantén el patron; contrato completo en `app/admin/context-auditoria.md`.
+
 ### 8.3 No tratar `REALIZADA` como editable
 
 Si una sesion ya tiene acta vinculada, el flujo debe orientarse a lectura o trazabilidad.

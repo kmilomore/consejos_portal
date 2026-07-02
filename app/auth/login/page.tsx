@@ -24,27 +24,23 @@ function normalizeOAuthErrorMessage(rawMessage: string | null | undefined) {
   const message = (rawMessage ?? "").trim();
   const lowerMessage = message.toLowerCase();
 
-  if (!message) {
-    return "No fue posible completar el ingreso con Google. Intenta nuevamente.";
-  }
-
   if (lowerMessage.includes("invalid grant") || lowerMessage.includes("code verifier") || lowerMessage.includes("code challenge")) {
-    return "La validación del ingreso con Google expiró o quedó inválida. Intenta entrar nuevamente.";
+    return "Tu intento de ingreso expiró. Vuelve a presionar el botón para entrar de nuevo.";
   }
 
   if (lowerMessage.includes("signup_disabled") || lowerMessage.includes("signups not allowed for this instance")) {
-    return "Supabase rechazó el ingreso porque este proyecto tiene los signups deshabilitados. Si el usuario nunca había entrado por Google, Auth intenta crearlo y la instancia lo bloquea.";
+    return "Tu cuenta aún no tiene acceso habilitado en el portal. Si crees que deberías tenerlo, contacta al equipo administrador.";
   }
 
   if (lowerMessage.includes("access denied") || lowerMessage.includes("cancelled") || lowerMessage.includes("canceled")) {
-    return "El ingreso con Google fue cancelado antes de completarse.";
+    return "El ingreso fue cancelado. Puedes intentarlo de nuevo cuando quieras.";
   }
 
   if (lowerMessage.includes("issued in the future") || lowerMessage.includes("clock skew")) {
-    return "La hora del dispositivo no coincide con la hora real y Supabase rechazó la sesión. Activa la fecha y hora automáticas, corrige el reloj y vuelve a intentar.";
+    return "La fecha y hora de tu dispositivo están desajustadas. Activa la hora automática y vuelve a intentar.";
   }
 
-  return `No fue posible completar el ingreso con Google: ${message}`;
+  return "No pudimos completar tu ingreso. Por favor, intenta nuevamente.";
 }
 
 function clearOAuthParams(url: URL) {
@@ -111,7 +107,6 @@ function AuthCallbackHandler({
       }
 
       if (code) {
-        toast("OAuth recibido. Intercambiando sesion con Google...", "info");
         const { error } = await authClient.auth.exchangeCodeForSession(code);
 
         if (error) {
@@ -127,7 +122,6 @@ function AuthCallbackHandler({
         logger.info("auth.callback", "OAuth code exchange completed", {
           pathname: url.pathname,
         });
-        toast("OAuth validado. Cargando permisos del portal...", "info");
         onError(null);
 
         if (!error) {
@@ -150,6 +144,17 @@ function AuthCallbackHandler({
   }, [onError, onSettled]);
 
   return null;
+}
+
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-navy-900 text-white">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-hidden="true" />
+        <p className="text-sm font-medium text-white/80">Cargando datos…</p>
+      </div>
+    </div>
+  );
 }
 
 export default function LoginPage() {
@@ -185,10 +190,12 @@ export default function LoginPage() {
     router.replace(landingRoute);
   }, [callbackPending, isLoading, isSessionReady, landingRoute, router, session]);
 
+  const showLoading = !callbackError && (callbackPending || (isSessionReady && Boolean(session)));
+
   return (
     <>
       <AuthCallbackHandler onError={setCallbackError} onSettled={handleCallbackSettled} />
-      <AuthScreen externalError={callbackError} />
+      {showLoading ? <LoadingScreen /> : <AuthScreen externalError={callbackError} />}
     </>
   );
 }
