@@ -27,16 +27,39 @@ export default function CookiesPage() {
       <p>
         Este sitio <strong>no utiliza cookies de publicidad, de seguimiento ni de analítica de terceros</strong>. Solo
         se emplea almacenamiento <strong>estrictamente necesario</strong> para que el portal de gestión funcione: mantener
-        tu sesión iniciada y recordar preferencias operativas. Por tratarse de almacenamiento técnico esencial, no
-        requiere consentimiento previo; aun así, lo describimos aquí en aplicación del principio de transparencia de la
-        normativa chilena de protección de datos (Leyes N° 19.628 y N° 21.719).
+        tu sesión iniciada y recordar preferencias operativas. Además, la landing pública muestra un{" "}
+        <strong>aviso visible de privacidad y cookies</strong> al inicio para reforzar el principio de transparencia
+        antes de continuar hacia el portal o revisar el contenido institucional, conforme a las Leyes N° 19.628 y
+        N° 21.719.
       </p>
 
       <h2>3. Almacenamiento que utiliza el sitio</h2>
       <h3>Sitio público informativo</h3>
       <p>
-        La navegación por las páginas informativas <strong>no crea cookies ni guarda datos en tu dispositivo</strong>.
+        La navegación por las páginas informativas no crea cookies operativas del portal. Solo se guarda en{" "}
+        <code>localStorage</code> una preferencia técnica mínima para recordar que ya viste y aceptaste el aviso de
+        privacidad y cookies de la landing.
       </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Elemento</th>
+            <th>Tipo</th>
+            <th>Finalidad</th>
+            <th>Duración</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>consejos.landing.legal-consent.v1</code>
+            </td>
+            <td>localStorage</td>
+            <td>Recordar que la persona visitante ya vio y aceptó el aviso de privacidad y cookies de la landing.</td>
+            <td>Hasta que la persona lo elimine desde su navegador</td>
+          </tr>
+        </tbody>
+      </table>
       <h3>Portal de gestión (solo usuarios autenticados)</h3>
       <p>Al iniciar sesión en el portal se utiliza el siguiente almacenamiento en tu navegador:</p>
       <table>

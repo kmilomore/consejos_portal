@@ -13,7 +13,7 @@ La landing cumple un doble objetivo:
 1. **Difusión ciudadana:** explicar a cualquier persona qué es un Consejo Escolar, quiénes lo integran, qué funciones tiene, cuál es su normativa y dónde encontrar recursos y videos.
 2. **Puerta de entrada al portal:** presentar el Portal Consejos Escolares (programación, actas, métricas, gestión territorial) con acceso visible al login institucional.
 
-Es contenido **100% estático e informativo**: no consulta Supabase, no requiere sesión y no guarda datos en el dispositivo del visitante.
+Es contenido **100% estático e informativo**: no consulta Supabase y no requiere sesión. Desde el 2026-07-02 muestra al inicio una **modal central de privacidad/cookies**, exige marcar `He leído y acepto` antes de continuar y guarda solo una preferencia técnica mínima para recordar esa aceptación en la landing.
 
 ---
 
@@ -43,7 +43,7 @@ Es contenido **100% estático e informativo**: no consulta Supabase, no requiere
 
 | Archivo | Rol |
 |---|---|
-| `components/landing/landing-page.tsx` | Componente principal. Exporta `LandingPage`, `LandingHeader` y `LandingFooter`. Todo el contenido vive en arrays de datos al inicio del archivo (`NAV_LINKS`, `HERO_STATS`, `CARACTER`, `INTEGRANTES`, `MATERIAS_INFORMADAS/CONSULTADAS`, `NORMATIVA`, `ORIENTACIONES`, `SITIOS_OFICIALES`, `VIDEOS`, `PORTAL_FEATURES`, `LEGAL_LINKS`). |
+| `components/landing/landing-page.tsx` | Componente principal. Exporta `LandingPage`, `LandingHeader` y `LandingFooter`. También contiene la modal de consentimiento legal/cookies (`ConsentBanner`) y todo el contenido vive en arrays de datos al inicio del archivo (`NAV_LINKS`, `HERO_STATS`, `CARACTER`, `INTEGRANTES`, `MATERIAS_INFORMADAS/CONSULTADAS`, `NORMATIVA`, `ORIENTACIONES`, `SITIOS_OFICIALES`, `VIDEOS`, `PORTAL_FEATURES`, `LEGAL_LINKS`). |
 | `components/landing/legal-page.tsx` | Layout compartido de páginas legales: header/footer de la landing + tarjeta artículo (patrón DS 5.12) con miga de pan, título, bajada y fecha de actualización. |
 | `app/page.tsx` | Monta `LandingPage`. |
 | `app/terminos/page.tsx`, `app/privacidad/page.tsx`, `app/cookies/page.tsx` | Contenido legal como server components con `metadata` propia, envueltos en `LegalPage`. |
@@ -56,15 +56,16 @@ Es contenido **100% estático e informativo**: no consulta Supabase, no requiere
 Secciones en orden, con sus anchors:
 
 1. **Masthead sticky** (3 capas DS): utility bar (Gobierno de Chile · Mineduc), brand bar con logo, nav primaria con links de ancla y **botón "Acceder al Portal"** (ícono `LogIn` → `/auth/login/`). Menú hamburguesa < `lg`.
-2. **Hero** (`bg-grad-hero` + anillo coral decorativo): H1, bajada, CTAs y 4 stats.
-3. `#que-es` — qué es un consejo escolar + 4 tarjetas de carácter (informativo / consultivo / propositivo / resolutivo).
-4. `#integrantes` — 6 estamentos (director, sostenedor, docente, asistente de la educación, estudiantes, apoderados).
-5. `#funciones` — dos columnas: materias informadas / materias consultadas.
-6. `#normativa` — enlaces a Ley Chile (BCN): Ley 19.979, Decreto 24/2005, Ley 20.845, LGE 20.370, Ley 21.040.
-7. `#recursos` — orientaciones prácticas + sitios oficiales (Mineduc, Supereduc, Agencia de Calidad, BCN).
-8. `#videos` — 3 tarjetas de material audiovisual (ver pendientes).
-9. `#portal` — banda `bg-grad-deep-blue` con las 4 funcionalidades del portal y CTA de acceso.
-10. **Footer** navy-700 con navegación, instituciones, acceso al portal y enlaces legales en la barra inferior.
+2. **Modal central de consentimiento**: overlay bloqueante con enlaces a `/privacidad/` y `/cookies/`, checkbox obligatorio `He leído y acepto` y botón `Aceptar y continuar` deshabilitado hasta marcar la casilla.
+3. **Hero** (`bg-grad-hero` + anillo coral decorativo): H1, bajada, CTAs y 4 stats.
+4. `#que-es` — qué es un consejo escolar + 4 tarjetas de carácter (informativo / consultivo / propositivo / resolutivo).
+5. `#integrantes` — 6 estamentos (director, sostenedor, docente, asistente de la educación, estudiantes, apoderados).
+6. `#funciones` — dos columnas: materias informadas / materias consultadas.
+7. `#normativa` — enlaces a Ley Chile (BCN): Ley 19.979, Decreto 24/2005, Ley 20.845, LGE 20.370, Ley 21.040.
+8. `#recursos` — orientaciones prácticas + sitios oficiales (Mineduc, Supereduc, Agencia de Calidad, BCN).
+9. `#videos` — 3 tarjetas de material audiovisual (ver pendientes).
+10. `#portal` — banda `bg-grad-deep-blue` con las 4 funcionalidades del portal y CTA de acceso.
+11. **Footer** navy-700 con navegación, instituciones, acceso al portal y enlaces legales en la barra inferior.
 
 Los links del menú y footer usan anchors absolutos (`/#que-es`) para funcionar también desde las páginas legales.
 
@@ -84,12 +85,13 @@ La **política de cookies documenta el almacenamiento real de la app** (verifica
 
 | Clave | Tipo | Uso |
 |---|---|---|
+| `consejos.landing.legal-consent.v1` | localStorage | recordar aceptación explícita de la modal de privacidad/cookies en la landing |
 | `consejos-portal` | localStorage | token de sesión Supabase (`storageKey` del cliente) |
 | `consejos.portal.selected-rbd` | localStorage | escuela seleccionada (admin) |
 | `consejos.portal.auth-state.v1` | sessionStorage | caché de perfil/scope |
 | `consejos.portal.snapshot.*` | sessionStorage | caché del snapshot del portal |
 
-No hay cookies propias ni analítica. Google establece cookies en sus dominios durante el OAuth. Por ser almacenamiento estrictamente necesario, **no se requiere banner de consentimiento**; si algún día se agrega analítica, hay que actualizar `/cookies/` y pedir consentimiento (Ley 21.719).
+No hay cookies propias de analítica o publicidad. Google establece cookies en sus dominios durante el OAuth. La landing incorpora una **modal visible y bloqueante de privacidad/cookies** al inicio, con consentimiento explícito mediante checkbox y almacenamiento técnico mínimo para recordar la aceptación; si algún día se agrega analítica, hay que actualizar `/cookies/` y ampliar el mecanismo de consentimiento (Ley 21.719).
 
 **Invariante:** si cambian las claves de `STORAGE_KEYS`, el `storageKey` del cliente Supabase o se agrega cualquier tracking, la tabla de `/cookies/` debe actualizarse en el mismo cambio.
 
@@ -102,6 +104,7 @@ No hay cookies propias ni analítica. Google establece cookies en sus dominios d
 3. **Design system:** el módulo sigue `INSTRUCCIONES_DISENO.md` del paquete `@slep-colchagua/design-system` — tokens navy/royal/coral/neutral, `rounded-control/card/modal/pill`, sombras navy-tinted, gradientes solo en hero/banners, iconos Lucide.
 4. **Scroll:** los anchors usan `scroll-mt-36 md:scroll-mt-48` para compensar el masthead sticky; el scroll suave está scoped vía `html:has(#landing-root)` para no afectar al portal autenticado.
 5. Las páginas legales son las únicas que usan la clase `.legal-article`; su tipografía se define en `globals.css`, no inline.
+6. **Consentimiento explícito:** la modal legal es client-side y depende de `localStorage`; cualquier refactor del root de la landing debe preservar ese gate antes del contenido. Si cambia el texto o la mecánica del consentimiento, actualizar en el mismo cambio `/cookies/`, `/privacidad/` y este contexto.
 
 ---
 
@@ -118,6 +121,6 @@ No hay cookies propias ni analítica. Google establece cookies en sus dominios d
 ## 8. Validación realizada (2026-07-02)
 
 - `npx tsc --noEmit` sin errores.
-- `npx eslint` sin errores en los archivos del módulo.
+- `npx eslint` sin errores en los archivos del módulo, incluida la modal de consentimiento.
 - `npm run build` exporta `/`, `/terminos/`, `/privacidad/` y `/cookies/` como rutas estáticas.
 - Verificado sobre HTTP (`npx serve out`): landing, CSS y páginas legales responden 200 con diseño completo.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -30,6 +30,7 @@ import {
   Users,
   UsersRound,
   X,
+  ShieldCheck,
 } from "lucide-react";
 
 // ── Contenido ───────────────────────────────────────────────────────────────
@@ -48,6 +49,8 @@ const LEGAL_LINKS = [
   { href: "/privacidad/", label: "Política de privacidad" },
   { href: "/cookies/", label: "Política de cookies" },
 ];
+
+const LANDING_CONSENT_STORAGE_KEY = "consejos.landing.legal-consent.v1";
 
 const HERO_STATS = [
   { value: "4", label: "Sesiones mínimas al año exigidas por la normativa" },
@@ -286,6 +289,94 @@ function PortalAccessButton({ compact = false }: { compact?: boolean }) {
       <LogIn className={compact ? "h-4 w-4" : "h-[18px] w-[18px]"} aria-hidden="true" />
       Acceder al Portal
     </Link>
+  );
+}
+
+function ConsentBanner() {
+  const [isVisible, setIsVisible] = useState(false);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedConsent = window.localStorage.getItem(LANDING_CONSENT_STORAGE_KEY);
+    setIsVisible(storedConsent !== "accepted");
+    setHasAcceptedTerms(false);
+  }, []);
+
+  const acceptConsent = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(LANDING_CONSENT_STORAGE_KEY, "accepted");
+    }
+
+    setIsVisible(false);
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-700/70 px-5 py-6 backdrop-blur-[2px]">
+      <section
+        aria-label="Aviso sobre privacidad y cookies"
+        aria-modal="true"
+        role="dialog"
+        className="w-full max-w-[640px] rounded-modal border border-royal-100 bg-white shadow-2xl"
+      >
+        <div className="border-b border-neutral-200 px-6 py-5 md:px-8">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-royal-50 text-royal-500">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-royal-500">Privacidad y cookies</p>
+              <h2 className="mt-1 text-xl font-black text-navy-500 md:text-2xl">Antes de continuar</h2>
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-5 md:px-8 md:py-6">
+          <p className="text-sm font-medium leading-[1.65] text-neutral-700 md:text-[15px]">
+            Este sitio informa el tratamiento de datos personales y el uso de almacenamiento técnico necesario para el
+            acceso al portal institucional. Para continuar navegando, debes revisar y aceptar nuestra{" "}
+            <Link className="font-bold text-royal-600 hover:text-royal-700 hover:underline" href="/privacidad/">
+              Política de Privacidad
+            </Link>{" "}
+            y la{" "}
+            <Link className="font-bold text-royal-600 hover:text-royal-700 hover:underline" href="/cookies/">
+              Política de Cookies
+            </Link>
+            .
+          </p>
+          <p className="mt-3 text-sm font-medium leading-[1.65] text-neutral-600">
+            La aceptación permite recordar esta preferencia en tu navegador mediante almacenamiento local técnico
+            mínimo.
+          </p>
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={hasAcceptedTerms}
+              onChange={(event) => setHasAcceptedTerms(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-neutral-300 text-royal-600 focus:ring-royal-500"
+            />
+            <span className="text-sm font-medium leading-[1.55] text-neutral-700">
+              He leído y acepto el tratamiento informado sobre privacidad y cookies para continuar.
+            </span>
+          </label>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs font-medium leading-relaxed text-neutral-500">
+              Debes marcar la casilla antes de continuar.
+            </div>
+            <button
+              type="button"
+              onClick={acceptConsent}
+              disabled={!hasAcceptedTerms}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-control bg-navy-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-navy-600 disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-500 disabled:hover:bg-neutral-300"
+            >
+              Aceptar y continuar
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -840,6 +931,7 @@ export function LandingPage() {
         Saltar al contenido
       </a>
       <LandingHeader />
+      <ConsentBanner />
       <main id="main-content">
         <Hero />
         <QueEsSection />
