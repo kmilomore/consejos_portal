@@ -7,56 +7,20 @@ import { logPortalEvent } from "@/lib/supabase/audit";
 import { toast } from "@/components/ui/toast";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { logger } from "@/lib/logger";
+import { ClasificarError, withTimeout, logPortalError } from "@/lib/error-handling";
 import type { Establishment, PortalScope, Profile } from "@/types/domain";
 
 const LOAD_ACCESS_TIMEOUT_MS = 15_000;
+const LOAD_ACCESS_MAX_RETRIES = 2;
 
 interface AuthResult {
   error?: string;
 }
 
 function normalizeAccessErrorMessage(rawMessage: string | null | undefined) {
-  const message = (rawMessage ?? "").trim();
-  const lowerMessage = message.toLowerCase();
-
-  if (!message) {
-    return "No fue posible validar tu acceso al portal."
-  }
-
-  if (
-    lowerMessage.includes("no existe un perfil portal")
-    || lowerMessage.includes("json object requested, multiple (or no) rows returned")
-    || lowerMessage.includes("usuario_perfiles")
-    || lowerMessage.includes("usuarios_perfiles")
-  ) {
-    return "Tu cuenta autenticada no tiene un perfil habilitado en el portal. Revisa que tu correo esté cargado en la base de accesos."
-  }
-
-  if (
-    lowerMessage.includes("no se encontró el establecimiento asociado")
-    || lowerMessage.includes("establecimiento asociado")
-    || lowerMessage.includes("establecimientos")
-  ) {
-    return "Tu cuenta sí autenticó, pero no tiene una escuela vinculada para entrar al portal."
-  }
-
-  if (
-    lowerMessage.includes("dominio institucional")
-    || lowerMessage.includes("dominio permitido")
-    || lowerMessage.includes("solo se permiten correos del dominio")
-  ) {
-    return "Tu cuenta autenticó, pero el correo no pertenece al dominio institucional permitido para este portal."
-  }
-
-  if (
-    lowerMessage.includes("permission denied")
-    || lowerMessage.includes("not authorized")
-    || lowerMessage.includes("forbidden")
-  ) {
-    return "Tu cuenta autenticó, pero no tiene permisos para abrir este portal."
-  }
-
-  return "No fue posible abrir el portal. Por favor, intenta nuevamente.";
+  // Usa el nuevo sistema centralizado de clasificación de errores
+  const error = ClasificarError({ message: rawMessage ?? "" });
+  return error.message;
 }
 
 function maskEmail(email: string | null | undefined) {
@@ -477,11 +441,21 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
     // propagate narrowing of outer-scope variables through async functions.
     const uid = userId;
 
-    // Abort the load after 15s to avoid an infinite spinner on network issues.
+    // Timeout con mejor manejo de errores: aborta después de 15s pero con reintentos
+    const attemptsRemaining = LOAD_ACCESS_MAX_RETRIES;
     const timeoutId = setTimeout(() => {
       if (!cancelled) {
         cancelled = true;
-        setAccessError("El portal tardó demasiado en cargar. Recarga la página e intenta de nuevo.");
+        const error = ClasificarError({
+          message: `Access bootstrap timed out after ${LOAD_ACCESS_TIMEOUT_MS}ms`,
+        });
+        logger.error("auth.bootstrap", "Access load timeout", {
+          userId: uid,
+          email: maskEmail(userEmail),
+          timeoutMs: LOAD_ACCESS_TIMEOUT_MS,
+          attemptsRemaining,
+        });
+        setAccessError(error.message);
         profileLoaded.current = true;
         setIsLoading(false);
       }
@@ -493,18 +467,24 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       logger.info("auth.bootstrap", "Starting access bootstrap", {
         userId: uid,
         email: maskEmail(userEmail),
+        attemptsRemaining,
       });
 
-      // Fetch the persisted profile if it exists. Access itself is validated
-      // later from get_current_portal_scope(), which is the source of truth.
-      // Avoid auto-bootstrapping unknown users here so a valid Google login
-      // alone does not create portal access implicitly.
+      // Fetch the persisted profile si existe. El acceso se valida después desde
+      // get_current_portal_scope(), que es la fuente de verdad._EVITA auto-bootstrap
+      // de usuarios desconocidos así un Google login válido no crea acceso al portal implícitamente.
       async function fetchProfileData() {
-        const first = await client
-          .from("usuarios_perfiles")
-          .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
-          .eq("id", uid)
-          .maybeSingle();
+        const first = await withTimeout(
+          (async () =>
+            client
+              .from("usuarios_perfiles")
+              .select("id, correo_electronico, rol, rbd, comuna, nombre_director")
+              .eq("id", uid)
+              .maybeSingle()
+          )(),
+          5_000,
+          "Profile lookup timed out after 5 seconds",
+        );
 
         if (first.error) {
           bootstrapErrorMessage = first.error.message;
@@ -546,7 +526,11 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
       };
 
       if (profileError || !nextProfile) {
-        const scopeResult = await client.rpc("get_current_portal_scope");
+        const scopeResult = await withTimeout(
+          (async () => client.rpc("get_current_portal_scope"))(),
+          5_000,
+          "Scope resolution timed out after 5 seconds",
+        );
 
         if (cancelled) {
           return;
@@ -570,6 +554,14 @@ export function PortalAuthProvider({ children }: Readonly<{ children: React.Reac
               can_manage_users: Boolean(scopeRow.can_manage_users),
             };
           }
+        } else {
+          const classifiedError = ClasificarError(scopeResult.error);
+          bootstrapErrorMessage = classifiedError.message;
+          
+          logPortalError("auth.bootstrap", classifiedError, {
+            userId: uid,
+            email: maskEmail(userEmail),
+          });
         }
 
         logger.info("auth.bootstrap", "Resolved access scope without persisted profile", {

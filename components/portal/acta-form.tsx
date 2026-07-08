@@ -24,6 +24,9 @@ import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/portal/confirm-dialog";
 import { useSlepDirectorio } from "@/lib/hooks/use-slep-directorio";
 import { usePortalAuth } from "@/lib/auth/context";
+//control de errores de upload con reintentos y logging
+import { ClasificarError } from "@/lib/error-handling";
+import { validarArchivoAntesDeSubir, formatBytes } from "@/lib/file-upload-errors";
 import { DEFAULT_EXTRAORDINARY_SESSION_REASON_LABELS, type Acta, type ActaRecordMode, type AttendeeSlot, type Establishment, type ExtraordinarySessionReason, type Programacion, type SessionFormat, type SessionType, type SuspensionClassDetail, type SuspensionRecoveryType } from "@/types/domain";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -46,7 +49,6 @@ const SUSPENSION_RECOVERY_TYPES: SuspensionRecoveryType[] = ["Con JEC", "Sin JEC
 // Minimum ms between consecutive saves (client-side rate limit) — #4
 const SAVE_COOLDOWN_MS = 3000;
 const MAX_FILE_SIZE_MB = 50;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024; // Matches Supabase bucket limit
 
 // ─── RUT helpers ──────────────────────────────────────────────────────────────
 
@@ -387,12 +389,6 @@ function parseSavedDraft(raw: string): FormState | null {
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function timeAgo(ts: number): string {
   const diffMs = Date.now() - ts;
   const mins = Math.floor(diffMs / 60000);
@@ -402,13 +398,9 @@ function timeAgo(ts: number): string {
 }
 
 function humanizeDbError(msg: string): string {
-  if (msg.includes("duplicate key") || msg.includes("unique constraint"))
-    return "Ya existe un acta con ese número de sesión para este establecimiento.";
-  if (msg.includes("check constraint"))
-    return "El acta no cumple los requisitos mínimos (por ejemplo, falta el documento adjunto).";
-  if (msg.includes("foreign key"))
-    return "El establecimiento o la programación referenciada no existe.";
-  return "Ocurrió un error inesperado. Intenta de nuevo.";
+  //usa el nuevo sistema centralizado de clasificación de errores
+  const error = ClasificarError({ message: msg });
+  return error.message;
 }
 
 // ─── Primitive form field components ─────────────────────────────────────────
@@ -1104,11 +1096,16 @@ export function ActaForm({
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrors((prev) => ({ ...prev, link_acta: `El archivo supera el tamaño máximo de ${MAX_FILE_SIZE_MB} MB.` }));
+    
+    //validación mejorada con clasificación de errores
+    const validation = validarArchivoAntesDeSubir(file);
+    if (!validation.ok && validation.error) {
+      setErrors((prev) => ({ ...prev, link_acta: validation.error!.message }));
+      toast(validation.error.message, "error");
       setUploadStatus("idle");
       return;
     }
+
     pendingFile.current = file;
     setSaveError(null);
     setErrors((prev) => ({ ...prev, link_acta: undefined }));
@@ -1120,12 +1117,17 @@ export function ActaForm({
   function handleFileInput(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrors((prev) => ({ ...prev, link_acta: `El archivo supera el tamaño máximo de ${MAX_FILE_SIZE_MB} MB.` }));
+    
+    //validación mejorada con clasificación de errores
+    const validation = validarArchivoAntesDeSubir(file);
+    if (!validation.ok && validation.error) {
+      setErrors((prev) => ({ ...prev, link_acta: validation.error!.message }));
+      toast(validation.error.message, "error");
       setUploadStatus("idle");
       e.target.value = "";
       return;
     }
+
     pendingFile.current = file;
     setSaveError(null);
     setErrors((prev) => ({ ...prev, link_acta: undefined }));

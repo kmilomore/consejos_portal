@@ -1,0 +1,64 @@
+#docker Compose para desarrollo + produccion
+version: "3.9"
+
+services:
+  #portal Consejos Escolares
+  portal-consejos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: portal-consejos
+    #en DESARROLLO se expone puerto 9901
+    #PRODUCCIÓN: cambiar a "127.0.0.1:8080:80" solo localhost, Nginx lo publica
+    ports:
+      - "9901:80"
+    environment:
+      #variables publicas de Next.js
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Portal Consejos Escolares}
+      # Opcional para sitio en producción
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:9901}
+    # env_file: .env.production  # Descomentar en producción
+    #health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    #reinicia si falla
+    restart: unless-stopped
+    #logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    #sin volumenes es estatico, no necesita persistenci
+    #pero si quieres debug: descomentar logs
+    #volumes:
+    #   - ./tmp:/tmp  # Para debug
+
+  #Proxy reverso Nginx con SSL PRODUCCION
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-portal
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro 
+    depends_on:
+      - portal-consejos
+    environment:
+      - NGINX_PORT=80
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    profiles:
+      - production
