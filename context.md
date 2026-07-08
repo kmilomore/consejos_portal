@@ -447,7 +447,9 @@ Ruta 5 — mejorar permisos o acceso por correo:
 | `NEXT_PUBLIC_APP_NAME` | Nombre de app para metadata |
 | `NEXT_PUBLIC_SITE_URL` | URL base para construir el redirect del magic link |
 
-> `.env.example` es solo plantilla. El build toma `.env.local` o variables del pipeline. Un build sin `NEXT_PUBLIC_SITE_URL` construirá el redirect desde `window.location.origin` en cliente.
+> `.env.example` es solo plantilla. El build toma `.env.local` o variables del pipeline — y **`.env.local` tiene prioridad sobre `.env`** (orden de Next.js). Un build sin `NEXT_PUBLIC_SITE_URL` construirá el redirect desde `window.location.origin` en cliente.
+
+> **Lección del incidente 2026-07-08 (ver Avance 21):** las variables `NEXT_PUBLIC_*` quedan horneadas como literales dentro de los chunks JS al compilar. Cambiar el `.env` local NO afecta un build ya desplegado; y un typo en el entorno de build (caso real: `supabase.com` en vez de `.co` en el servidor) viaja invisible dentro del bundle. Ante fallas inexplicables en producción, verificar los literales del bundle desplegado (`grep` sobre `/_next/static/chunks/`) contra el repo.
 
 ---
 
@@ -1020,7 +1022,7 @@ Auditoría directa contra el proyecto Supabase (`csxgnabxblkqkgpxcpyw`) vía Man
 - Las 4 políticas de storage de `evidencias_actas` coinciden con la migración definitiva `20260619`
 - Trigger de auditoría `portal_access_audit_trigger` activo sobre `usuario_establecimiento_roles`
 - Lista blanca cargada: 69 filas `DIRECTOR` activas (una por establecimiento, 69 establecimientos), 4 representantes cubren las 69 escuelas, 0 correos malformados
-- Supabase Auth: `disable_signup: false` + Google OAuth habilitado → el "registro" de directores ocurre automáticamente en el primer login (lógica *whitelist primero, registro automático después* validada de punta a punta); redirect `https://consejos.colchaguaparticipa.app/auth/login/` en la allow-list
+- Supabase Auth: `disable_signup: false` + Google OAuth habilitado → el "registro" de directores ocurre automáticamente en el primer login (lógica *whitelist primero, registro automático después* validada de punta a punta); redirect `https://consejos.colchaguaparticipa.app/auth/login/` en la allow-list *(verificado 2026-07-08: la allow-list ya incluye también `https://consejos.slepcolchagua.gob.cl/auth/login/` y `/`; el `site_url` del proyecto sigue siendo `https://www.colchaguaparticipa.app` — fallback cuando un redirect no está listado)*
 - Los 4 usuarios de Auth sin rol en Consejos no ven ningún dato (deny by default verificado)
 
 **Hallazgos cerrados ese mismo día** (migración `20260702_consejos_close_anon_actas_and_base_escuelas_write.sql`, aplicada en producción):
@@ -1496,10 +1498,11 @@ $$;
 
 ### Riesgos técnicos
 
-- Configuración de Supabase Auth apuntando a dominio antiguo
+- `site_url` de Supabase Auth sigue apuntando a `https://www.colchaguaparticipa.app` (la allow-list ya incluye el dominio nuevo; el `site_url` solo actúa como fallback de redirects no listados)
 - Desalineación entre datos reales y columnas inferidas de la base maestra
 - Dependencia total del navegador para auth y fetch (export estático)
-- Builds viejos cacheados en producción si las variables cambian
+- Builds viejos o compilados con variables erróneas en producción — **riesgo materializado el 2026-07-08** (typo `supabase.com` horneado en el bundle del servidor; ver Avance 21)
+- El `.env.local` del servidor gob.cl se rellena a mano (flujo `arrancar.sh` copia `.env.docker` → `.env.local`) — sin validación automática del valor de `NEXT_PUBLIC_SUPABASE_URL`
 - Bucket `actas` sin política → cualquier usuario autenticado puede escribir en cualquier path
 
 ### Restricciones operativas
@@ -1512,8 +1515,8 @@ $$;
 
 ## 18. Checklist Operativo para Continuar
 
-1. Confirmar `NEXT_PUBLIC_SITE_URL` con el dominio real del portal.
-2. Verificar en Supabase Auth: `Site URL` y `Redirect URLs`.
+1. ~~Confirmar `NEXT_PUBLIC_SITE_URL` con el dominio real del portal.~~ **Hecho 2026-07-08:** `https://consejos.slepcolchagua.gob.cl` en `.env` y `.env.local` locales; falta corregir el `.env.local` del servidor (typo `supabase.com`, ver Avance 21).
+2. ~~Verificar en Supabase Auth: `Site URL` y `Redirect URLs`.~~ **Verificado 2026-07-08:** allow-list incluye el dominio nuevo; `site_url` sigue en `www.colchaguaparticipa.app` (fallback, coordinar con portal-participacion).
 3. Confirmar que usuarios institucionales existan en Supabase Auth.
 4. Confirmar que `BASE DE DATOS ESCUELAS SLEP` tenga RBD y correos útiles.
 5. Crear política del bucket `actas` (escritura autenticada por RBD, lectura pública).
@@ -1584,3 +1587,31 @@ Reglas aplicadas sistemáticamente:
 - **Gradientes** solo en heroes, covers y banners — nunca en cards ni panels.
 - **No bounce, spring, marquee ni parallax**. Las microanimaciones deben ser discretas (duración ≤ 300ms, ease natural).
 - Antes de agregar cualquier clase de color nueva, verificar contra `INSTRUCCIONES_DISENO.md` y `tailwind.config.ts`.
+
+---
+
+### Avance 21 — Cambio de dominio a consejos.slepcolchagua.gob.cl, incidente de login Google y sincronización con SLEP-Territorial (2026-07-08)
+
+#### Nuevo dominio y servidor de producción
+
+El portal migró de `consejos.colchaguaparticipa.app` a **`https://consejos.slepcolchagua.gob.cl`**, servido por **nginx/1.18.0** en infraestructura institucional del SLEP (administra Alex Salinas, `alex.salinas@slepcolchagua.cl`). El dominio antiguo sigue sirviendo el portal en paralelo. Implicancia directa: las cabeceras versionadas en `public/.htaccess` son de Apache y **nginx las ignora** — la configuración real vive en `nginx-prod.conf` (ver sección de seguridad).
+
+#### Incidente: login con Google roto tras el deploy del 2026-07-07
+
+- **Síntoma:** al pulsar "Ingresar con Google" el navegador mostraba `DNS_PROBE_FINISHED_NXDOMAIN` para `csxgnabxblkqkgpxcpyw.supabase.com`. Cero logins desde el deploy (el último exitoso fue 8 minutos después, probablemente por el dominio antiguo).
+- **Causa raíz:** el build desplegado se compiló con `NEXT_PUBLIC_SUPABASE_URL=https://csxgnabxblkqkgpxcpyw.supabase.com` — typo `.com` en vez de `.co` — en el `.env.local` del servidor (rellenado a mano desde la plantilla `.env.docker`). Como las variables `NEXT_PUBLIC_*` se hornean en los chunks al compilar, el typo quedó dentro de `out/_next/static/chunks/181-*.js` y ningún cambio de `.env` local podía arreglarlo sin recompilar.
+- **Método de diagnóstico (reutilizable):** (1) config de Auth y logs vía Management API — allowlist y proveedor Google estaban correctos; (2) `edge_logs` mostró tráfico REST pero cero peticiones `/auth/v1/` → el fallo era client-side, previo a Supabase; (3) reproducción real con navegador headless (puppeteer-core + Edge instalado) capturando la navegación del clic → reveló la URL con typo; (4) `grep` del literal sobre los chunks desplegados lo confirmó.
+- **Falsas pistas descartadas:** allowlist de redirects (ya incluía el dominio nuevo), cliente OAuth de Google (aceptaba el flujo), CSP (nginx solo enviaba `upgrade-insecure-requests`), código de `signInWithGoogle`/callback (correcto e idéntico al que funcionaba).
+- **Resolución:** rebuild desde el repo con variables correctas; `out/` regenerado y verificado sin el typo. Pendiente del lado servidor: corregir el `.env.local` de la máquina gob.cl para que futuros builds ahí no reintroduzcan el error.
+
+#### Sincronización de repositorios y flujo de trabajo con SLEP
+
+- El remoto `origin` hace fetch de `kmilomore/consejos_portal` pero **empuja a dos repos a la vez**: `kmilomore/consejos_portal` y `SLEP-Territorial/Portalconsejos` (doble `pushurl`). Existe además el remoto `slep` (solo SLEP-Territorial). Un `git pull` corriente NO trae los cambios de SLEP-Territorial — para integrarlos: `git fetch slep && git merge slep/main`.
+- Se integró el commit `c3077a1` de Alex Salinas (2026-07-06): infraestructura de deploy (`Dockerfile`, `docker-compose.yml`, `docker-compose.production.yml`, `nginx.conf`, `nginx-prod.conf`, `arrancar.sh`/`arrancar.bat`, `.dockerignore`, `.env.docker`) y **manejo centralizado de errores** (`lib/error-handling.ts` con `ClasificarError`/`withTimeout`/`logPortalError`, `lib/file-upload-errors.ts`), que reemplaza la normalización de mensajes de `lib/auth/context.tsx` y agrega reintentos con timeout al bootstrap de acceso. Merge limpio, build verificado.
+- Desde el commit `711d6c6` la carpeta **`out/` está versionada** (se quitó de `.gitignore`): el build de producción viaja con el repo y el servidor puede servirla directamente tras un pull.
+
+#### Pendientes que deja este avance
+
+1. Corregir `NEXT_PUBLIC_SUPABASE_URL` en el `.env.local` del servidor gob.cl y redesplegar (o servir el `out/` versionado ya corregido).
+2. Alinear la CSP de `nginx-prod.conf` (permite `unsafe-eval`, `cdn.jsdelivr.net`, Google Fonts, `img-src https:`) con la política estricta de `public/.htaccess` / `docs/seguridad.md`.
+3. Evaluar actualizar el `site_url` de Supabase Auth (hoy `https://www.colchaguaparticipa.app`) en coordinación con portal-participacion, que comparte el proyecto.

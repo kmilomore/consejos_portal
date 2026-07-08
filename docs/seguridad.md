@@ -230,6 +230,18 @@ El archivo replica las cabeceras que ya servia produccion (HSTS con preload, `X-
 
 **Invariante:** si se agrega un recurso externo embebido (analitica, fuentes remotas, iframes de video, avatares de Google), la CSP de `public/.htaccess` debe ampliarse en el mismo cambio; de lo contrario el recurso sera bloqueado silenciosamente.
 
+### Actualizacion 2026-07-08: produccion es nginx, no Apache
+
+El portal migro a `https://consejos.slepcolchagua.gob.cl`, servido por **nginx/1.18.0** — que **ignora `public/.htaccess`**. Verificado en vivo: el servidor nuevo solo envia `Content-Security-Policy: upgrade-insecure-requests`, es decir la CSP estricta de arriba NO esta activa en produccion.
+
+La configuracion real del servidor esta versionada en `nginx-prod.conf` (integrado desde SLEP-Territorial, commit `c3077a1`). Sus cabeceras incluyen una CSP propia pero **mas laxa** que la del `.htaccess`:
+
+- permite `'unsafe-eval'` en `script-src` (el export estatico de Next no lo necesita)
+- permite `https://cdn.jsdelivr.net`, `https://fonts.googleapis.com` y `https://fonts.gstatic.com` (la app no usa CDN externos; las fuentes MuseoSans son locales)
+- `img-src 'self' data: https:` (cualquier imagen externa https; el `.htaccess` solo permite `data:`/`blob:` locales)
+
+**Pendiente:** alinear la CSP de `nginx-prod.conf` con la politica estricta del `.htaccess`, en coordinacion con Alex Salinas (administrador del servidor). El `.htaccess` queda como referencia canonica de la politica deseada mientras tanto.
+
 ---
 
 ## 10. Estado verificado en produccion (auditoria en vivo 2026-07-02)
@@ -253,7 +265,8 @@ Auditoria directa contra el proyecto Supabase via Management API (detalle del me
 - **validar los 69 correos de la lista blanca de directores** contra sus cuentas Google reales (caso detectado: `ximena.lopez` en la lista vs `ximena.pino` en Auth para el mismo RBD)
 - ejecutar el plan de corte del sync con la planilla maestra (`context.md` §9.x)
 - revisar configuracion real de CORS en Supabase y hosting
-- verificar tras el proximo deploy que Apache honra `public/.htaccess` (CSP presente en las respuestas) y que ningun recurso legitimo queda bloqueado
+- **la CSP estricta no esta activa en produccion**: el servidor nuevo (nginx, `consejos.slepcolchagua.gob.cl`) ignora `public/.htaccess` y la CSP de `nginx-prod.conf` es mas laxa (`unsafe-eval`, jsdelivr, Google Fonts, `img-src https:`) — alinearla con la politica del `.htaccess` (ver seccion 9)
+- el `.env.local` del servidor gob.cl se rellena a mano — un typo en `NEXT_PUBLIC_SUPABASE_URL` rompio el login el 2026-07-07/08 (`supabase.com` en vez de `.co`, horneado en el bundle); validar los literales del bundle desplegado tras cada build del servidor (detalle en `context.md` Avance 21)
 
 ---
 
