@@ -23,7 +23,6 @@ import {
   Megaphone,
   Menu,
   MessagesSquare,
-  PlayCircle,
   Scale,
   School,
   UserCog,
@@ -99,7 +98,7 @@ const INTEGRANTES = [
   {
     icon: Landmark,
     title: "Representante del sostenedor",
-    description: "En la educación pública, designado por el Servicio Local de Educación Pública.",
+    description: "En la educación pública es designado por el Director Ejecutivo del SLEP.",
   },
   {
     icon: GraduationCap,
@@ -129,12 +128,13 @@ const MATERIAS_INFORMADAS = [
   "Resultados de los concursos para cargos docentes y directivos.",
   "Presupuesto anual e informe de ingresos y gastos del establecimiento.",
   "Enfoque y metas de gestión del equipo directivo.",
+  "Otras materias relacionadas con la gestión educativa del establecimiento.",
 ];
 
 const MATERIAS_CONSULTADAS = [
   "Proyecto Educativo Institucional (PEI) y sus modificaciones.",
   "Plan de Mejoramiento Educativo (PME) y sus metas.",
-  "Programación anual y actividades extracurriculares.",
+  "Calendario Escolar y actividades extracurriculares.",
   "Informe de gestión educativa anual antes de la cuenta pública.",
   "Elaboración y modificación del Reglamento Interno.",
 ];
@@ -150,7 +150,7 @@ const NORMATIVA = [
     icon: FileText,
     title: "Decreto N° 24 (2005), Mineduc",
     description: "Reglamenta la constitución y el funcionamiento de los Consejos Escolares. Modificado en 2016 tras la Ley de Inclusión.",
-    href: "https://www.bcn.cl/leychile/navegar?idNorma=235379",
+    href: "https://www.bcn.cl/leychile/navegar?idNorma=236237",
   },
   {
     icon: Scale,
@@ -169,6 +169,20 @@ const NORMATIVA = [
     title: "Ley N° 21.040 — Nueva Educación Pública",
     description: "Crea los Servicios Locales de Educación Pública y refuerza la participación local.",
     href: "https://www.bcn.cl/leychile/navegar?idNorma=1111237",
+  },
+  {
+    icon: Scale,
+    title: "Ley N° 21.809 — Convivencia, buen trato y bienestar",
+    description:
+      "Sobre convivencia, buen trato y bienestar de las comunidades educativas, con el objetivo de prevenir y erradicar el acoso escolar, la discriminación y todo tipo de violencia en los establecimientos educacionales.",
+    href: "https://www.bcn.cl/leychile/navegar?idNorma=1222799&idParte=10589767",
+  },
+  {
+    icon: Scale,
+    title: "Ley N° 21.819 — Fortalecimiento de la Educación Pública",
+    description:
+      "Modifica la Ley N° 21.040 y otros cuerpos legales, fortaleciendo la gestión educativa y mejorando las normas sobre administración e instalación del Sistema de Educación Pública.",
+    href: "https://www.bcn.cl/leychile/navegar?idNorma=1224471",
   },
 ];
 
@@ -216,23 +230,10 @@ const SITIOS_OFICIALES = [
   },
 ];
 
-const VIDEOS = [
-  {
-    title: "¿Qué es el Consejo Escolar?",
-    caption: "Introducción al rol y sentido del consejo",
-    href: "https://www.youtube.com/results?search_query=qu%C3%A9+es+el+consejo+escolar+mineduc",
-  },
-  {
-    title: "Participación de la comunidad educativa",
-    caption: "La Ley de Inclusión y los espacios de participación",
-    href: "https://www.youtube.com/results?search_query=participaci%C3%B3n+comunidad+educativa+consejo+escolar",
-  },
-  {
-    title: "Cómo realizar una sesión efectiva",
-    caption: "Buenas prácticas para convocar, sesionar y acordar",
-    href: "https://www.youtube.com/results?search_query=consejo+escolar+sesi%C3%B3n+buenas+pr%C3%A1cticas",
-  },
-];
+const VIDEO_EMBED = {
+  title: "¿Qué es el Consejo Escolar?",
+  src: "https://www.youtube.com/embed/nJX3T2pVN1E",
+};
 
 const PORTAL_FEATURES = [
   {
@@ -334,7 +335,7 @@ function ConsentBanner() {
           </div>
         </div>
         <div className="px-6 py-5 md:px-8 md:py-6">
-          <p className="text-sm font-medium leading-[1.65] text-neutral-700 md:text-[15px]">
+          <p className="text-justify text-sm font-medium leading-[1.65] text-neutral-700 md:text-[15px]">
             Este sitio informa el tratamiento de datos personales y el uso de almacenamiento técnico necesario para el
             acceso al portal institucional. Para continuar navegando, debes revisar y aceptar nuestra{" "}
             <Link className="font-bold text-royal-600 hover:text-royal-700 hover:underline" href="/privacidad/">
@@ -346,7 +347,7 @@ function ConsentBanner() {
             </Link>
             .
           </p>
-          <p className="mt-3 text-sm font-medium leading-[1.65] text-neutral-600">
+          <p className="mt-3 text-justify text-sm font-medium leading-[1.65] text-neutral-600">
             La aceptación permite recordar esta preferencia en tu navegador mediante almacenamiento local técnico
             mínimo.
           </p>
@@ -492,11 +493,11 @@ function Hero() {
         <div>
           <Eyebrow onDark>Participación · Comunidad educativa</Eyebrow>
           <h1 className="mt-3.5 max-w-[620px] font-display text-4xl font-black leading-[1.05] tracking-[-0.025em] text-white md:text-[52px]">
-            El Consejo Escolar es la voz de toda la comunidad educativa
+            El Consejo Escolar / Parvulario es la voz de toda la comunidad educativa
           </h1>
-          <p className="mt-4 max-w-[560px] text-base font-medium leading-[1.55] text-neutral-100/90 md:text-[17px]">
+          <p className="mt-4 max-w-[560px] text-justify text-base font-medium leading-[1.55] text-neutral-100/90 md:text-[17px]">
             Es la instancia donde estudiantes, familias, docentes, asistentes de la educación y dirección se informan,
-            opinan y proponen sobre la marcha de su escuela o liceo. Conoce qué es, cómo funciona y accede al portal de
+            opinan y proponen sobre la marcha de su Sala Cuna, Jardín, Ascuela o Liceo. Conoce qué es, cómo funciona y accede al portal de
             gestión de los consejos escolares del territorio de Colchagua.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
@@ -527,10 +528,12 @@ function SectionHead({
   eyebrow,
   title,
   subtitle,
+  wideSubtitle = false,
 }: {
   eyebrow: string;
   title: string;
   subtitle?: string;
+  wideSubtitle?: boolean;
 }) {
   return (
     <div className="mb-8">
@@ -539,7 +542,13 @@ function SectionHead({
         {title}
       </h2>
       {subtitle && (
-        <p className="mt-2.5 max-w-[640px] text-[15px] font-medium leading-[1.55] text-neutral-600">{subtitle}</p>
+        <p
+          className={`mt-2.5 text-justify text-[15px] font-medium leading-[1.55] text-neutral-600 ${
+            wideSubtitle ? "" : "max-w-[640px]"
+          }`}
+        >
+          {subtitle}
+        </p>
       )}
     </div>
   );
@@ -553,11 +562,11 @@ function QueEsSection() {
           <div>
             <SectionHead
               eyebrow="¿Qué es?"
-              title="Un espacio de participación en cada escuela y liceo"
+              title="Un espacio de participación en cada Sala Cuna, Jardín, Escuela y Liceo"
             />
-            <div className="space-y-4 text-base font-medium leading-[1.65] text-neutral-700">
+            <div className="space-y-4 text-justify text-base font-medium leading-[1.65] text-neutral-700">
               <p>
-                El <strong className="text-navy-500">Consejo Escolar</strong> es el órgano de participación de la
+                El <strong className="text-navy-500">Consejo Escolar / Parvulario</strong> es el órgano de participación de la
                 comunidad educativa. Existe por ley en todos los establecimientos educacionales del país que reciben
                 aportes del Estado, y reúne en una misma mesa a la dirección, el sostenedor, las y los docentes, los
                 asistentes de la educación, las y los estudiantes y sus familias.
@@ -587,7 +596,7 @@ function QueEsSection() {
                     Carácter
                   </span>
                 </div>
-                <p className="mt-2 text-[13.5px] font-medium leading-normal text-neutral-600">{item.description}</p>
+                <p className="mt-2 text-justify text-[13.5px] font-medium leading-normal text-neutral-600">{item.description}</p>
               </div>
             ))}
           </div>
@@ -603,8 +612,8 @@ function IntegrantesSection() {
       <div className="mx-auto max-w-[1400px] px-5 py-16 md:px-8 lg:py-20">
         <SectionHead
           eyebrow="Integrantes"
-          title="¿Quiénes forman el Consejo Escolar?"
-          subtitle="Cada estamento de la comunidad educativa tiene un asiento en el consejo. El establecimiento puede sumar otros integrantes según su realidad."
+          title="¿Quiénes forman el Consejo Escolar / Parvulario?"
+          subtitle="Cada estamento de la comunidad educativa tiene una representatividad en el consejo. El establecimiento puede sumar otros integrantes según su realidad."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {INTEGRANTES.map((member) => (
@@ -614,7 +623,7 @@ function IntegrantesSection() {
               </div>
               <div>
                 <h3 className="text-[15px] font-black text-navy-500">{member.title}</h3>
-                <p className="mt-1 text-[13px] font-medium leading-normal text-neutral-600">{member.description}</p>
+                <p className="mt-1 text-justify text-[13px] font-medium leading-normal text-neutral-600">{member.description}</p>
               </div>
             </div>
           ))}
@@ -642,7 +651,7 @@ function FuncionesSection() {
             </div>
             <ul className="mt-5 space-y-3.5">
               {MATERIAS_INFORMADAS.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-[14.5px] font-medium leading-normal text-neutral-700">
+                <li key={item} className="flex items-start gap-3 text-justify text-[14.5px] font-medium leading-normal text-neutral-700">
                   <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-royal-500" aria-hidden="true" />
                   {item}
                 </li>
@@ -657,7 +666,7 @@ function FuncionesSection() {
             </div>
             <ul className="mt-5 space-y-3.5">
               {MATERIAS_CONSULTADAS.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-[14.5px] font-medium leading-normal text-neutral-700">
+                <li key={item} className="flex items-start gap-3 text-justify text-[14.5px] font-medium leading-normal text-neutral-700">
                   <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-coral-600" aria-hidden="true" />
                   {item}
                 </li>
@@ -676,7 +685,7 @@ function NormativaSection() {
       <div className="mx-auto max-w-[1400px] px-5 py-16 md:px-8 lg:py-20">
         <SectionHead
           eyebrow="Normativa"
-          title="Marco legal de los Consejos Escolares"
+          title="Marco legal de los Consejos Escolares / Parvularios"
           subtitle="Textos oficiales publicados en Ley Chile, de la Biblioteca del Congreso Nacional."
         />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -693,7 +702,7 @@ function NormativaSection() {
               </div>
               <div>
                 <h3 className="text-[15px] font-black text-navy-500">{norm.title}</h3>
-                <p className="mt-0.5 text-[12.5px] font-medium leading-normal text-neutral-600">{norm.description}</p>
+                <p className="mt-0.5 text-justify text-[12.5px] font-medium leading-normal text-neutral-600">{norm.description}</p>
               </div>
               <ExternalLink className="h-[18px] w-[18px] text-neutral-400 transition group-hover:text-royal-500" aria-hidden="true" />
             </a>
@@ -720,7 +729,7 @@ function RecursosSection() {
                 <item.icon className="h-[22px] w-[22px]" aria-hidden="true" />
               </div>
               <h3 className="mt-4 text-lg font-black text-navy-500">{item.title}</h3>
-              <p className="mt-2 text-[13.5px] font-medium leading-normal text-neutral-600">{item.description}</p>
+              <p className="mt-2 text-justify text-[13.5px] font-medium leading-normal text-neutral-600">{item.description}</p>
             </div>
           ))}
         </div>
@@ -758,33 +767,18 @@ function VideosSection() {
         <SectionHead
           eyebrow="Videos"
           title="Material audiovisual"
-          subtitle="Selección de material de referencia para conocer y fortalecer el trabajo de los consejos escolares."
+          subtitle="Selección de material de referencia para conocer y fortalecer el trabajo de los consejos escolares / parvularios."
+          wideSubtitle
         />
-        <div className="grid gap-5 md:grid-cols-3">
-          {VIDEOS.map((video) => (
-            <a
-              key={video.title}
-              href={video.href}
-              target="_blank"
-              rel="noreferrer"
-              className="group overflow-hidden rounded-card border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-px hover:shadow-md"
-            >
-              <div className="flex aspect-video items-center justify-center bg-gradient-to-br from-navy-100 to-royal-200">
-                <PlayCircle
-                  className="h-14 w-14 text-navy-500/80 transition group-hover:scale-105 group-hover:text-navy-500"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="text-base font-black leading-snug text-navy-500">{video.title}</h3>
-                <p className="mt-1.5 text-[13px] font-medium text-neutral-600">{video.caption}</p>
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold text-royal-500 group-hover:text-royal-700">
-                  Ver en YouTube
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                </span>
-              </div>
-            </a>
-          ))}
+        <div className="mx-auto max-w-4xl overflow-hidden rounded-card border border-neutral-200 bg-white shadow-sm">
+          <iframe
+            src={VIDEO_EMBED.src}
+            title={VIDEO_EMBED.title}
+            className="aspect-video w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
         </div>
       </div>
     </section>
@@ -804,9 +798,9 @@ function PortalSection() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/85">Portal Consejos Escolares</p>
               <h2 className="mt-3 font-display text-3xl font-black leading-[1.1] tracking-[-0.02em] text-white md:text-4xl">
-                La gestión de tu consejo escolar, en un solo lugar
+                La gestión de tu consejo escolar / parvulario, en un solo lugar
               </h2>
-              <p className="mt-4 max-w-[520px] text-[15px] font-medium leading-[1.6] text-neutral-100/90">
+              <p className="mt-4 max-w-[520px] text-justify text-[15px] font-medium leading-[1.6] text-neutral-100/90">
                 Los equipos directivos y profesionales del SLEP Colchagua gestionan aquí la programación anual, las
                 actas y el seguimiento de los consejos escolares de cada establecimiento del territorio.
               </p>
@@ -822,7 +816,7 @@ function PortalSection() {
                 <div key={feature.title} className="rounded-card border border-white/[0.18] bg-white/[0.07] p-5">
                   <feature.icon className="h-6 w-6 text-white" aria-hidden="true" />
                   <h3 className="mt-3 text-[15px] font-black text-white">{feature.title}</h3>
-                  <p className="mt-1 text-[12.5px] font-medium leading-normal text-neutral-100/85">{feature.description}</p>
+                  <p className="mt-1 text-justify text-[12.5px] font-medium leading-normal text-neutral-100/85">{feature.description}</p>
                 </div>
               ))}
             </div>
@@ -905,7 +899,10 @@ export function LandingFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-5 py-4 text-xs text-neutral-100/70 md:px-8">
-          <div>© 2026 SLEP Colchagua · Ley 21.040 de Nueva Educación Pública</div>
+          <div>
+            © 2026 SLEP Colchagua · Ley 21.040 de Nueva Educación Pública · Sitio desarrollado por la Subdirección de
+            Gestión Territorial
+          </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {LEGAL_LINKS.map((link) => (
               <Link key={link.href} className="text-inherit hover:text-white" href={link.href}>

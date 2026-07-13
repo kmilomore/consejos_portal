@@ -41,11 +41,11 @@ export function LegalPage({
           <h1 className="font-display text-3xl font-black leading-[1.08] tracking-[-0.025em] text-navy-500 md:text-[40px]">
             {title}
           </h1>
-          <p className="mt-3.5 text-[17px] font-medium leading-normal text-neutral-700">{lede}</p>
+          <p className="mt-3.5 text-justify text-[17px] font-medium leading-normal text-neutral-700">{lede}</p>
           <p className="mt-4 border-b border-neutral-200 pb-6 text-[13px] font-medium text-neutral-500">
             Última actualización: {updatedAt}
           </p>
-          <div className="legal-article mt-6">{children}</div>
+          <div className="legal-article mt-6 text-justify">{children}</div>
         </article>
       </main>
       <LandingFooter />
