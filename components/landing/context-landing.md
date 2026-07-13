@@ -1,6 +1,6 @@
 # Contexto del Módulo: Landing Pública y Páginas Legales
 
-> **Última actualización:** 2026-07-02
+> **Última actualización:** 2026-07-13
 > **Alcance:** landing pública en `/`, páginas legales (`/terminos/`, `/privacidad/`, `/cookies/`) y su integración con el guard de rutas del portal.
 > **Documentos relacionados:** `context.md` (raíz), `docs/contexto-general.md`, `docs/seguridad.md`, `docs/README.md`.
 
@@ -43,7 +43,7 @@ Es contenido **100% estático e informativo**: no consulta Supabase y no requier
 
 | Archivo | Rol |
 |---|---|
-| `components/landing/landing-page.tsx` | Componente principal. Exporta `LandingPage`, `LandingHeader` y `LandingFooter`. También contiene la modal de consentimiento legal/cookies (`ConsentBanner`) y todo el contenido vive en arrays de datos al inicio del archivo (`NAV_LINKS`, `HERO_STATS`, `CARACTER`, `INTEGRANTES`, `MATERIAS_INFORMADAS/CONSULTADAS`, `NORMATIVA`, `ORIENTACIONES`, `SITIOS_OFICIALES`, `VIDEOS`, `PORTAL_FEATURES`, `LEGAL_LINKS`). |
+| `components/landing/landing-page.tsx` | Componente principal. Exporta `LandingPage`, `LandingHeader` y `LandingFooter`. También contiene la modal de consentimiento legal/cookies (`ConsentBanner`) y todo el contenido vive en arrays de datos al inicio del archivo (`NAV_LINKS`, `HERO_STATS`, `CARACTER`, `INTEGRANTES`, `MATERIAS_INFORMADAS/CONSULTADAS`, `NORMATIVA`, `ORIENTACIONES`, `SITIOS_OFICIALES`, `VIDEO_EMBED`, `PORTAL_FEATURES`, `LEGAL_LINKS`). |
 | `components/landing/legal-page.tsx` | Layout compartido de páginas legales: header/footer de la landing + tarjeta artículo (patrón DS 5.12) con miga de pan, título, bajada y fecha de actualización. |
 | `app/page.tsx` | Monta `LandingPage`. |
 | `app/terminos/page.tsx`, `app/privacidad/page.tsx`, `app/cookies/page.tsx` | Contenido legal como server components con `metadata` propia, envueltos en `LegalPage`. |
@@ -60,12 +60,12 @@ Secciones en orden, con sus anchors:
 3. **Hero** (`bg-grad-hero` + anillo coral decorativo): H1, bajada, CTAs y 4 stats.
 4. `#que-es` — qué es un consejo escolar + 4 tarjetas de carácter (informativo / consultivo / propositivo / resolutivo).
 5. `#integrantes` — 6 estamentos (director, sostenedor, docente, asistente de la educación, estudiantes, apoderados).
-6. `#funciones` — dos columnas: materias informadas / materias consultadas.
-7. `#normativa` — enlaces a Ley Chile (BCN): Ley 19.979, Decreto 24/2005, Ley 20.845, LGE 20.370, Ley 21.040.
+6. `#funciones` — dos columnas: materias informadas (6 ítems, incluye la cláusula abierta "otras materias relacionadas con la gestión educativa") / materias consultadas.
+7. `#normativa` — enlaces a Ley Chile (BCN): Ley 19.979, Decreto 24/2005 (`idNorma=236237`), Ley 20.845, LGE 20.370, Ley 21.040, **Ley 21.809** (convivencia, buen trato y bienestar) y **Ley 21.819** (fortalece la gestión de la educación pública, modifica la 21.040).
 8. `#recursos` — orientaciones prácticas + sitios oficiales (Mineduc, Supereduc, Agencia de Calidad, BCN).
-9. `#videos` — 3 tarjetas de material audiovisual (ver pendientes).
+9. `#videos` — un único video institucional incrustado vía `<iframe>` de YouTube (`VIDEO_EMBED`, `youtube.com/embed/nJX3T2pVN1E`); reemplazó a las 3 tarjetas que enlazaban búsquedas.
 10. `#portal` — banda `bg-grad-deep-blue` con las 4 funcionalidades del portal y CTA de acceso.
-11. **Footer** navy-700 con navegación, instituciones, acceso al portal y enlaces legales en la barra inferior.
+11. **Footer** navy-700 con navegación, instituciones, acceso al portal y enlaces legales en la barra inferior, que incluye el crédito "Sitio desarrollado por la Subdirección de Gestión Territorial".
 
 Los links del menú y footer usan anchors absolutos (`/#que-es`) para funcionar también desde las páginas legales.
 
@@ -105,13 +105,14 @@ No hay cookies propias de analítica o publicidad. Google establece cookies en s
 4. **Scroll:** los anchors usan `scroll-mt-36 md:scroll-mt-48` para compensar el masthead sticky; el scroll suave está scoped vía `html:has(#landing-root)` para no afectar al portal autenticado.
 5. Las páginas legales son las únicas que usan la clase `.legal-article`; su tipografía se define en `globals.css`, no inline.
 6. **Consentimiento explícito:** la modal legal es client-side y depende de `localStorage`; cualquier refactor del root de la landing debe preservar ese gate antes del contenido. Si cambia el texto o la mecánica del consentimiento, actualizar en el mismo cambio `/cookies/`, `/privacidad/` y este contexto.
+7. **Texto justificado (2026-07-13):** todos los bloques de texto corrido del sitio público usan `text-justify` — hero, subtítulos de `SectionHead`, descripciones de tarjetas (carácter, integrantes, normativa, orientaciones, features del portal), listas de funciones, modal de consentimiento y contenido legal (`legal-page.tsx`). Los textos de una línea (labels, stats, links) quedan alineados a la izquierda. Mantener esta convención al agregar contenido nuevo.
 
 ---
 
 ## 7. Pendientes del módulo
 
 - **Correo de contacto:** las tres páginas legales usan `contacto@slepcolchagua.cl` como canal para derechos ARCO y reporte de incidentes — **confirmar o reemplazar** por el canal oficial del SLEP.
-- **Videos:** las 3 tarjetas de `#videos` apuntan a búsquedas de YouTube; reemplazar por los videos institucionales definitivos (editar array `VIDEOS` en `landing-page.tsx`).
+- ~~**Videos:** reemplazar tarjetas por videos institucionales definitivos~~ — **resuelto el 2026-07-13**: se incrusta el video institucional oficial (`VIDEO_EMBED`).
 - **URL institucional:** la utility bar enlaza `https://www.slepcolchagua.cl/` — verificar que sea el dominio oficial vigente.
 - Revisar contenido legal con asesoría jurídica del servicio antes del despliegue público definitivo.
 - Cuando la Ley 21.719 entre en plena vigencia (diciembre 2026), revisar la política de privacidad (referencias a la Agencia de Protección de Datos).

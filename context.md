@@ -1615,3 +1615,15 @@ El portal migró de `consejos.colchaguaparticipa.app` a **`https://consejos.slep
 1. Corregir `NEXT_PUBLIC_SUPABASE_URL` en el `.env.local` del servidor gob.cl y redesplegar (o servir el `out/` versionado ya corregido).
 2. Alinear la CSP de `nginx-prod.conf` (permite `unsafe-eval`, `cdn.jsdelivr.net`, Google Fonts, `img-src https:`) con la política estricta de `public/.htaccess` / `docs/seguridad.md`.
 3. Evaluar actualizar el `site_url` de Supabase Auth (hoy `https://www.colchaguaparticipa.app`) en coordinación con portal-participacion, que comparte el proyecto.
+
+### Avance 22 — Actualización de contenidos de la landing: normativa 2026, video institucional y texto justificado (2026-07-13)
+
+Cambios de contenido y presentación en la landing pública (`components/landing/landing-page.tsx`) y páginas legales (`legal-page.tsx`), commit `21ad6d4`:
+
+1. **Marco legal (`#normativa`):** se agregaron la **Ley N° 21.809** (convivencia, buen trato y bienestar de las comunidades educativas — prevención del acoso escolar, la discriminación y la violencia) y la **Ley N° 21.819** (modifica la Ley 21.040, fortaleciendo la gestión educativa del Sistema de Educación Pública), ambas enlazadas a Ley Chile (BCN). Se corrigió el enlace del Decreto 24/2005 al texto real (`idNorma=236237`; antes apuntaba a `idNorma=235379`).
+2. **Funciones:** la card "Debe ser informado sobre" incorpora la cláusula abierta "Otras materias relacionadas con la gestión educativa del establecimiento" (6 ítems).
+3. **Material audiovisual (`#videos`):** las 3 tarjetas que enlazaban búsquedas de YouTube fueron reemplazadas por **un único video institucional incrustado** (`<iframe>` a `youtube.com/embed/nJX3T2pVN1E`, constante `VIDEO_EMBED`). Se eliminó el array `VIDEOS` y el import de `PlayCircle`.
+4. **Texto justificado:** todos los bloques de texto corrido del sitio público usan `text-justify` (hero, subtítulos de secciones, tarjetas, listas de funciones, modal de consentimiento y contenido legal). `SectionHead` ganó la prop `wideSubtitle` para subtítulos a ancho completo (usada en `#videos`).
+5. **Footer:** la barra inferior agrega el crédito "Sitio desarrollado por la Subdirección de Gestión Territorial".
+
+Detalle completo en `components/landing/context-landing.md`.
